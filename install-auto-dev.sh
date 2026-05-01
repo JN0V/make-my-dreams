@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # ============================================================================
-# install-auto-dev.sh — Self-contained installer for the BMAD Auto-Dev workflow
+# install-auto-dev.sh — Self-contained installer for the BMAD `adv` module
+#
+# Installs a local BMAD module (`adv` — Autonomous Development) under
+# `_bmad/adv/`, with `auto-dev` as its first workflow. Designed to be the
+# home for additional autonomous-development workflows over time.
 #
 # This script is AUTOPORTANT: it generates all files from embedded content.
-# It can be re-run safely at any time (idempotent).
+# It can be re-run safely at any time (idempotent), and migrates older
+# installs that placed the workflow under `_bmad/bmm/4-implementation/`.
 #
 # Usage:
 #   cd /path/to/target-project && bash install-auto-dev.sh
@@ -11,14 +16,20 @@
 #   bash install-auto-dev.sh /path/to/target-project
 #
 # Re-run to:
-#   - Update workflow files to latest version
+#   - Update module/workflow files to latest version
 #   - Pick up a newly created constitution
+#   - Migrate from previous (bmm-side-loaded) install layout
 #   - Repair a broken installation
 # ============================================================================
 
 set -euo pipefail
 
-INSTALLER_VERSION="3.0.0"
+INSTALLER_VERSION="4.0.0"
+
+# Module identity (single source of truth for paths/names)
+ADV_CODE="adv"
+ADV_NAME="BMad Autonomous Development"
+ADV_DESCRIPTION="Autonomous end-to-end development workflows (spec → review → implement → review)"
 
 # --- Colors & helpers -------------------------------------------------------
 RED='\033[0;31m'
@@ -40,11 +51,12 @@ TARGET="$(cd "$TARGET" && pwd)"
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║  BMAD Auto-Dev Workflow - Self-Contained Installer   ║"
+echo "║  BMAD \`adv\` Module - Self-Contained Installer        ║"
 echo "║  Version: ${INSTALLER_VERSION}                                      ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
 info "Target project : $TARGET"
+info "Module         : ${ADV_CODE} — ${ADV_NAME}"
 
 # ============================================================================
 # PHASE 1: Install/update BMAD
@@ -323,15 +335,40 @@ else
 fi
 
 # ============================================================================
-# PHASE 3: Generate workflow files
+# PHASE 3: Generate `adv` module files
 # ============================================================================
-header "Phase 3 — Generating auto-dev workflow files"
+header "Phase 3 — Generating \`${ADV_CODE}\` module files"
 
-# --- 3a. Generate workflow.md -----------------------------------------------
-WORKFLOW_DIR="$TARGET/_bmad/bmm/4-implementation/auto-dev"
+# Module layout (mirrors official BMAD module conventions):
+#   _bmad/adv/
+#     module.yaml
+#     workflows/
+#       auto-dev/
+#         workflow.md
+ADV_MODULE_DIR="$TARGET/_bmad/${ADV_CODE}"
+WORKFLOW_DIR="$ADV_MODULE_DIR/workflows/auto-dev"
 WORKFLOW_FILE="$WORKFLOW_DIR/workflow.md"
+MODULE_YAML="$ADV_MODULE_DIR/module.yaml"
 
 mkdir -p "$WORKFLOW_DIR"
+
+# --- 3a. Generate module.yaml -----------------------------------------------
+cat > "$MODULE_YAML" << MODULE_YAML_EOF
+code: ${ADV_CODE}
+name: "${ADV_NAME}"
+description: "${ADV_DESCRIPTION}"
+default_selected: false
+
+# This module is materialized locally by install-auto-dev.sh
+# (not yet published to the BMAD external module registry).
+#
+# Workflows live under workflows/<name>/workflow.md
+# Add new autonomous-development workflows alongside auto-dev.
+MODULE_YAML_EOF
+
+ok "Generated: _bmad/${ADV_CODE}/module.yaml"
+
+# --- 3b. Generate workflow.md -----------------------------------------------
 
 # Write the workflow with resolved paths already embedded
 cat > "$WORKFLOW_FILE" << WORKFLOW_EOF
@@ -874,21 +911,21 @@ When all 4 phases are done, report:
 - **Partial completion:** If interrupted, report what was completed and what remains
 WORKFLOW_EOF
 
-ok "Generated: _bmad/bmm/4-implementation/auto-dev/workflow.md"
+ok "Generated: _bmad/${ADV_CODE}/workflows/auto-dev/workflow.md"
 
-# --- 3b. Generate command file ----------------------------------------------
-COMMAND_FILE="$TARGET/.claude/commands/bmad-bmm-auto-dev.md"
+# --- 3c. Generate command file ----------------------------------------------
+COMMAND_FILE="$TARGET/.claude/commands/bmad-${ADV_CODE}-auto-dev.md"
 
-cat > "$COMMAND_FILE" << 'COMMAND_EOF'
+cat > "$COMMAND_FILE" << COMMAND_EOF
 ---
 name: 'auto-dev'
 description: 'Automated end-to-end pipeline: quick-dev spec + party mode → adversarial spec review loop → quick-dev implementation → adversarial code review loop. Fully autonomous with progress reporting.'
 ---
 
-IT IS CRITICAL THAT YOU FOLLOW THIS COMMAND: LOAD the FULL @{project-root}/_bmad/bmm/4-implementation/auto-dev/workflow.md, READ its entire contents and follow its directions exactly!
+IT IS CRITICAL THAT YOU FOLLOW THIS COMMAND: LOAD the FULL @{project-root}/_bmad/${ADV_CODE}/workflows/auto-dev/workflow.md, READ its entire contents and follow its directions exactly!
 COMMAND_EOF
 
-ok "Generated: .claude/commands/bmad-bmm-auto-dev.md"
+ok "Generated: .claude/commands/bmad-${ADV_CODE}-auto-dev.md"
 
 # ============================================================================
 # PHASE 4: Update skill manifest
@@ -901,7 +938,7 @@ MANIFEST=$(resolve_dep \
     "_bmad/_config/workflow-manifest.csv")
 MANIFEST="$TARGET/$MANIFEST"
 
-MANIFEST_ENTRY='"auto-dev","auto-dev","Automated end-to-end pipeline: quick-dev spec + party mode → adversarial spec review loop → quick-dev implementation → adversarial code review loop.","bmm","_bmad/bmm/4-implementation/auto-dev/workflow.md","false"'
+MANIFEST_ENTRY="\"auto-dev\",\"auto-dev\",\"Automated end-to-end pipeline: quick-dev spec + party mode → adversarial spec review loop → quick-dev implementation → adversarial code review loop.\",\"${ADV_CODE}\",\"_bmad/${ADV_CODE}/workflows/auto-dev/workflow.md\",\"false\""
 
 # Remove any existing auto-dev entry (handles updates cleanly)
 if grep -q '"auto-dev"' "$MANIFEST" 2>/dev/null; then
@@ -927,12 +964,29 @@ ok "Manifest entry written and sorted"
 # ============================================================================
 header "Phase 5 — Cleanup"
 
-OLD_WORKFLOW_DIR="$TARGET/_bmad/bmm/workflows/bmad-quick-flow/auto-dev"
-if [ -d "$OLD_WORKFLOW_DIR" ]; then
-    rm -rf "$OLD_WORKFLOW_DIR"
-    ok "Removed old workflow directory: _bmad/bmm/workflows/bmad-quick-flow/auto-dev/"
-else
-    ok "No old workflow directory to clean up"
+# v2.x layout: workflow lived under bmm-quick-flow
+OLD_WORKFLOW_DIR_V2="$TARGET/_bmad/bmm/workflows/bmad-quick-flow/auto-dev"
+if [ -d "$OLD_WORKFLOW_DIR_V2" ]; then
+    rm -rf "$OLD_WORKFLOW_DIR_V2"
+    ok "Removed v2 workflow directory: _bmad/bmm/workflows/bmad-quick-flow/auto-dev/"
+fi
+
+# v3.x layout: workflow side-loaded into bmm/4-implementation
+OLD_WORKFLOW_DIR_V3="$TARGET/_bmad/bmm/4-implementation/auto-dev"
+if [ -d "$OLD_WORKFLOW_DIR_V3" ]; then
+    rm -rf "$OLD_WORKFLOW_DIR_V3"
+    ok "Removed v3 workflow directory: _bmad/bmm/4-implementation/auto-dev/ (migrated to adv module)"
+fi
+
+# v3.x slash command name
+OLD_COMMAND_FILE="$TARGET/.claude/commands/bmad-bmm-auto-dev.md"
+if [ -f "$OLD_COMMAND_FILE" ]; then
+    rm -f "$OLD_COMMAND_FILE"
+    ok "Removed v3 slash command: .claude/commands/bmad-bmm-auto-dev.md (replaced by bmad-${ADV_CODE}-auto-dev)"
+fi
+
+if [ ! -d "$OLD_WORKFLOW_DIR_V2" ] && [ ! -d "$OLD_WORKFLOW_DIR_V3" ] && [ ! -f "$OLD_COMMAND_FILE" ]; then
+    ok "No legacy artifacts to clean up"
 fi
 
 # ============================================================================
@@ -943,8 +997,9 @@ header "Phase 6 — Validation"
 ALL_OK=true
 
 for f in \
-    "_bmad/bmm/4-implementation/auto-dev/workflow.md" \
-    ".claude/commands/bmad-bmm-auto-dev.md" \
+    "_bmad/${ADV_CODE}/module.yaml" \
+    "_bmad/${ADV_CODE}/workflows/auto-dev/workflow.md" \
+    ".claude/commands/bmad-${ADV_CODE}-auto-dev.md" \
 ; do
     if [ -f "$TARGET/$f" ]; then
         ok "Verified: $f"
@@ -974,16 +1029,16 @@ echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
 
 if [ "$ALL_OK" = true ]; then
-    echo "║  ✅  Auto-Dev workflow installed successfully!           ║"
+    echo "║  ✅  \`${ADV_CODE}\` module installed successfully!              ║"
     echo "╚══════════════════════════════════════════════════════════╝"
     echo ""
     printf "  ${BOLD}Usage in Claude Code:${NC}\n"
     echo ""
-    printf "    ${CYAN}/bmad-bmm-auto-dev <dev description>${NC}\n"
+    printf "    ${CYAN}/bmad-${ADV_CODE}-auto-dev <dev description>${NC}\n"
     echo ""
     printf "  ${BOLD}Example:${NC}\n"
     echo ""
-    printf "    ${CYAN}/bmad-bmm-auto-dev Add a REST API for user management${NC}\n"
+    printf "    ${CYAN}/bmad-${ADV_CODE}-auto-dev Add a REST API for user management${NC}\n"
     echo ""
     if [ "$HAS_CONSTITUTION" = true ]; then
         printf "  ${GREEN}📜 Constitution detected${NC} — sub-agents will enforce its rules\n"

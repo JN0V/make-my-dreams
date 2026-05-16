@@ -1,0 +1,262 @@
+#!/usr/bin/env node
+// bin/mmd.js — MMD v0.1 walking-skeleton CLI entry point.
+// SRP (constitution §I.S): argv parsing + top-level flow orchestration + exit codes.
+// All FS / subprocess / state logic lives in lib/*.
+
+import { argv, env, stdin, stdout, stderr, exit, cwd } from 'node:process';
+import path from 'node:path';
+import { rm, lstat } from 'node:fs/promises';
+import { createInterface } from 'node:readline/promises';
+import { stdin as input, stdout as output } from 'node:process';
+
+import { slugify, initStateFiles, nextAvailableSlug } from '../lib/parse-dream.js';
+import { ensureLayout, readStatus, writeStatus, ensureGitignore } from '../lib/state.js';
+import { invokeAutodev } from '../lib/invoke-autodev.js';
+import { realityCheck } from '../lib/reality-check.js';
+
+const VERSION = '0.1.0';
+
+const USAGE = `mmd ${VERSION} — Make My Dreams CLI (walking skeleton)
+
+Usage:
+  mmd "<dream description>"            Generate a PWA fulfilling the dream
+  mmd --version                        Print version and exit
+  mmd --help, -h                       Print this usage and exit
+
+Idempotent re-run flags (used when a demo dir already exists):
+  --resume                             Print current dream state and exit 3
+  --fresh                              Delete the demo dir and restart
+  --cancel                             Abort and exit 1
+
+Environment variables:
+  MMD_AUTODEV_CMD                      Override the auto-dev subprocess (testing only)
+  MMD_TIMEOUT_MS                       Subprocess timeout in ms (default 1800000, 0 to disable)
+  MMD_REALITY_CHECK_BACKEND            mcp | playwright | skip
+  MMD_DREAM_MAX_LEN                    Max dream length in chars (default 500)
+`;
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+async function promptRfc() {
+  if (!input.isTTY) return null;
+  const rl = createInterface({ input, output });
+  try {
+    const ans = (await rl.question('Existing dream found. [R]esume / [F]resh / [C]ancel? '))
+      .trim()
+      .toUpperCase();
+    if (['R', 'F', 'C'].includes(ans)) return ans;
+    return null;
+  } finally {
+    rl.close();
+  }
+}
+
+async function resolveExistingChoice(flags) {
+  // Explicit flags win over interactive prompt.
+  if (flags.cancel) return 'cancel';
+  if (flags.fresh) return 'fresh';
+  if (flags.resume) return 'resume';
+  if (!stdin.isTTY) {
+    stderr.write(
+      'Existing dream found and stdin is not a TTY. Use --resume / --fresh / --cancel.\n'
+    );
+    // F7 — usage class: 2.
+    exit(2);
+  }
+  const ans = await promptRfc();
+  if (ans === 'R') return 'resume';
+  if (ans === 'F') return 'fresh';
+  return 'cancel';
+}
+
+async function main() {
+  const rawArgs = argv.slice(2);
+  if (rawArgs.includes('--version')) {
+    stdout.write(`${VERSION}\n`);
+    return 0;
+  }
+  if (rawArgs.includes('--help') || rawArgs.includes('-h')) {
+    stdout.write(USAGE);
+    return 0;
+  }
+  const flags = {
+    resume: rawArgs.includes('--resume'),
+    fresh: rawArgs.includes('--fresh'),
+    cancel: rawArgs.includes('--cancel'),
+  };
+  // Note: empty-string positional ('' from `mmd ""`) is allowed through here so the
+  // empty-check below fires with exit 2 (the test asserts code 2 specifically).
+  const positional = rawArgs.filter((a) => !a.startsWith('--'));
+  const dream = positional[0];
+
+  if (dream === undefined) {
+    stderr.write('error: dream string required\n' + USAGE);
+    return 2;
+  }
+  if (dream.trim() === '') {
+    stderr.write('error: dream string is empty\n' + USAGE);
+    return 2;
+  }
+
+  const dreamMaxLen = env.MMD_DREAM_MAX_LEN ? Number(env.MMD_DREAM_MAX_LEN) : 500;
+  if (dream.length > dreamMaxLen) {
+    stderr.write(`error: dream string too long (max ${dreamMaxLen} chars)\n`);
+    return 2;
+  }
+
+  let slug;
+  try {
+    slug = slugify(dream);
+  } catch (err) {
+    stderr.write(`error: ${err.message}\n`);
+    return 2;
+  }
+  let demoDir = path.join(cwd(), 'demo', slug);
+  stdout.write(`Catching your dream...\n  dream: ${dream}\n  slug:  ${slug}\n  dir:   ${demoDir}\n`);
+
+  // AC-7: re-run logic — only if existing state is present.
+  // ENOENT = no prior run (legitimate); other errors (EACCES/EISDIR) propagate per §VII.
+  let existing = null;
+  try {
+    existing = await readStatus(demoDir);
+  } catch (err) {
+    if (err && err.code !== 'ENOENT') throw err;
+  }
+  if (existing && existing.dream !== dream) {
+    // Slug collision: different dream slugifies to the same value.
+    const newSlug = await nextAvailableSlug(slug, path.join(cwd(), 'demo'));
+    stderr.write(`[mmd] slug collision; using ${newSlug}\n`);
+    slug = newSlug;
+    demoDir = path.join(cwd(), 'demo', slug);
+    existing = null;
+  } else if (existing) {
+    const choice = await resolveExistingChoice(flags);
+    if (choice === 'cancel') return 1;
+    if (choice === 'resume') {
+      stdout.write(`Existing dream state: ${existing.state}\n`);
+      return 3;
+    }
+    if (choice === 'fresh') {
+      // F2 — path-traversal defense: refuse to rm anything outside ./demo/.
+      const absDemoDir = path.resolve(demoDir);
+      const demoRoot = path.resolve(cwd(), 'demo');
+      if (!absDemoDir.startsWith(demoRoot + path.sep)) {
+        const e = new Error(`refusing to rm outside ./demo/: ${absDemoDir}`);
+        e.mmdExitCode = 5;
+        throw e;
+      }
+      // F9 round-2 — defense against symlink bypass.
+      const lst = await lstat(absDemoDir).catch(() => null);
+      if (lst && lst.isSymbolicLink()) {
+        const e = new Error(`refusing to rm symlink at demoDir: ${absDemoDir}`);
+        e.mmdExitCode = 5;
+        throw e;
+      }
+      await rm(absDemoDir, { recursive: true, force: true });
+      existing = null;
+    }
+  }
+
+  // Repo-root .gitignore management (no-op outside git).
+  try {
+    await ensureGitignore(cwd());
+  } catch (err) {
+    if (err && err.code === 'EACCES') {
+      stderr.write(`error: cannot write .gitignore: ${err.message}\n`);
+      const e = new Error(err.message);
+      e.mmdExitCode = 5;
+      throw e;
+    }
+    throw err;
+  }
+
+  await ensureLayout(demoDir);
+  await initStateFiles(demoDir, dream, slug);
+
+  // F5 round-2 — capture in-progress payload so the failure path preserves the full schema.
+  const inProgressStatus = {
+    slice_id: slug,
+    dream,
+    state: 'in_progress',
+    created_at: existing?.created_at || nowIso(),
+    updated_at: nowIso(),
+    tasks: [{ id: 'auto-dev', state: 'in_progress' }],
+  };
+  await writeStatus(demoDir, inProgressStatus);
+
+  // F11 — pid suffix to avoid same-ms collisions on the log filename.
+  const timestamp = `${nowIso().replace(/[:.]/g, '-')}-${process.pid}`;
+  const logPath = path.join(demoDir, '.mmd', 'local', 'runs', `${timestamp}.log`);
+
+  let invokeResult;
+  try {
+    invokeResult = await invokeAutodev({
+      demoDir,
+      dream,
+      slug,
+      promptParts: { dream, slug, demoDir },
+      logPath,
+      timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+    });
+  } catch (err) {
+    // Persist failure state using captured payload (preserves schema even on fresh runs).
+    await writeStatus(demoDir, {
+      ...inProgressStatus,
+      state: 'failed',
+      updated_at: nowIso(),
+    });
+    stderr.write(`auto-dev invocation failed: ${err.message}. See ${logPath}\n`);
+    const e = new Error(err.message);
+    e.mmdExitCode = err.mmdExitCode ?? 99;
+    throw e;
+  }
+
+  const { code } = invokeResult;
+  if (code !== 0) {
+    await writeStatus(demoDir, {
+      ...inProgressStatus,
+      state: 'failed',
+      updated_at: nowIso(),
+    });
+    stderr.write(`auto-dev exited with code ${code}. See ${logPath}\n`);
+    const e = new Error(`auto-dev subprocess exited ${code}`);
+    e.mmdExitCode = 6;
+    throw e;
+  }
+
+  // Reality Check — advisory in v0.1, never fails the run.
+  try {
+    const rc = await realityCheck({
+      demoDir,
+      screenshotDir: path.join(demoDir, '.mmd', 'local', 'reality-checks'),
+    });
+    stdout.write(`Reality Check: ${rc.status}${rc.reason ? ' — ' + rc.reason : ''}\n`);
+  } catch (err) {
+    stderr.write(`Reality Check: error — ${err.message}\n`);
+  }
+
+  await writeStatus(demoDir, {
+    slice_id: slug,
+    dream,
+    state: 'done',
+    created_at: existing?.created_at || inProgressStatus.created_at,
+    updated_at: nowIso(),
+    tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
+  });
+  stdout.write(`[OK] Delivered at ${demoDir}\n`);
+  return 0;
+}
+
+main()
+  .then((code) => exit(code))
+  .catch((err) => {
+    if (err && err.code === 'EACCES') {
+      stderr.write(`error: permission denied: ${err.message || err}\n`);
+      exit(5);
+      return;
+    }
+    stderr.write((err.stack || err.message || String(err)) + '\n');
+    exit(err.mmdExitCode ?? 99);
+  });

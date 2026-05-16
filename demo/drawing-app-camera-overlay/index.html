@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000">
+  <title>MMD Drawing — Camera Overlay</title>
+  <!-- Defense in depth: deny third-party scripts; allow blob/data: for image overlay + camera. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; script-src 'self'; style-src 'self' 'unsafe-inline'">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <!--
+    AC-4 manual checklist (Bundle B safe-default per SPEC §AC-4):
+      [ ] Open in Chrome 120+/Firefox 120+/Safari 17+ — no auto camera prompt on load.
+      [ ] Click "Start Camera" → permission prompt → video plays.
+      [ ] Click "Upload Image" → semi-transparent overlay visible over camera feed.
+      [ ] Pen / Eraser / Color picker / Clear visible and functional on top canvas.
+      [ ] Deny camera → helpful message visible; drawing on uploaded image still works.
+  -->
+</head>
+<body>
+  <header>
+    <h1>MMD Drawing — Camera Overlay</h1>
+    <p class="hint">Trace an uploaded image over your camera feed.</p>
+  </header>
+
+  <main>
+    <div class="stage" id="stage">
+      <video id="video" playsinline muted autoplay></video>
+      <canvas id="overlay" aria-label="Uploaded reference image overlay"></canvas>
+      <canvas id="draw" aria-label="Drawing surface"></canvas>
+      <div id="message" class="message" hidden></div>
+    </div>
+
+    <aside class="toolbar" aria-label="Drawing tools">
+      <button type="button" data-action="camera" id="btn-camera">Start Camera</button>
+
+      <label class="file-button">
+        Upload Image
+        <input type="file" id="file-input" accept="image/*" hidden>
+      </label>
+
+      <button type="button" data-action="pen" id="btn-pen" aria-pressed="true">Pen</button>
+      <button type="button" data-action="eraser" id="btn-eraser" aria-pressed="false">Eraser</button>
+
+      <label class="color-label">
+        Color
+        <input type="color" id="color-input" value="#ff0044">
+      </label>
+
+      <label class="range-label">
+        Size
+        <input type="range" id="size-input" min="1" max="40" value="4">
+      </label>
+
+      <button type="button" data-action="clear" id="btn-clear">Clear</button>
+    </aside>
+  </main>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>

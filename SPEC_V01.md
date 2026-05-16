@@ -32,7 +32,7 @@ The fil-rouge dream to validate v0.1: **"a drawing app that overlays an image on
 **When** the user runs `mmd "a drawing app that overlays an image on the camera feed"`
 **Then** the CLI:
 - Prints `Catching your dream…` and the parsed dream description
-- Creates a `./demo/drawing-app-camera-overlay/` directory (slug from the dream)
+- Creates a `./demo/drawing-app-overlays-image-camera-feed/` directory (slug from the deterministic algorithm; see implementation tech-spec §4.3)
 - Initializes `.mmd/shared/vision.md`, `.mmd/shared/slice.md`, `.mmd/shared/status.json` in the demo directory
 - Returns exit code 0 on success
 
@@ -186,7 +186,7 @@ v0.1 is done when:
 
 1. All 7 acceptance criteria are met
 2. The integration test passes
-3. The drawing-app-camera-overlay dream produces a working PWA that Sébastien's daughter can actually use (real-world validation)
+3. The drawing-app-overlays-image-camera-feed dream produces a working PWA that Sébastien's daughter can actually use (real-world validation)
 4. README is updated with the `mmd <dream>` usage example
 5. v0.1.0 git tag created
 6. ADR-002 documents the choice of vanilla HTML/CSS/JS for generated PWAs (for v0.1 only; v0.2d Tech Architect will revisit)

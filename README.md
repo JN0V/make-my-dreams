@@ -18,6 +18,18 @@ What MMD adds: multi-audience accessibility (Kid → Pro), reflexive bootstrap (
 
 **MMD's success is the success of the projects it stands on.**
 
+## Usage
+
+```bash
+git clone <repo>
+cd make-my-dreams
+npm install -g .
+mmd "a drawing app that overlays an image on the camera feed"
+# → creates ./demo/drawing-app-overlays-image-camera-feed/ with a working PWA
+```
+
+Env vars: `MMD_AUTODEV_CMD` (override subprocess for testing), `MMD_TIMEOUT_MS` (default 1800000), `MMD_REALITY_CHECK_BACKEND` (`mcp` | `playwright` | `skip`), `MMD_DREAM_MAX_LEN` (default 500).
+
 ## History
 
 This repo started as `extend-bmad` — a customization of BMAD that combined quick-dev, party mode, adversarial review loops and Spec Kit-style constitution injection (see `install-mmd.sh`, formerly `install-auto-dev.sh`). After comparative usage of Spec Kit, OpenSpec, BMAD and gStack, the scoping evolved into Make My Dreams: an accessibility and orchestration layer that sits on top of these frameworks rather than replacing them. The full design rationale is in [MAKE_MY_DREAMS.md](./MAKE_MY_DREAMS.md), with 14 versioned iterations documenting how every decision was reached.

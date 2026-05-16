@@ -124,7 +124,11 @@ else
 fi
 
 # Always run bmad-method install — pre-configured with all discovered modules
+# --yes passed to BMAD itself (separate from npx --yes) to skip BMAD's own prompts.
+# --directory anchors the install path so BMAD doesn't ask interactively.
 (cd "$TARGET" && npx --yes bmad-method@latest install \
+    --yes \
+    --directory "$TARGET" \
     --modules "$MODULES" \
     --tools claude-code \
     --communication-language French \

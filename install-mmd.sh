@@ -126,14 +126,29 @@ fi
 # Always run bmad-method install — pre-configured with all discovered modules
 # --yes passed to BMAD itself (separate from npx --yes) to skip BMAD's own prompts.
 # --directory anchors the install path so BMAD doesn't ask interactively.
+# --output-folder set explicitly: BMAD 6.6.0 doesn't substitute the {output_folder} template
+# variable in generated config files even though its default is documented as _bmad-output.
+# Without this, you end up with a literal {output_folder}/ directory at the repo root.
 (cd "$TARGET" && npx --yes bmad-method@latest install \
     --yes \
     --directory "$TARGET" \
     --modules "$MODULES" \
     --tools claude-code \
     --communication-language French \
-    --document-output-language English)
+    --document-output-language English \
+    --output-folder _bmad-output)
 BMAD_EXIT=$?
+
+# Defensive fix: if BMAD still leaves {output_folder} unresolved in configs (it does in
+# 6.6.0), patch the references to the literal _bmad-output path. Idempotent.
+if [ -f "$TARGET/_bmad/bmm/config.yaml" ]; then
+    sed -i 's|{output_folder}|_bmad-output|g' "$TARGET/_bmad/bmm/config.yaml"
+fi
+if [ -f "$TARGET/_bmad/config.toml" ]; then
+    sed -i 's|{output_folder}|_bmad-output|g' "$TARGET/_bmad/config.toml"
+fi
+# Remove the literal placeholder dir if BMAD created it during install
+[ -d "$TARGET/{output_folder}" ] && rm -rf "$TARGET/{output_folder}"
 
 if [ "$BMAD_EXIT" -ne 0 ]; then
     echo ""

@@ -250,6 +250,8 @@ The "V-cycle" feeling disappears with **2 living artifacts** maintained side by 
 
 Each Ralph round (and each BMAD phase) receives in its context **vision.md** AND **slice.md**, plus the constitution. Consequence: the MVP is delivered in 5 minutes, but it is architecturally compatible with the long-term vision — not a disposable prototype. It's the *walking skeleton* concept (Cockburn) applied to AI.
 
+**v0.2.f (2026-05-17) — first real gStack invocation in production.** Until this slice, every MMD release named gStack among its pillars (§3.2 first principle) without ever actually invoking a gStack skill — see `docs/lessons-learned.md` L-012. v0.2.f closes that gap with the new `mmd ship` subcommand: a thin wrapper that invokes the gStack `ship` skill via `claude -p` with `PATH` forced to include `~/.bun/bin`. The slice's own audit (`scripts/audit-pillars.sh main..HEAD`) reports `gStack: INVOKED (≥1)` — operational closure of the 11-slice claim drift. From v0.2.f onwards, every release ships through this path and the same audit verifies the claim post-merge. See [ADR-007](./docs/adr/007-gstack-effective-via-ship-subcommand.md) for the full rationale.
+
 ### 3.5 Reuse strategy (legacy v3 — partially superseded by §3.2/§3.3)
 
 > Note: this table predates the v10 decision to use gStack as a runtime backbone. Many "Steal → skill X" entries are now realized via gStack invocation (cf §3.3 orchestration map). Kept for historical traceability.
@@ -1305,6 +1307,10 @@ v0.2a closes that gap with one named flag: `mmd --here "<change>"`. The CLI now 
 The acid test (AC-7 of SPEC_V02A, gated behind `MMD_RUN_E2E=1` so it doesn't run in the default test loop) is: `cd ~/Documents/make-my-dreams && mmd --here "<trivial change>"` produces a slice branch with the change applied, `status.json` records `mode: "here"`, `main` is unchanged. When that test passes against the real `claude` CLI, the reflexive bootstrap §7 is no longer aspirational — it's the supported path. Section 7.4's roadmap statement "v0.2+: MMD is used to develop MMD" can be removed of its asterisk.
 
 The constitutional safety statement from §7.3 holds unchanged: even with `--here`, the structural HITL gate (P-17), the dream-bench gate (v0.3), and the granular rollback (P-22) are not bypassed — they apply to each slice produced by `mmd --here` exactly as they applied to manual `claude -p` invocations. `--here` only changes WHO writes the dream prompt; it does not change WHO approves the merge.
+
+### 7.7 v0.2.f — the third reflexive use of the supported path
+
+v0.2.f is the third slice developed through `mmd --here` after L-010 (v0.2a, trivial change — the proof) and L-011 (v0.2b, the dream-bench v0 — the first real feature slice). v0.2.f's own change set is larger than either predecessor (install hardening + `mmd ship` subcommand + audit script + 60+ new tests + ADR), making it the most demanding reflexive workload yet. With v0.2.f, the supported workflow has produced three distinct slice types end-to-end (trivial, feature, infrastructure) — enough datapoints to retire any remaining language about §7 being aspirational.
 
 ---
 

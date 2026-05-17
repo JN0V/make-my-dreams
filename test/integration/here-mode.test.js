@@ -247,5 +247,7 @@ test('@integration v0.2a regression: without --here the greenfield path is uncha
 // branch creation failure another way — set HEAD to an empty-tree state.
 // On reflection: this overlaps validateHereTarget. Better to assert exit 5
 // when checkout fails by mocking git: we'd need to ship a fake `git`
-// shadowing PATH. Skip the dedicated exit-5 e2e test here; the unit test
-// for createSliceBranch covers the contract via the typed return shape.
+// shadowing PATH. Skip the dedicated exit-5 e2e test here; the
+// @integration test in test/integration/here-mode-lib.test.js covers the
+// createSliceBranch contract via the typed return shape (pre-existing
+// branch with same name → exit 5).

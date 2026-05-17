@@ -193,13 +193,17 @@ async function runHereMode({ cwd: targetDir, dream, slug, engine }) {
   };
   await writeStatus(absTargetDir, inProgressStatus);
 
-  // Audit (observability.md §III): record the --here invocation as a business action.
+  // Audit (observability.md §III): record the --here invocation context as a
+  // free-form annotation on the existing (initial)->in_progress transition.
+  // writeStatus already appended the state line; we append a separate
+  // "context: ..." line so the audit log carries the slice + base in a way
+  // that does not duplicate or contradict the state machine.
   await appendDecision(
     absTargetDir,
     slug,
-    '(initial)',
-    'here-invoked',
-    `slice=${sliceBranch} base=${baseBranch}@${baseSha}`,
+    'in_progress',
+    'here-context',
+    `slice=${sliceBranch} base=${baseBranch}@${baseSha} target=${absTargetDir}`,
   );
 
   // AC-4 — build the in-place prompt for auto-dev (no demo/ scaffold).

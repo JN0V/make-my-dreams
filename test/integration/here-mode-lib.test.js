@@ -65,7 +65,7 @@ test('@integration validateHereTarget: non-git dir → ok:false exitCode:3', { s
   }
 });
 
-test('@integration validateHereTarget: dirty tree → ok:false exitCode:4', { skip: SKIP_ON_WINDOWS }, async () => {
+test('@integration validateHereTarget: dirty tree (untracked file) → ok:false exitCode:4', { skip: SKIP_ON_WINDOWS }, async () => {
   const tmp = makeTmp();
   try {
     initCleanRepo(tmp);
@@ -74,6 +74,52 @@ test('@integration validateHereTarget: dirty tree → ok:false exitCode:4', { sk
     assert.equal(r.ok, false);
     assert.equal(r.exitCode, 4);
     assert.match(r.message, /clean working tree/i);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('@integration validateHereTarget: dirty tree (modified tracked file) → ok:false exitCode:4', { skip: SKIP_ON_WINDOWS }, async () => {
+  const tmp = makeTmp();
+  try {
+    initCleanRepo(tmp);
+    writeFileSync(path.join(tmp, 'tracked.txt'), 'v1');
+    git(['add', 'tracked.txt'], tmp);
+    git(['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-m', 'add', '-q'], tmp);
+    writeFileSync(path.join(tmp, 'tracked.txt'), 'v2 modified');
+    const r = await validateHereTarget(tmp);
+    assert.equal(r.ok, false);
+    assert.equal(r.exitCode, 4);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('@integration validateHereTarget: .gitignored untracked file does NOT trigger exit 4', { skip: SKIP_ON_WINDOWS }, async () => {
+  const tmp = makeTmp();
+  try {
+    initCleanRepo(tmp);
+    writeFileSync(path.join(tmp, '.gitignore'), 'ignored.txt\n');
+    git(['add', '.gitignore'], tmp);
+    git(['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-m', 'ignore', '-q'], tmp);
+    // This file is ignored — porcelain v1 should NOT show it (default).
+    writeFileSync(path.join(tmp, 'ignored.txt'), 'transient');
+    const r = await validateHereTarget(tmp);
+    assert.equal(r.ok, true, `expected ok:true; got message=${r.message}`);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('@integration validateHereTarget: works on a repo whose default branch is master', { skip: SKIP_ON_WINDOWS }, async () => {
+  const tmp = makeTmp();
+  try {
+    initCleanRepo(tmp, 'master');
+    const sha = git(['rev-parse', 'HEAD'], tmp).trim();
+    const r = await validateHereTarget(tmp);
+    assert.equal(r.ok, true);
+    assert.equal(r.baseBranch, 'master');
+    assert.equal(r.baseSha, sha);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

@@ -9,6 +9,7 @@ import {
   resolveEngine,
   ENGINE_FLAGS,
   SESSION_FLAGS,
+  MODE_FLAGS,
   KNOWN_FLAGS,
 } from '../../lib/argv-parser.js';
 
@@ -17,6 +18,7 @@ test('@unit parseArgv: empty argv → all flags false, no positional, no error',
   assert.deepEqual(r.flags, {
     fast: false, standard: false, deep: false,
     resume: false, fresh: false, cancel: false,
+    here: false,
   });
   assert.deepEqual(r.positional, []);
   assert.equal(r.error, null);
@@ -140,12 +142,61 @@ test('@unit resolveEngine: --deep alone (forward-compat) resolves to "standard" 
   assert.equal(resolveEngine({ fast: false, standard: false, deep: true }), 'standard');
 });
 
-test('@unit KNOWN_FLAGS is the union of ENGINE_FLAGS and SESSION_FLAGS', () => {
-  assert.deepEqual([...KNOWN_FLAGS].sort(), [...ENGINE_FLAGS, ...SESSION_FLAGS].sort());
+test('@unit KNOWN_FLAGS is the union of ENGINE_FLAGS, SESSION_FLAGS, and MODE_FLAGS (v0.2a)', () => {
+  assert.deepEqual(
+    [...KNOWN_FLAGS].sort(),
+    [...ENGINE_FLAGS, ...SESSION_FLAGS, ...MODE_FLAGS].sort(),
+  );
   // Defensive: arrays are frozen (immutable contract).
   assert.ok(Object.isFrozen(ENGINE_FLAGS));
   assert.ok(Object.isFrozen(SESSION_FLAGS));
+  assert.ok(Object.isFrozen(MODE_FLAGS));
   assert.ok(Object.isFrozen(KNOWN_FLAGS));
+});
+
+// v0.2a — AC-1 + AC-2 argv-level coverage for --here.
+
+test('@unit parseArgv (v0.2a AC-1): --here before dream → flags.here=true', () => {
+  const r = parseArgv(['--here', 'add a banner']);
+  assert.equal(r.error, null);
+  assert.equal(r.flags.here, true);
+  assert.deepEqual(r.positional, ['add a banner']);
+});
+
+test('@unit parseArgv (v0.2a AC-1): --here after dream → flags.here=true (position-independent)', () => {
+  const r = parseArgv(['add a banner', '--here']);
+  assert.equal(r.error, null);
+  assert.equal(r.flags.here, true);
+  assert.deepEqual(r.positional, ['add a banner']);
+});
+
+test('@unit parseArgv (v0.2a AC-2): --here composes with --fast (engine flag — orthogonal)', () => {
+  const r = parseArgv(['--here', '--fast', 'add a banner']);
+  assert.equal(r.error, null);
+  assert.equal(r.flags.here, true);
+  assert.equal(r.flags.fast, true);
+});
+
+test('@unit parseArgv (v0.2a AC-2): --here composes with --standard', () => {
+  const r = parseArgv(['--here', '--standard', 'add a banner']);
+  assert.equal(r.error, null);
+  assert.equal(r.flags.here, true);
+  assert.equal(r.flags.standard, true);
+});
+
+test('@unit parseArgv (v0.2a AC-2): --here composes with session flags (--fresh/--cancel/--resume)', () => {
+  for (const f of SESSION_FLAGS) {
+    const r = parseArgv(['--here', `--${f}`, 'dream']);
+    assert.equal(r.error, null, `--here + --${f} should compose`);
+    assert.equal(r.flags.here, true);
+    assert.equal(r.flags[f], true);
+  }
+});
+
+test('@unit MODE_FLAGS exports a frozen array containing "here"', () => {
+  assert.ok(Array.isArray(MODE_FLAGS));
+  assert.ok(MODE_FLAGS.includes('here'));
+  assert.ok(Object.isFrozen(MODE_FLAGS));
 });
 
 test('@unit parseArgv: dream containing -- in the middle is preserved as a single positional', () => {

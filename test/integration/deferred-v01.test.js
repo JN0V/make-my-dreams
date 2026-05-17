@@ -23,7 +23,7 @@ import {
 import { tmpdir, platform } from 'node:os';
 import path from 'node:path';
 
-import { buildSubprocessEnv, resolveAutodevMode } from '../../lib/invoke-autodev.js';
+import { buildSubprocessEnv } from '../../lib/invoke-autodev.js';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const MMD = path.join(REPO_ROOT, 'bin', 'mmd.js');
@@ -50,37 +50,8 @@ function runMmd(args, opts = {}) {
 }
 
 // ---- B2: MMD_AUTODEV_MODE ---------------------------------------------------
-
-test('@unit B2: resolveAutodevMode default is "cli" (production)', () => {
-  assert.equal(resolveAutodevMode({}), 'cli');
-});
-
-test('@unit B2: resolveAutodevMode honors explicit MMD_AUTODEV_MODE=cli', () => {
-  assert.equal(resolveAutodevMode({ MMD_AUTODEV_MODE: 'cli' }), 'cli');
-  // Wrapper case: even with MMD_AUTODEV_CMD set, an explicit 'cli' wins.
-  assert.equal(
-    resolveAutodevMode({ MMD_AUTODEV_MODE: 'cli', MMD_AUTODEV_CMD: '/path/to/claude-wrapper' }),
-    'cli',
-  );
-});
-
-test('@unit B2: resolveAutodevMode honors explicit MMD_AUTODEV_MODE=test', () => {
-  assert.equal(resolveAutodevMode({ MMD_AUTODEV_MODE: 'test' }), 'test');
-});
-
-test('@unit B2: resolveAutodevMode falls back to "test" when MMD_AUTODEV_CMD set (backward compat)', () => {
-  // Pre-v0.2 the test suite relied on MMD_AUTODEV_CMD alone — the fallback
-  // preserves that. The new explicit env var is the cleaner API going forward.
-  assert.equal(resolveAutodevMode({ MMD_AUTODEV_CMD: '/path/to/fixture.sh' }), 'test');
-});
-
-test('@unit B2: invalid MMD_AUTODEV_MODE value ignored (falls back to MMD_AUTODEV_CMD heuristic, then "cli")', () => {
-  assert.equal(resolveAutodevMode({ MMD_AUTODEV_MODE: 'garbage' }), 'cli');
-  assert.equal(
-    resolveAutodevMode({ MMD_AUTODEV_MODE: 'garbage', MMD_AUTODEV_CMD: '/some/path' }),
-    'test',
-  );
-});
+// Pure-logic resolveAutodevMode() unit tests live at test/unit/autodev-mode.test.js
+// so they are picked up by `npm test:unit` (which globs test/unit/*.test.js).
 
 // ---- B4: MMD_QUIET ----------------------------------------------------------
 

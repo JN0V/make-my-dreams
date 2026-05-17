@@ -56,7 +56,7 @@
 
 set -euo pipefail
 
-INSTALLER_VERSION="5.0.0"
+INSTALLER_VERSION="5.1.0"
 
 # Module identity (single source of truth for paths/names)
 ADV_CODE="adv"
@@ -90,6 +90,96 @@ echo ""
 info "Target project : $TARGET"
 info "Active phase   : A — Standard engine (BMAD + adv module + auto-dev workflow)"
 info "MMD module     : ${ADV_CODE} — ${ADV_NAME}"
+
+# ============================================================================
+# PHASE 0: bun runtime (gStack dependency — v0.2.f hardening, AC-1)
+# ============================================================================
+# Per docs/lessons-learned.md L-012: gStack was named as a pillar but never
+# invoked because `bun` was in ~/.bashrc but NOT in the PATH of non-interactive
+# subprocesses (claude -p, scripted invocations). v0.2.f closes that gap with
+# a functional install (not "is the binary file present?") + a CLI shim
+# (bin/mmd) that prepends ~/.bun/bin to PATH before invoking node bin/mmd.js.
+#
+# Env vars (idempotent re-run controls):
+#   MMD_AUTO_INSTALL_BUN=1  -> skip the y/N prompt and install bun if absent
+#   MMD_REQUIRE_GSTACK=1    -> make bun MANDATORY; declining or failing exits 1
+header "Phase 0 — bun runtime (gStack dependency)"
+
+BUN_PATH_BIN="$HOME/.bun/bin/bun"
+BUN_OK=false
+
+# Detect bun via `command -v` (NOT just file existence) — this catches the
+# "binary present but not on PATH" case which is the L-012 root cause.
+if command -v bun >/dev/null 2>&1; then
+    BUN_VER="$(bun --version 2>&1 || echo unknown)"
+    ok "bun present on PATH (version: ${BUN_VER})"
+    BUN_OK=true
+elif [ -x "$BUN_PATH_BIN" ]; then
+    # Binary exists at the canonical location but PATH does not include it.
+    # Verify it FUNCTIONALLY responds to --version.
+    if BUN_VER="$("$BUN_PATH_BIN" --version 2>&1)"; then
+        warn "bun installed at ${BUN_PATH_BIN} (version: ${BUN_VER}) but NOT on shell PATH."
+        info "MMD's bin/mmd shim prepends \$HOME/.bun/bin to PATH automatically."
+        info "For interactive shells, add this to your ~/.bashrc or ~/.zshrc:"
+        info "  export PATH=\"\$HOME/.bun/bin:\$PATH\""
+        BUN_OK=true
+    else
+        fail "bun binary at ${BUN_PATH_BIN} is present but did NOT respond to --version."
+        info "Remediation: re-install bun via 'curl -fsSL https://bun.sh/install | bash'"
+    fi
+else
+    # bun absent. Offer to install. AC-1 contract:
+    #   - 5-line summary of what bun is + what the curl does
+    #   - y/N prompt (default N)
+    #   - MMD_AUTO_INSTALL_BUN=1 skips the prompt
+    info "bun is NOT installed. bun is a fast JavaScript runtime required by gStack skills."
+    info "  - Install location: \$HOME/.bun/ (no root, no apt)"
+    info "  - Install command : curl -fsSL https://bun.sh/install | bash"
+    info "  - Disk footprint  : ~40 MB"
+    info "  - Uninstall later : rm -rf \$HOME/.bun"
+    info "  - Without bun, gStack skills (mmd ship, /qa, /cso) cannot run."
+    AUTO_INSTALL=false
+    if [ "${MMD_AUTO_INSTALL_BUN:-0}" = "1" ]; then
+        info "MMD_AUTO_INSTALL_BUN=1 detected — proceeding without prompt."
+        AUTO_INSTALL=true
+    elif [ -t 0 ]; then
+        printf "%s" "  Install bun now? [y/N] "
+        read -r reply
+        case "$reply" in
+            y|Y|yes|YES) AUTO_INSTALL=true ;;
+            *) AUTO_INSTALL=false ;;
+        esac
+    else
+        info "Non-interactive stdin — skipping prompt. Set MMD_AUTO_INSTALL_BUN=1 to auto-install."
+        AUTO_INSTALL=false
+    fi
+
+    if [ "$AUTO_INSTALL" = true ]; then
+        info "Installing bun via the official curl pipe..."
+        # The official bun installer writes to \$HOME/.bun/. We do NOT modify the
+        # user's shell rc files — MMD's bin/mmd shim handles PATH for MMD subprocesses.
+        if curl -fsSL https://bun.sh/install | bash; then
+            if [ -x "$BUN_PATH_BIN" ] && BUN_VER="$("$BUN_PATH_BIN" --version 2>&1)"; then
+                ok "bun installed and verified: ${BUN_VER} (at ${BUN_PATH_BIN})"
+                BUN_OK=true
+            else
+                fail "bun install completed but ${BUN_PATH_BIN} --version did not respond."
+                info "Remediation: re-run this script, or install bun manually."
+            fi
+        else
+            fail "bun install via curl pipe failed (network? curl missing? bun.sh down?)."
+            info "Remediation: run 'curl -fsSL https://bun.sh/install | bash' manually, then re-run this script."
+        fi
+    else
+        warn "Skipping bun install. gStack skills (mmd ship, /qa, /cso) will be unavailable."
+    fi
+fi
+
+# AC-1 gate: when MMD_REQUIRE_GSTACK=1 is set, bun is mandatory.
+if [ "$BUN_OK" != true ] && [ "${MMD_REQUIRE_GSTACK:-0}" = "1" ]; then
+    fail "bun is required for gStack integration (v0.2.f). Re-run with MMD_AUTO_INSTALL_BUN=1 or install bun manually."
+    exit 1
+fi
 
 # ============================================================================
 # PHASE 1: Install/update BMAD
@@ -1084,9 +1174,90 @@ if [ ! -d "$OLD_WORKFLOW_DIR_V2" ] && [ ! -d "$OLD_WORKFLOW_DIR_V3" ] && [ ! -f 
 fi
 
 # ============================================================================
-# PHASE 6: Validation
+# PHASE 6: gStack functional verify (v0.2.f — AC-2)
 # ============================================================================
-header "Phase 6 — Validation"
+# Per docs/lessons-learned.md L-012: claiming gStack as a pillar without ever
+# invoking it is a documentation defect. AC-2 makes the installer functional:
+# if ~/.claude/skills/gstack/ is present we MUST verify it responds, not just
+# observe the folder exists. If absent we offer to install via the documented
+# gStack curl command.
+#
+# Env vars:
+#   MMD_AUTO_INSTALL_GSTACK=1 -> skip y/N prompt and install gStack if absent
+#   MMD_REQUIRE_GSTACK=1      -> a broken gStack install fails the run (exit 2)
+header "Phase 6 — gStack functional verify"
+
+GSTACK_DIR="$HOME/.claude/skills/gstack"
+GSTACK_CONFIG_BIN="$GSTACK_DIR/bin/gstack-config"
+GSTACK_STATUS="NOT_INSTALLED"
+
+if [ ! -d "$GSTACK_DIR" ]; then
+    info "gStack is NOT installed (~/.claude/skills/gstack/ absent)."
+    info "  - gStack provides 41 skills (/ship, /qa, /cso, /document-release, ...)"
+    info "  - Install command: curl -fsSL https://gstack.dev/install.sh | bash"
+    info "  - Without gStack, 'mmd ship' will fail with a remediation message."
+    INSTALL_GSTACK=false
+    if [ "${MMD_AUTO_INSTALL_GSTACK:-0}" = "1" ]; then
+        info "MMD_AUTO_INSTALL_GSTACK=1 detected — proceeding without prompt."
+        INSTALL_GSTACK=true
+    elif [ -t 0 ]; then
+        printf "%s" "  Install gStack now? [y/N] "
+        read -r reply
+        case "$reply" in
+            y|Y|yes|YES) INSTALL_GSTACK=true ;;
+            *) INSTALL_GSTACK=false ;;
+        esac
+    else
+        info "Non-interactive stdin — skipping prompt. Set MMD_AUTO_INSTALL_GSTACK=1 to auto-install."
+    fi
+    if [ "$INSTALL_GSTACK" = true ]; then
+        if curl -fsSL https://gstack.dev/install.sh | bash; then
+            info "gStack install command completed — re-checking..."
+        else
+            warn "gStack install command failed (network? URL drift?). Continuing without it."
+        fi
+    fi
+fi
+
+# Re-check after a possible install attempt.
+if [ -d "$GSTACK_DIR" ]; then
+    # Functional probe: PATH-prepend bun so the skill's preamble can run, then
+    # call gstack-config which is the cheapest skill-host healthcheck.
+    if [ -x "$GSTACK_CONFIG_BIN" ]; then
+        if GSTACK_OUT="$(PATH="$HOME/.bun/bin:$PATH" "$GSTACK_CONFIG_BIN" get proactive 2>&1)"; then
+            ok "gStack: present + functional (gstack-config responded)"
+            info "  proactive setting: ${GSTACK_OUT}"
+            GSTACK_STATUS="PRESENT_FUNCTIONAL"
+        else
+            fail "gStack: PRESENT BUT BROKEN — gstack-config did not respond"
+            info "  output: ${GSTACK_OUT}"
+            info "  Remediation: cd ${GSTACK_DIR} && bun install (or upgrade gStack)"
+            GSTACK_STATUS="PRESENT_BROKEN"
+        fi
+    else
+        fail "gStack: PRESENT BUT BROKEN — ${GSTACK_CONFIG_BIN} missing or not executable"
+        info "  Remediation: re-install gStack or upgrade to a version that ships gstack-config"
+        GSTACK_STATUS="PRESENT_BROKEN"
+    fi
+else
+    warn "gStack: NOT installed (skipping functional check)"
+    GSTACK_STATUS="NOT_INSTALLED"
+fi
+
+# AC-2 gate: exit 2 when gStack is required but broken.
+if [ "$GSTACK_STATUS" = "PRESENT_BROKEN" ] && [ "${MMD_REQUIRE_GSTACK:-0}" = "1" ]; then
+    fail "MMD_REQUIRE_GSTACK=1 set but gStack is broken — exiting 2 per AC-2."
+    exit 2
+fi
+if [ "$GSTACK_STATUS" = "NOT_INSTALLED" ] && [ "${MMD_REQUIRE_GSTACK:-0}" = "1" ]; then
+    fail "MMD_REQUIRE_GSTACK=1 set but gStack is not installed — exiting 1."
+    exit 1
+fi
+
+# ============================================================================
+# PHASE 7: Validation
+# ============================================================================
+header "Phase 7 — Validation"
 
 ALL_OK=true
 

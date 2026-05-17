@@ -12,7 +12,7 @@
 
 import { argv, env, stdin, stdout, stderr, exit, cwd } from 'node:process';
 import path from 'node:path';
-import { rm, lstat, writeFile } from 'node:fs/promises';
+import { rm, lstat, writeFile, realpath } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
@@ -127,7 +127,20 @@ async function resolveExistingChoice(flags) {
  *   - status.json carries mode/target_dir/slice_branch/base_branch/base_sha (AC-5).
  */
 async function runHereMode({ cwd: targetDir, dream, slug, engine }) {
-  const absTargetDir = path.resolve(targetDir);
+  // F2 (Phase 4 review): canonicalize the target dir via fs.realpath so we
+  // do NOT record a symlinked path in status.json (audit trail integrity)
+  // while git operates on the real path. path.resolve alone does not follow
+  // symlinks. realpath() rejects with ENOENT if the path does not exist —
+  // which is the right failure mode for `mmd --here` (cwd MUST exist).
+  let absTargetDir;
+  try {
+    absTargetDir = await realpath(path.resolve(targetDir));
+  } catch (err) {
+    stderr.write(
+      `error: --here: cannot resolve cwd '${targetDir}': ${err.code ? err.code + ': ' : ''}${err.message}\n`,
+    );
+    return 3;
+  }
   stdout.write(`Mode: --here (modifying current repo: ${absTargetDir})\n`);
   if (engine === 'fast') {
     stdout.write('Engine: FAST (trimmed auto-dev — target <=10 min)\n');

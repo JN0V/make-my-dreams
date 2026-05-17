@@ -260,6 +260,54 @@ test('@integration v0.2a AC-6: --here omits npm test suggestion when no package.
   }
 });
 
+// F2 (Phase 4 review) — symlinked cwd: status.json.target_dir MUST be the
+// canonical real path, not the symlink. Otherwise the audit trail records
+// `target_dir=/path/to/symlink` while git operates on `/path/to/real-repo`
+// → traceability mismatch when the symlink is removed/repointed.
+// Skip cleanly on platforms where symlink creation is restricted (e.g.
+// stock Windows without Developer Mode). ai-coding.md §I: document the skip.
+test('@integration v0.2a F2: --here from a symlinked cwd records canonical real path in status.json', { skip: SKIP_ON_WINDOWS }, () => {
+  const parent = makeTmp('mmd-here-symlink-');
+  const realRepo = path.join(parent, 'real-repo');
+  const linkRepo = path.join(parent, 'link-repo');
+  try {
+    initCleanRepo(realRepo);
+    try {
+      symlinkSync(realRepo, linkRepo, 'dir');
+    } catch (err) {
+      // Documented skip per ai-coding.md §I: failure honesty.
+      // Cannot exercise F2 on this platform without symlink privileges.
+      // eslint-disable-next-line no-console
+      console.log(`# SKIP F2 symlink test: cannot symlink (${err.code}: ${err.message})`);
+      return;
+    }
+    const canonical = realpathSync(linkRepo);
+    assert.equal(canonical, realRepo, 'realpathSync sanity: link resolves to real-repo');
+
+    const r = runMmd(['--here', 'tweak via symlinked cwd'], { cwd: linkRepo });
+    assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}; stdout=${r.stdout}`);
+
+    // F2 invariant: status.json.target_dir is the canonical real path,
+    // never the symlink path. Read from the real repo path (the canonical
+    // location) since that's where the writes land.
+    const statusPath = path.join(realRepo, '.mmd', 'shared', 'status.json');
+    assert.ok(existsSync(statusPath), 'status.json should exist at canonical path');
+    const status = JSON.parse(readFileSync(statusPath, 'utf8'));
+    assert.equal(
+      status.target_dir,
+      realRepo,
+      `target_dir must be the canonical real path, not the symlink '${linkRepo}'`,
+    );
+    // Sanity: stdout's "Mode: --here" announcement also reports the real path.
+    assert.ok(
+      r.stdout.includes(realRepo),
+      `stdout should announce the canonical real path; got: ${r.stdout}`,
+    );
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
 // F4 (Phase 4 review) — post-checkout FS failure must:
 //   - exit 6 (subprocess-style failure, not 99 catch-all),
 //   - print the slice branch + base SHA + recovery hint to stderr,

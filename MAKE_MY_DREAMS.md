@@ -1157,10 +1157,17 @@ Each version delivers something usable. No "foundation phase" lasting 3 weeks be
 - Just adds `vision.md` + `slice.md` as injected artifacts.
 - **Test**: `mmd "a drawing app that overlays an image on the camera"` produces a functional PWA.
 
-### v0.2 — FAST engine  *(2–3 days)*
+### v0.2 — FAST engine + v0.1 CLI polish backlog  *(3–4 days)*
 - Implements the bounded Ralph loop (§4.1).
 - Adds Mode Router with simple rules.
 - **Test**: `mmd --fast "add a button to change the stroke color"` on the v0.1 project → enriched MVP in < 5 min.
+
+**Deferred-from-v0.1 cluster (from `_bmad-output/implementation-artifacts/deferred-work.md`, 5 items, pulled into v0.2 because they all touch the CLI surface that v0.2 will modify anyway)**:
+- **B2**: replace heuristic `claude` CLI detection (`cmd === 'claude' || /\/claude$/.test(cmd)`) with explicit `MMD_AUTODEV_MODE=cli|test` env var, so user wrappers like `claude-wrapper` are handled cleanly.
+- **B4**: add `MMD_QUIET=1` to suppress terminal stdout tee under `node --test` and CI, preserving the log-file tee.
+- **B8**: consolidate the redundant `EACCES` short-circuit in `bin/mmd.js`'s top-level catch (cosmetic, but worth doing before the v0.2 CLI grows).
+- **E7**: add a parallel `lstat` check on the `--resume` path so a symlinked `demo/<slug>` cannot social-engineer a misleading "state: done" message.
+- **E13/E14**: stop silently dropping unknown `--foo` flags. Either error on unknown flags or implement POSIX `--` end-of-flags separator (preferably both).
 
 ### v0.2c — Brownfield onboarding + shared/local structure  *(3–4 days)*
 - Worker `project-onboarder` + `mmd discover <path>` command.
@@ -1170,10 +1177,13 @@ Each version delivers something usable. No "foundation phase" lasting 3 weeks be
 - **Blocking for bootstrap §7**: MMD becomes brownfield after v0.1, so v0.2c must be able to auto-discover itself.
 - **Test**: run `mmd discover` on the Extend BMAD repo (rich in Spec Kit+BMAD) and get a relevant report to validate.
 
-### v0.2b — Dream-bench v0 + Bundle A Security  *(2–3 days)*
+### v0.2b — Dream-bench v0 + Bundle A Security + v0.1 deferred-A1  *(3–4 days)*
 - **Dream-bench v0** (P-10): 5 reproducible dreams (3 kid + 2 pro), CI harness measuring `time-to-MVP`, `cost`, `reality-check-pass-rate`. **Blocking for bootstrap §7**: without dream-bench, no safe self-improvement.
 - **Bundle A Security activated permanently**: Worker sandbox (egress allowlist), `deps-gate` Worker (verify existence + age + downloads before install), pre-commit hooks `trufflehog`/`git-secrets`.
 - **Test**: no post-v0.2b release can be promoted without passing the previous version's dream-bench.
+
+**Deferred-from-v0.1 cluster (1 item, pulled into v0.2b because it IS the seed of dream-bench)**:
+- **A1** (Acceptance Auditor): write `test/integration/pwa-drawing.test.js` — a Playwright-driven test for the v0.1 fil-rouge PWA that exercises the camera-permission flow with `--use-fake-ui-for-media-stream`. Skips cleanly when Playwright is absent. This test becomes one of the 5 reference dreams of the dream-bench v0.
 
 ### v0.2.5 — `mmd serve` minimal web UI for non-tech users  *(2–3 days)*
 
@@ -1291,6 +1301,9 @@ Each version delivers something usable. No "foundation phase" lasting 3 weeks be
 - **Bundle E "Parallelism" activated** (P-15 worktrees, P-16 semantic conflicts) automatically when `--parallel` or auto-detection.
 - Default limit: 3 max concurrent slices (configurable).
 - **Premium use case**: MMD itself developing several features in parallel (bootstrap §7).
+
+**Deferred-from-v0.1 cluster (1 item, pulled into v0.9 because parallelism makes it critical)**:
+- **E8** (Edge Case Hunter): `.gitignore` append race condition in `lib/state.js#ensureGitignore`. Two parallel `mmd` invocations can both read an empty `.gitignore`, both decide the pattern is absent, both append → duplicate `# MMD v0.1` section. Self-healing on next single-process run but breaks under v0.9 parallelism. Fix: `fs.open(..., 'a')` with `O_APPEND` + content-marker scan, or per-repo lock-file.
 
 ### v0.9b — Optional gbrain RAG (large brownfield)  *(3–5 days)*
 - Port of gStack `/setup-gbrain` + `/sync-gbrain`: repo embeddings indexed.

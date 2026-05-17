@@ -206,3 +206,97 @@ test('@unit parseArgv: dream containing -- in the middle is preserved as a singl
   assert.equal(r.error, null);
   assert.deepEqual(r.positional, ['use a -- in the dream literally']);
 });
+
+// v0.2b — parseBenchArgs + detectSubcommand coverage (SPEC_V02B AC-1).
+
+import { parseBenchArgs, detectSubcommand, SUBCOMMANDS } from '../../lib/argv-parser.js';
+
+test('@unit detectSubcommand: bench is recognized as a subcommand', () => {
+  assert.equal(detectSubcommand(['bench', '--dry-run']), 'bench');
+  assert.equal(detectSubcommand(['serve']), 'serve');
+  assert.equal(detectSubcommand(['"a dream"']), null);
+  assert.equal(detectSubcommand([]), null);
+});
+
+test('@unit SUBCOMMANDS is frozen and contains bench + serve', () => {
+  assert.ok(Object.isFrozen(SUBCOMMANDS));
+  assert.ok(SUBCOMMANDS.includes('bench'));
+  assert.ok(SUBCOMMANDS.includes('serve'));
+});
+
+test('@unit parseBenchArgs: defaults (no flags)', () => {
+  const r = parseBenchArgs([]);
+  assert.equal(r.error, null);
+  assert.equal(r.dryRun, false);
+  assert.equal(r.help, false);
+  assert.equal(r.engine, 'standard');
+  assert.equal(r.dreams, null);
+  assert.equal(r.outDir, null);
+});
+
+test('@unit parseBenchArgs: --dry-run', () => {
+  const r = parseBenchArgs(['--dry-run']);
+  assert.equal(r.dryRun, true);
+});
+
+test('@unit parseBenchArgs: --help and -h', () => {
+  assert.equal(parseBenchArgs(['--help']).help, true);
+  assert.equal(parseBenchArgs(['-h']).help, true);
+});
+
+test('@unit parseBenchArgs: --engine fast accepted', () => {
+  const r = parseBenchArgs(['--engine', 'fast']);
+  assert.equal(r.engine, 'fast');
+});
+
+test('@unit parseBenchArgs: --engine wat rejected with exit 2', () => {
+  const r = parseBenchArgs(['--engine', 'wat']);
+  assert.ok(r.error);
+  assert.equal(r.error.exitCode, 2);
+  assert.match(r.error.message, /--engine must be one of/);
+});
+
+test('@unit parseBenchArgs: --dreams parses CSV into array', () => {
+  const r = parseBenchArgs(['--dreams', 'kid-01,kid-02 , pro-01']);
+  assert.deepEqual(r.dreams, ['kid-01', 'kid-02', 'pro-01']);
+});
+
+test('@unit parseBenchArgs: --dreams empty string rejected', () => {
+  const r = parseBenchArgs(['--dreams', '']);
+  assert.ok(r.error);
+});
+
+test('@unit parseBenchArgs: value flag without value rejected', () => {
+  const r = parseBenchArgs(['--engine']);
+  assert.ok(r.error);
+  assert.match(r.error.message, /requires a value/);
+});
+
+test('@unit parseBenchArgs: value flag followed by another flag rejected (no missing value)', () => {
+  const r = parseBenchArgs(['--engine', '--dry-run']);
+  assert.ok(r.error);
+});
+
+test('@unit parseBenchArgs: --out-dir accepts a path value', () => {
+  const r = parseBenchArgs(['--out-dir', '/tmp/foo']);
+  assert.equal(r.outDir, '/tmp/foo');
+});
+
+test('@unit parseBenchArgs: unknown flag rejected with helpful message', () => {
+  const r = parseBenchArgs(['--bogus']);
+  assert.ok(r.error);
+  assert.equal(r.error.exitCode, 2);
+  assert.match(r.error.message, /unknown bench arg/);
+});
+
+test('@unit parseBenchArgs: flags compose (--dry-run --engine fast --dreams kid-01,kid-02)', () => {
+  const r = parseBenchArgs([
+    '--dry-run',
+    '--engine', 'fast',
+    '--dreams', 'kid-01,kid-02',
+  ]);
+  assert.equal(r.error, null);
+  assert.equal(r.dryRun, true);
+  assert.equal(r.engine, 'fast');
+  assert.deepEqual(r.dreams, ['kid-01', 'kid-02']);
+});

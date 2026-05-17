@@ -18,12 +18,28 @@ What MMD adds: multi-audience accessibility (Kid → Pro), reflexive bootstrap (
 
 **MMD's success is the success of the projects it stands on.**
 
+## Install
+
+One-liner:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JN0V/make-my-dreams/main/install.sh | bash
+```
+
+This clones MMD into `~/Documents/make-my-dreams/` (override with `MMD_HOME=/path`), installs Phase A (BMAD + adv module + auto-dev workflow + project constitution), and offers to install gStack as the next step. Prerequisites: `git`, `node` (v20+), `npx`, `claude` (Claude Code CLI). `bun` is required only for gStack and can be installed later.
+
+Manual install (if you prefer to read the script first or operate offline):
+
+```bash
+git clone https://github.com/JN0V/make-my-dreams.git
+cd make-my-dreams
+bash install-mmd.sh .
+```
+
 ## Usage
 
 ```bash
-git clone <repo>
-cd make-my-dreams
-npm install -g .
+cd ~/Documents/make-my-dreams
 mmd "a drawing app that overlays an image on the camera feed"
 # → creates ./demo/drawing-app-overlays-image-camera-feed/ with a working PWA
 ```

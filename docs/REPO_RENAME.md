@@ -1,6 +1,27 @@
 # Repository rename procedure — `extend-bmad` → `make-my-dreams`
 
-> This document captures the 5 manual steps to rename the GitHub repository AND its working folder, plus the verification steps. Most of these steps require Sébastien's GitHub credentials and cannot be automated from within the repo itself.
+> **STATUS (2026-05-17): Steps 1, 2, 3 are DONE.** Steps 4 (local folder rename) and 5 (verification) remain to be done by Sébastien at his convenience. The repo is fully renamed on GitHub, the description is set, the topics are set, and the local git remote points to the new URL.
+
+## What was already done (steps 1-3, automated via `gh` CLI on 2026-05-17)
+
+```bash
+gh api -X PATCH "/repos/JN0V/extend-bmad" \
+  -f name="make-my-dreams" \
+  -f description="An accessibility and orchestration layer for AI-driven development..."
+
+gh api -X PUT "/repos/JN0V/make-my-dreams/topics" \
+  --input - <<EOF
+{"names":["ai-coding","agentic","spec-driven-development","bmad","gstack","claude-code","make-my-dreams"]}
+EOF
+
+git remote set-url origin git@github.com:JN0V/make-my-dreams.git
+```
+
+GitHub automatically created HTTP redirects from `extend-bmad/*` to `make-my-dreams/*`, so old links and the `install.sh` fallback keep working.
+
+## What remains (steps 4-5, manual, do when convenient)
+
+The local folder is still named `extend-bmad/` and Cowork's workspace selection still points there. Renaming the folder is optional but recommended for clarity.
 
 ## Why rename
 

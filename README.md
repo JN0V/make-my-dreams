@@ -113,6 +113,45 @@ Engine flags compose with `--here` (`mmd --here --fast "<change>"` is valid). Re
 `--here`-specific env vars:
 - `MMD_HERE_PROTECTED_BRANCHES` — comma-separated list (default `main,master`). `--here` from a protected branch is NOT an error — the slice branch is still created from HEAD. This env var documents the protected names for future Conductor enforcement.
 
+### Bench mode (`mmd bench`) — *new in v0.2b*
+
+`mmd bench` runs a fixed corpus of 5 canonical dreams (3 kid + 2 pro, see [`bench/dreams/`](./bench/dreams/) and the [schema reference](./bench/dreams/SCHEMA.md)) end-to-end, captures per-dream metrics, and aggregates a deterministic report. It is the regression harness for the reflexive bootstrap: any future MMD version is only promotable if its `mmd bench` output beats the previous version's.
+
+**v0.2b scope (design vs current implementation — per [L-009](./docs/lessons-learned.md))**:
+- **Design** (per [MAKE_MY_DREAMS.md §8.3](./MAKE_MY_DREAMS.md)): a hands-off CI-runnable harness that gates every MMD release with measurable signals (time-to-MVP, reality-check pass rate, cost). v0.5b will additionally feed bench output into the autolearning loop.
+- **Current implementation** (v0.2b): the loader, runner, metrics serializer, aggregator, and CLI dispatch all ship. The reality-check integration in real runs is deferred to a follow-up slice — for now `mmd bench` in real mode marks `reality_check.ran=false` while the user runs the reality check manually after the bench. `--dry-run` writes a stub screenshot so the metric shape is faithful to the design.
+
+```bash
+# Validate the harness itself (no auto-dev invoked, no env var needed):
+mmd bench --dry-run
+
+# Run for real (takes hours — opt-in gate):
+MMD_BENCH_REAL=1 mmd bench
+
+# Filter to one or two dreams:
+mmd bench --dry-run --dreams kid-01-drawing-camera-overlay,pro-01-csv-viewer
+
+# Override output dir:
+mmd bench --dry-run --out-dir /tmp/my-bench-run
+
+mmd bench --help
+```
+
+**Opt-in gate.** A real `mmd bench` runs the auto-dev pipeline 5× sequentially, which typically takes several hours. The harness refuses to start without `MMD_BENCH_REAL=1` (exit 2) unless `--dry-run` is also passed. This is a constitution `security.md` §A04 (insecure-design) safeguard: the more expensive default must require an explicit acknowledgement.
+
+**Output layout** (under `bench/runs/<run-id>/`, gitignored except the README):
+- `summary.json` — machine-readable aggregate (totals, pass rate, MMD version + git SHA).
+- `report.md` — human-readable aggregate (deterministic — no LLM call).
+- `<dream-id>/metrics.json` — per-dream AC-4 fields.
+- `<dream-id>/run.log` — subprocess capture.
+- `<dream-id>/screenshot.png` — reality-check screenshot (stub PNG in `--dry-run`).
+- `<dream-id>/demo/<slug>/` — isolated working dir that auto-dev modified.
+- `bench/runs/latest/` — symlink to the freshest run.
+
+**Exit codes**: `0` all green, `2` user/gate error, `6` reality-check failed (no crash), `7` auto-dev crashed.
+
+**Why these 5 dreams, why sequential, why no $-cost metric?** See [ADR-006](./docs/adr/006-dream-bench-v0-design.md).
+
 ### Web mode (no terminal — for non-technical users)  — *new in v0.2.5*
 
 ```bash

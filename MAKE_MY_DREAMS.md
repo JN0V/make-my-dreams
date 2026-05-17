@@ -1358,6 +1358,8 @@ The `dev-ai-watch` skill (v0.8) ships as a **GitHub Actions workflow** triggered
 
 The digest is not just informational: it proposes **PRs on the Make My Dreams repo** to integrate detected patterns. Sébastien validates or rejects. It's a meta-Ralph loop on the project itself.
 
+**v0.2b delivered the v0 harness** (`mmd bench` — 5 dreams, sequential, deterministic report) on 2026-05-17 via slice `slice/here-implement-v0-2b-per-spec-v02b-md-read-it-now-it-is-1779030967`, base SHA `6fafe02`. See [SPEC_V02B](./SPEC_V02B.md) for the full delivery scope and [ADR-006](./docs/adr/006-dream-bench-v0-design.md) for the design rationale. The reality-check integration in real-bench mode and the cost-in-dollars metric are explicitly deferred to v0.2b+; v0.2b ships the harness mechanics + the canonical 5-dream corpus.
+
 ---
 
 ## 9. MVP-first Roadmap

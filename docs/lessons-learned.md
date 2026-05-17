@@ -171,3 +171,29 @@ Using `mmd --here` instead of raw `claude -p` is the difference between "MMD's r
 ---
 
 *This file is the project-scoped Layer F of the multi-layer constitution. Per scoping §6.5, when any lesson reaches N=5 validated re-uses, the Documentalist will (a) promote it to the appropriate constitution module, (b) remove it from here, (c) record the promotion event in `docs/adr/` if architectural.*
+
+---
+
+## L-011 — Reflexive bootstrap §7 validated on a real feature (second symbolic gate)
+
+**Status**: milestone (not a failure-derived lesson — a captured proof-of-life per SPEC_V02B DoD §10)
+**Date**: 2026-05-17
+**Origin**: Sébastien launched `mmd --here "implement v0.2b per SPEC_V02B.md ..."` from inside `~/Documents/make-my-dreams/`. The supported `mmd --here` path produced the entire v0.2b slice — bench dreams + schema + library modules + CLI wiring + integration test + docs + version bump — end-to-end. Until L-010, every reflexive run had been via raw `claude -p`. With L-010 we validated `mmd --here` on a trivial symbolic change. L-011 strengthens that result to "validated on a real feature slice" (the `mmd bench` v0 harness — non-trivial: 9 new files in `lib/bench/` + `bin/`, 5 new test files, 4 docs).
+
+**Numbers** (the symbolic gate, per SPEC_V02B DoD §10):
+- Slice branch: `slice/here-implement-v0-2b-per-spec-v02b-md-read-it-now-it-is-1779030967`, base `0bd703c`
+- Files created: 19 new (5 bench dreams, 1 schema, 1 bench gitignore, 1 runs README, 4 lib/bench modules, 1 bin/bench.js, 4 unit tests, 1 integration test, 1 ADR-006)
+- Files modified: 5 (bin/mmd.js, lib/argv-parser.js, README.md, MAKE_MY_DREAMS.md, package.json, docs/lessons-learned.md)
+- Test results: full suite passes with the new tests (count + duration recorded in the final commit message of the slice)
+- `mmd bench --dry-run` actual wall-clock: under 1 second on the developer machine (well under the 30-second mission validation)
+- Exit code 0
+- v0.2b complete. The reflexive bootstrap §7 is now validated on a real feature slice. The asterisk on §7.4's roadmap statement ("v0.2+: MMD is used to develop MMD") can be removed permanently — both L-010 and L-011 underwrite it.
+
+**Rule** (operative implication, not a lesson-rule per se): from now on, every NEW MMD slice MUST be launched via `mmd --here` rather than raw `claude -p`, except in the two carve-outs from L-010:
+  1. The slice modifies the wrapper itself (chicken/egg — use `claude -p` once, then test the modified wrapper from the next slice).
+  2. The slice has a known dependency on a feature that's not yet on `main`.
+
+After L-011, raw `claude -p` for a regular feature slice is a **constitution violation** (commit-git.md §IV preference for "the supported path"), not just a stylistic regression. The next slice that uses raw `claude -p` without falling into a carve-out triggers a red-green pass to either widen the carve-out list with a documented reason OR fix the wrapper limitation that motivated the bypass.
+
+**To promote if**: this is a marker, not a counter-tracked lesson. Keep here as a historical anchor; promote to the History section of README.md when v0.3 ships (the version that demonstrates dream-bench actually gates a release).
+**Keywords for matching**: reflexive bootstrap, §7, v0.2b, dream-bench, --here, symbolic gate, milestone, MMD develops MMD, L-010 strengthened

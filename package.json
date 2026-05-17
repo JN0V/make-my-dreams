@@ -1,6 +1,6 @@
 {
   "name": "make-my-dreams",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Accessibility and orchestration layer for AI-driven development",
   "type": "module",
   "bin": { "mmd": "./bin/mmd.js" },
@@ -10,7 +10,8 @@
     "test:unit": "node --test --test-reporter=spec test/unit/*.test.js",
     "test:integration": "node --test --test-reporter=spec test/integration/*.test.js",
     "test:smoke": "node --test --test-reporter=spec --test-name-pattern=@smoke test/integration/*.test.js",
-    "test:full": "node --test --test-reporter=spec test/unit/*.test.js test/integration/*.test.js"
+    "test:full": "node --test --test-reporter=spec test/unit/*.test.js test/integration/*.test.js",
+    "test:e2e": "MMD_RUN_E2E=1 node --test --test-reporter=spec test/e2e/*.test.js"
   },
   "license": "MIT"
 }

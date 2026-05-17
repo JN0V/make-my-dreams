@@ -79,6 +79,40 @@ FAST-specific env vars:
 
 Engine flags (`--fast`, `--standard`, `--deep`) are mutually exclusive. `--standard` and `--deep` parse cleanly in v0.2 but resolve to the default STANDARD engine — their distinct semantics land in v0.2d. POSIX `--` is supported: anything after `--` is treated as positional dream text, so a dream like `--literally-my-dream` can be passed as `mmd -- --literally-my-dream`.
 
+### Self-modification mode (`--here`) — *new in v0.2a*
+
+For small in-place changes to **an existing git repo** — including MMD itself — pass `--here`:
+
+```bash
+cd ~/Documents/make-my-dreams
+mmd --here "add a banner at the top of README.md that links to BOOTSTRAP.md"
+```
+
+`--here` skips `demo/<slug>/` and works **on the current repo**:
+
+1. Validates that cwd is a clean git repo (exits 3 if not a repo, exits 4 if the working tree is dirty).
+2. Creates a slice branch `slice/here-<dream-slug>-<unix-timestamp>` from HEAD (exits 5 if `git checkout -b` fails).
+3. Invokes auto-dev with an in-place prompt — explicitly told NOT to scaffold a new PWA.
+4. Writes `.mmd/shared/{vision,slice,status.json,decisions.log}` under the target repo with `mode: "here"`, `target_dir`, `slice_branch`, `base_branch`, `base_sha`.
+5. **Never auto-merges** — the human reviews the slice branch and merges (or discards) it.
+
+After the run, MMD prints the slice branch name and the three follow-up commands:
+
+```
+[OK] Changes applied on slice/here-add-a-banner-1779537600. Review with: git diff <base_sha>..HEAD
+     Merge with:  git checkout main && git merge --ff-only slice/here-add-a-banner-1779537600
+     Discard with: git checkout main && git branch -D slice/here-add-a-banner-1779537600
+```
+
+Engine flags compose with `--here` (`mmd --here --fast "<change>"` is valid). Reality Check is short-circuited in `--here` mode — there is no PWA to open. If the target repo has a `package.json` with a `test` script, MMD suggests `npm test` (suggestion only, never auto-runs).
+
+**Why explicit and not auto-detected?** See [ADR-005](./docs/adr/005-here-mode-explicit-flag-not-auto-detect.md). Short version: silent in-place mutation is destructive-by-default — a footgun for any user running mmd from inside a personal git repo. `--here` requires a named opt-in.
+
+**Operate on any project (`--here`).** This is the implementation step that fulfills the reflexive bootstrap [MAKE_MY_DREAMS.md §7](./MAKE_MY_DREAMS.md): from v0.2a onward, the same CLI works on greenfield (`demo/<slug>/`) and on any existing repo (in-place). Self-development of MMD now flows through the supported path rather than bypassing it (cf [`docs/lessons-learned.md`](./docs/lessons-learned.md) L-009).
+
+`--here`-specific env vars:
+- `MMD_HERE_PROTECTED_BRANCHES` — comma-separated list (default `main,master`). `--here` from a protected branch is NOT an error — the slice branch is still created from HEAD. This env var documents the protected names for future Conductor enforcement.
+
 ### Web mode (no terminal — for non-technical users)  — *new in v0.2.5*
 
 ```bash
@@ -120,6 +154,8 @@ Stop with `Ctrl+C`. The server prints `À bientôt ! / Bye!` and exits cleanly.
 ## History
 
 This repo started as `extend-bmad` — a customization of BMAD that combined quick-dev, party mode, adversarial review loops and Spec Kit-style constitution injection (see `install-mmd.sh`, formerly `install-auto-dev.sh`). After comparative usage of Spec Kit, OpenSpec, BMAD and gStack, the scoping evolved into Make My Dreams: an accessibility and orchestration layer that sits on top of these frameworks rather than replacing them. The full design rationale is in [MAKE_MY_DREAMS.md](./MAKE_MY_DREAMS.md), with 14 versioned iterations documenting how every decision was reached.
+
+**v0.2a (2026-05-17)** delivered the reflexive bootstrap [§7](./MAKE_MY_DREAMS.md) in practice via the `--here` mode flag: the same `mmd` CLI now works on greenfield (creates `demo/<slug>/`) and on any existing git repo in place (creates a slice branch and modifies cwd). This closes the gap surfaced by [L-009](./docs/lessons-learned.md) — that the walking-skeleton wrapper was silently capping the design's "MMD must work on any project, including itself" intent. See [SPEC_V02A.md](./SPEC_V02A.md) for the 7 ACs and [ADR-005](./docs/adr/005-here-mode-explicit-flag-not-auto-detect.md) for why `--here` is a named flag rather than auto-detected.
 
 The folder will be renamed `make-my-dreams/` after v0.1 is validated. The repo itself can be renamed at any time on the git host.
 

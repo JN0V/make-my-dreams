@@ -1294,6 +1294,18 @@ To avoid fantasies: this bootstrap is **not** an unbounded self-evolving AGI. It
 
 It's the *recursive self-improvement under human oversight* pattern, not the Bostrom-paranoid version. Closer to Emacs modifying itself than to Skynet.
 
+### 7.6 v0.2a — the wrapper finally honors §7 in practice
+
+**Date**: 2026-05-17. **Slice**: `slice/v0.2a-here-mode`. **Spec**: [SPEC_V02A.md](./SPEC_V02A.md). **ADR**: [005](./docs/adr/005-here-mode-explicit-flag-not-auto-detect.md).
+
+Until v0.2 the `mmd <dream>` wrapper could only scaffold an external PWA under `demo/<slug>/`. That meant the only way to "use MMD on MMD" was to bypass the wrapper and call `claude /bmad-adv-auto-dev` manually — exactly what v0.2 and v0.2.5 development did, and exactly what `docs/lessons-learned.md` L-009 named as the gap between design scope and walking-skeleton scope.
+
+v0.2a closes that gap with one named flag: `mmd --here "<change>"`. The CLI now validates that cwd is a clean git repo, creates a slice branch `slice/here-<slug>-<unix-ts>`, and invokes auto-dev with a prompt that explicitly forbids `demo/<slug>/` scaffolding. The merge to `main` remains an explicit human gate (per §7.3 guardrail 2) — the CLI never auto-merges and never auto-deletes the slice branch.
+
+The acid test (AC-7 of SPEC_V02A, gated behind `MMD_RUN_E2E=1` so it doesn't run in the default test loop) is: `cd ~/Documents/make-my-dreams && mmd --here "<trivial change>"` produces a slice branch with the change applied, `status.json` records `mode: "here"`, `main` is unchanged. When that test passes against the real `claude` CLI, the reflexive bootstrap §7 is no longer aspirational — it's the supported path. Section 7.4's roadmap statement "v0.2+: MMD is used to develop MMD" can be removed of its asterisk.
+
+The constitutional safety statement from §7.3 holds unchanged: even with `--here`, the structural HITL gate (P-17), the dream-bench gate (v0.3), and the granular rollback (P-22) are not bypassed — they apply to each slice produced by `mmd --here` exactly as they applied to manual `claude -p` invocations. `--here` only changes WHO writes the dream prompt; it does not change WHO approves the merge.
+
 ---
 
 ## 8. Automated watch

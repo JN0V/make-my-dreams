@@ -36,10 +36,19 @@ function runMmd(args, opts = {}) {
   });
 }
 
-test('mmd --version exits 0 with 0.1.0', () => {
+test('mmd --version exits 0 with the version from package.json', () => {
+  // Read the version dynamically from package.json so the test does NOT need
+  // to be edited on every version bump. v0.1 had this hardcoded to /0\.1\.0/
+  // which broke when we bumped to 0.2.5 — the test had to be generalized.
+  // Lesson learned: when a constant exists in a single source of truth
+  // (package.json here), the test should read from THAT source, not hardcode.
+  const pkg = JSON.parse(
+    readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
+  );
   const r = spawnSync('node', [MMD, '--version'], { encoding: 'utf8' });
   assert.equal(r.status, 0);
-  assert.match(r.stdout, /0\.1\.0/);
+  assert.match(r.stdout, /^\d+\.\d+\.\d+\n?$/);
+  assert.equal(r.stdout.trim(), pkg.version);
 });
 
 test('mmd --help exits 0 and mentions --resume/--fresh/--cancel', () => {

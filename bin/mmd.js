@@ -45,6 +45,8 @@ Usage:
   mmd "<dream description>"            Generate a PWA fulfilling the dream
   mmd --fast "<dream>"                 Trimmed auto-dev pipeline (target <=10 min)
   mmd --here "<change>"                Modify the current git repo in place (v0.2a)
+  mmd bench [--dry-run]                Run the dream-bench v0 harness (v0.2b)
+  mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
   mmd --help, -h                       Print this usage and exit
 
@@ -355,6 +357,18 @@ async function maybeSuggestNpmTest(targetDir) {
 
 async function main() {
   const rawArgs = argv.slice(2);
+  // Subcommand dispatch happens FIRST so that `mmd bench --help` routes to
+  // the bench subcommand's help (not the top-level USAGE). Mirrors POSIX
+  // `git <subcmd> --help` semantics. v0.2.5 `serve` predates this rule and
+  // is also dispatched first per the same logic.
+  if (rawArgs[0] === 'serve') {
+    const { runServe } = await import('./serve.js');
+    return runServe(rawArgs.slice(1));
+  }
+  if (rawArgs[0] === 'bench') {
+    const { runBench } = await import('./bench.js');
+    return runBench(rawArgs.slice(1));
+  }
   if (rawArgs.includes('--version')) {
     stdout.write(`${VERSION}\n`);
     return 0;
@@ -362,11 +376,6 @@ async function main() {
   if (rawArgs.includes('--help') || rawArgs.includes('-h')) {
     stdout.write(USAGE);
     return 0;
-  }
-  // v0.2.5 — dispatch `serve` subcommand to bin/serve.js (AC-1).
-  if (rawArgs[0] === 'serve') {
-    const { runServe } = await import('./serve.js');
-    return runServe(rawArgs.slice(1));
   }
 
   // v0.2 — POSIX-style argv parsing with mutex + unknown-flag rejection (E13/E14).

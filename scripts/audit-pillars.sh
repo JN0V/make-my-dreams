@@ -7,51 +7,55 @@
 # INVOKED (count) / NOT INVOKED. Per SPEC_V02F.md AC-6.
 #
 # Usage:
-#   scripts/audit-pillars.sh [<base-branch>]
+#   scripts/audit-pillars.sh [<base-branch>|<base>..<head>]
 #   scripts/audit-pillars.sh --ci [<base-branch>]
 #   scripts/audit-pillars.sh --help
 #
 # Defaults:
-#   <base-branch> = main
+#   <base-branch> = main  (auditing main..HEAD)
 #
 # Flags:
 #   --ci         Exit 1 if any claimed pillar has count==0 (opt-in CI gate).
 #                Without --ci, the script is advisory (always exit 0).
 #   --help, -h   Print this usage and exit 0.
 #
-# Output: a markdown-like table on stdout:
+# Output: a table on stdout:
 #   PILLAR    | INVOKED (count) | LAST_COMMIT | NOTES
 #   ----------+-----------------+-------------+--------------------------------
 #   gStack    | INVOKED (3)     | abc1234     | mmd ship · /qa · /ship
-#   Ralph...  | NOT INVOKED     | —           | no commits matched patterns
+#   Ralph Loop| NOT INVOKED (0) | —           | claim drift — see L-012
 #
-# Patterns live in scripts/audit-pillars.patterns.json (v1 schema). If `jq`
-# is unavailable, the script prints a clear message and exits 0 (graceful
-# degradation per error-handling.md §III — auditing is advisory, not gating).
+# Patterns live in scripts/audit-pillars.patterns.json (v1 schema). The script
+# uses `node` (already a hard MMD dependency) to parse the JSON — this keeps
+# the script portable on any machine that can already run MMD, with no
+# additional system packages required (jq is NOT a dependency).
 #
 # Exit codes:
 #   0  success (default), OR --ci with every pillar invoked
 #   1  --ci AND at least one pillar count==0
-#   2  user error (bad flag, missing patterns.json, not a git repo)
+#   2  user error (bad flag, missing patterns.json, not a git repo, missing node)
 # ============================================================================
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PATTERNS_FILE="${SCRIPT_DIR}/audit-pillars.patterns.json"
+PATTERNS_FILE="${MMD_AUDIT_PATTERNS:-${SCRIPT_DIR}/audit-pillars.patterns.json}"
 
 # --- Argument parsing -------------------------------------------------------
 CI_MODE=false
-BASE_BRANCH="main"
+BASE_ARG="main"
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --help|-h)
-            sed -n '2,42p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+            sed -n '2,38p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         --ci)
             CI_MODE=true
+            shift
+            ;;
+        --)
             shift
             ;;
         --*)
@@ -60,145 +64,193 @@ while [ "$#" -gt 0 ]; do
             exit 2
             ;;
         *)
-            BASE_BRANCH="$1"
+            BASE_ARG="$1"
             shift
             ;;
     esac
 done
 
+# Allow caller to pass either '<base>' (→ <base>..HEAD) or '<base>..<head>'.
+if [[ "${BASE_ARG}" == *..* ]]; then
+    RANGE="${BASE_ARG}"
+else
+    RANGE="${BASE_ARG}..HEAD"
+fi
+
 # --- Pre-flight checks ------------------------------------------------------
 
-# Not a git repo? user error (exit 2 per error-handling.md §II).
+if ! command -v git >/dev/null 2>&1; then
+    echo "audit-pillars: git is required" >&2
+    exit 2
+fi
+
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     echo "audit-pillars: not inside a git repository (cd into the MMD repo first)" >&2
     exit 2
 fi
 
-# Patterns file is the contract — missing it is a user/install error.
 if [ ! -f "${PATTERNS_FILE}" ]; then
     echo "audit-pillars: patterns file missing: ${PATTERNS_FILE}" >&2
     exit 2
 fi
 
-# jq is required to read patterns.json. Graceful degradation if absent
-# (error-handling.md §III): print a clear message and exit 0 — auditing is
-# advisory, not gating. CI mode preserves the same exit semantics: the script
-# can't enforce what it can't measure, so it bails cleanly with a non-fatal
-# warning rather than silently lying about pillar invocations.
-if ! command -v jq >/dev/null 2>&1; then
-    cat <<EOF
-audit-pillars: jq not installed — skipping pillar audit.
-
-Install jq to enable this audit:
-  Debian/Ubuntu:  sudo apt-get install jq
-  macOS:          brew install jq
-  Arch:           sudo pacman -S jq
-
-This is advisory only (not a hard failure). Re-run after installing jq.
-EOF
-    exit 0
+if ! command -v node >/dev/null 2>&1; then
+    echo "audit-pillars: node is required to parse the patterns JSON" >&2
+    exit 2
 fi
 
-# Confirm the base-branch ref exists (locally OR on origin).
-if ! git rev-parse --verify "${BASE_BRANCH}" >/dev/null 2>&1; then
-    if git rev-parse --verify "origin/${BASE_BRANCH}" >/dev/null 2>&1; then
-        BASE_BRANCH="origin/${BASE_BRANCH}"
+# Resolve base if the user passed just a branch name; otherwise trust the range.
+RANGE_BASE="${RANGE%%..*}"
+RANGE_HEAD="${RANGE##*..}"
+if [ -n "${RANGE_BASE}" ] && ! git rev-parse --verify "${RANGE_BASE}" >/dev/null 2>&1; then
+    if git rev-parse --verify "origin/${RANGE_BASE}" >/dev/null 2>&1; then
+        RANGE="origin/${RANGE_BASE}..${RANGE_HEAD}"
     else
-        echo "audit-pillars: base branch '${BASE_BRANCH}' not found (locally or on origin)" >&2
-        echo "Pass the base branch as the first argument: scripts/audit-pillars.sh <branch>" >&2
+        echo "audit-pillars: base ref '${RANGE_BASE}' not found (locally or on origin)" >&2
+        echo "Pass the base as the first argument: scripts/audit-pillars.sh <branch-or-range>" >&2
         exit 2
     fi
 fi
 
-# --- Compute the commit range ----------------------------------------------
-# `<base>..HEAD` = commits reachable from HEAD but not from base.
-# If HEAD == base, the range is empty (no slice commits) → every pillar is
-# NOT INVOKED, which is the honest answer.
-RANGE="${BASE_BRANCH}..HEAD"
+# Validate the range resolves.
+if ! git rev-list --count "${RANGE}" >/dev/null 2>&1; then
+    echo "audit-pillars: invalid commit range: ${RANGE}" >&2
+    exit 2
+fi
 
-# --- Read pillar definitions ------------------------------------------------
-PILLAR_COUNT="$(jq '.pillars | length' "${PATTERNS_FILE}")"
-if [ "${PILLAR_COUNT}" -eq 0 ]; then
+# --- Read pillar definitions (via node) -------------------------------------
+# Output format: each pillar one line, fields tab-separated:
+#   name<TAB>patterns_joined_with_<US><TAB>negative_patterns_joined_with_<US>
+# Using ASCII Unit Separator (0x1F) as the inner delimiter avoids any
+# collision with regex characters that pillar patterns may contain.
+US=$(printf '\037')
+PILLARS_TSV="$(
+    node -e '
+const fs = require("fs");
+const path = process.argv[1];
+const US = String.fromCharCode(31);
+let parsed;
+try {
+    parsed = JSON.parse(fs.readFileSync(path, "utf8"));
+} catch (e) {
+    process.stderr.write("audit-pillars: failed to parse patterns JSON: " + e.message + "\n");
+    process.exit(2);
+}
+if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.pillars)) {
+    process.stderr.write("audit-pillars: patterns JSON has wrong schema (need version=1 + pillars[])\n");
+    process.exit(2);
+}
+for (const pillar of parsed.pillars) {
+    const name = String(pillar.name || "").replace(/\t/g, " ");
+    const pats = (Array.isArray(pillar.patterns) ? pillar.patterns : []).join(US);
+    const neg = (Array.isArray(pillar.negative_patterns) ? pillar.negative_patterns : []).join(US);
+    process.stdout.write(name + "\t" + pats + "\t" + neg + "\n");
+}
+' "${PATTERNS_FILE}"
+)"
+
+if [ -z "${PILLARS_TSV}" ]; then
     echo "audit-pillars: patterns.json contains zero pillars" >&2
     exit 2
 fi
 
-# --- Build the commit + diff haystack once (perf: one git call per kind) ----
-COMMIT_MSGS="$(git log --format='%H%n%B%n---' "${RANGE}" 2>/dev/null || true)"
-DIFF_TEXT="$(git diff "${RANGE}" 2>/dev/null || true)"
-
-# Combined haystack — patterns match against either commit messages OR diff.
-HAYSTACK="${COMMIT_MSGS}
-${DIFF_TEXT}"
+# --- Build the haystack once -----------------------------------------------
+# Capture commit messages + diff into temp files; cheaper than re-greping per pillar.
+CORPUS_DIR="$(mktemp -d -t mmd-audit-XXXXXX)"
+trap 'rm -rf "${CORPUS_DIR}"' EXIT
+MSGS_FILE="${CORPUS_DIR}/messages.txt"
+DIFF_FILE="${CORPUS_DIR}/diff.txt"
+git log --format='%H%n%B%n---MMD-COMMIT-SEP---' "${RANGE}" > "${MSGS_FILE}" 2>/dev/null || true
+git diff "${RANGE}" > "${DIFF_FILE}" 2>/dev/null || true
 
 # --- Audit each pillar ------------------------------------------------------
+echo ""
+echo "scripts/audit-pillars.sh — range: ${RANGE}"
+echo "  patterns: ${PATTERNS_FILE}"
+echo ""
 printf '%-12s | %-18s | %-12s | %s\n' "PILLAR" "INVOKED (count)" "LAST_COMMIT" "NOTES"
 printf '%s\n' "-------------+--------------------+--------------+----------------------------------------"
 
-ANY_MISSING=0
+ZERO_COUNT=0
 
-for i in $(seq 0 $((PILLAR_COUNT - 1))); do
-    NAME="$(jq -r ".pillars[$i].name" "${PATTERNS_FILE}")"
-    PATTERNS_JSON="$(jq -c ".pillars[$i].patterns" "${PATTERNS_FILE}")"
-    NEG_JSON="$(jq -c ".pillars[$i].negative_patterns // []" "${PATTERNS_FILE}")"
+while IFS=$'\t' read -r NAME PATS_JOIN NEG_JOIN; do
+    [ -z "${NAME}" ] && continue
 
-    # Count regex hits across the haystack.
-    COUNT=0
+    # Split joined patterns back into arrays via the US delimiter.
+    IFS="${US}" read -r -a PATS <<< "${PATS_JOIN:-}"
+    IFS="${US}" read -r -a NEGS <<< "${NEG_JOIN:-}"
+
+    TOTAL=0
     MATCHED_PATTERNS=()
-    PATTERN_LEN="$(echo "${PATTERNS_JSON}" | jq 'length')"
-    for j in $(seq 0 $((PATTERN_LEN - 1))); do
-        PAT="$(echo "${PATTERNS_JSON}" | jq -r ".[$j]")"
-        # -E for extended regex; -c counts matches; -i case-insensitive for human-friendly matching.
-        HITS="$(printf '%s' "${HAYSTACK}" | grep -Ec -i -- "${PAT}" || true)"
-        if [ "${HITS}" -gt 0 ]; then
-            COUNT=$((COUNT + HITS))
-            MATCHED_PATTERNS+=("${PAT}")
+    for p in "${PATS[@]:-}"; do
+        [ -z "${p}" ] && continue
+        # Sum hits in commit messages and in the diff. -E for extended regex,
+        # -i for case-insensitive (so gstack / gStack / GSTACK all match).
+        # grep -c always prints a count and exits non-zero on zero matches —
+        # we capture stdout without `|| echo 0` (which would duplicate the
+        # zero) and tolerate the non-zero exit via the trailing `true`.
+        MSG_HIT=$(grep -E -i -c -- "${p}" "${MSGS_FILE}" 2>/dev/null; true)
+        DIFF_HIT=$(grep -E -i -c -- "${p}" "${DIFF_FILE}" 2>/dev/null; true)
+        MSG_HIT=${MSG_HIT:-0}
+        DIFF_HIT=${DIFF_HIT:-0}
+        SUB=$((MSG_HIT + DIFF_HIT))
+        if [ "${SUB}" -gt 0 ]; then
+            TOTAL=$((TOTAL + SUB))
+            MATCHED_PATTERNS+=("${p}")
         fi
     done
 
-    # Subtract negative-pattern hits (counted as evidence the matches are spurious).
-    NEG_LEN="$(echo "${NEG_JSON}" | jq 'length')"
-    for j in $(seq 0 $((NEG_LEN - 1))); do
-        PAT="$(echo "${NEG_JSON}" | jq -r ".[$j]")"
-        NEG_HITS="$(printf '%s' "${HAYSTACK}" | grep -Ec -i -- "${PAT}" || true)"
-        COUNT=$((COUNT - NEG_HITS))
-        if [ "${COUNT}" -lt 0 ]; then COUNT=0; fi
+    # Subtract negative-pattern hits.
+    for p in "${NEGS[@]:-}"; do
+        [ -z "${p}" ] && continue
+        NEG_MSG=$(grep -E -i -c -- "${p}" "${MSGS_FILE}" 2>/dev/null; true)
+        NEG_DIFF=$(grep -E -i -c -- "${p}" "${DIFF_FILE}" 2>/dev/null; true)
+        NEG_MSG=${NEG_MSG:-0}
+        NEG_DIFF=${NEG_DIFF:-0}
+        NEG_HIT=$((NEG_MSG + NEG_DIFF))
+        TOTAL=$((TOTAL - NEG_HIT))
+        if [ "${TOTAL}" -lt 0 ]; then TOTAL=0; fi
     done
 
-    # Resolve the last commit that touched a pattern (best-effort).
+    # Resolve the last commit that mentions any matched pattern (best-effort).
     LAST_COMMIT="—"
-    if [ "${COUNT}" -gt 0 ] && [ "${#MATCHED_PATTERNS[@]}" -gt 0 ]; then
-        # Use the first matched pattern to find the last commit (best-effort signal).
+    if [ "${TOTAL}" -gt 0 ] && [ "${#MATCHED_PATTERNS[@]}" -gt 0 ]; then
         PROBE_PAT="${MATCHED_PATTERNS[0]}"
-        LAST_SHA="$(git log --format=%H -G "${PROBE_PAT}" "${RANGE}" 2>/dev/null | head -1 || true)"
+        # Try diff-content first (-G), then commit-message (--grep).
+        LAST_SHA=$(git log --format=%H -G "${PROBE_PAT}" "${RANGE}" 2>/dev/null | head -1 || true)
         if [ -z "${LAST_SHA}" ]; then
-            LAST_SHA="$(git log --format=%H --grep "${PROBE_PAT}" "${RANGE}" 2>/dev/null | head -1 || true)"
+            LAST_SHA=$(git log --format=%H --grep "${PROBE_PAT}" "${RANGE}" 2>/dev/null | head -1 || true)
         fi
         if [ -n "${LAST_SHA}" ]; then
             LAST_COMMIT="${LAST_SHA:0:7}"
         fi
     fi
 
-    # Notes column: a compact summary of which patterns matched (or why empty).
-    if [ "${COUNT}" -gt 0 ]; then
-        NOTES="$(IFS=' · '; echo "${MATCHED_PATTERNS[*]:0:3}")"
-        STATUS="INVOKED (${COUNT})"
+    if [ "${TOTAL}" -gt 0 ]; then
+        # Notes column: first three matched patterns separated by " · ".
+        NOTES=""
+        for ((k=0; k<${#MATCHED_PATTERNS[@]} && k<3; k++)); do
+            if [ -z "${NOTES}" ]; then
+                NOTES="${MATCHED_PATTERNS[$k]}"
+            else
+                NOTES="${NOTES} · ${MATCHED_PATTERNS[$k]}"
+            fi
+        done
+        STATUS="INVOKED (${TOTAL})"
     else
-        NOTES="no commits matched patterns"
-        STATUS="NOT INVOKED"
-        ANY_MISSING=$((ANY_MISSING + 1))
+        STATUS="NOT INVOKED (0)"
+        NOTES="claim drift — see L-012"
+        ZERO_COUNT=$((ZERO_COUNT + 1))
     fi
 
     printf '%-12s | %-18s | %-12s | %s\n' "${NAME}" "${STATUS}" "${LAST_COMMIT}" "${NOTES}"
-done
+done <<< "${PILLARS_TSV}"
 
 echo ""
-echo "Range: ${RANGE}"
-echo "Patterns: ${PATTERNS_FILE} (v$(jq -r .version "${PATTERNS_FILE}"))"
 
-if [ "${CI_MODE}" = "true" ] && [ "${ANY_MISSING}" -gt 0 ]; then
-    echo ""
-    echo "audit-pillars: --ci mode: ${ANY_MISSING} pillar(s) NOT INVOKED in this range — failing with exit 1" >&2
+# --- CI gate ---------------------------------------------------------------
+if [ "${CI_MODE}" = "true" ] && [ "${ZERO_COUNT}" -gt 0 ]; then
+    echo "audit-pillars: --ci enforced and ${ZERO_COUNT} pillar(s) NOT INVOKED in this range — failing with exit 1" >&2
     exit 1
 fi
 

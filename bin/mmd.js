@@ -46,6 +46,7 @@ Usage:
   mmd --fast "<dream>"                 Trimmed auto-dev pipeline (target <=10 min)
   mmd --here "<change>"                Modify the current git repo in place (v0.2a)
   mmd bench [--dry-run]                Run the dream-bench v0 harness (v0.2b)
+  mmd ship [<branch>] [--dry-run]      Invoke gStack ship skill on the current slice (v0.2.f)
   mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
   mmd --help, -h                       Print this usage and exit
@@ -368,6 +369,12 @@ async function main() {
   if (rawArgs[0] === 'bench') {
     const { runBench } = await import('./bench.js');
     return runBench(rawArgs.slice(1));
+  }
+  if (rawArgs[0] === 'ship') {
+    // v0.2.f AC-3: `mmd ship` subcommand. Dispatched here for the same
+    // reasons as `bench` (must not parse as a dream string equal to "ship").
+    const { runShip } = await import('./ship.js');
+    return runShip(rawArgs.slice(1));
   }
   if (rawArgs.includes('--version')) {
     stdout.write(`${VERSION}\n`);

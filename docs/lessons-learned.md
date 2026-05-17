@@ -80,4 +80,25 @@ The same rule generalizes: configuration values, file paths, port numbers — wh
 
 ---
 
+## L-006 — `claude -p` can stay in `S (sleeping)` state forever after finishing its work
+
+**Status**: active (1 occurrence between v0.2.5 and v0.2)
+**Date**: 2026-05-17
+**Origin**: when launching v0.2 auto-dev, I discovered that the v0.2.5 auto-dev (PID 247659/247662) was STILL running after 40 minutes, in state `S (sleeping)`. It had merged its work, the branch had been deleted, but the process never received a "you're done, exit" signal. Two concurrent auto-devs in the same worktree is exactly the L-003 anti-pattern. Had to manually SIGTERM both.
+**Context**: `claude -p "<prompt>" --output-format text` is a non-interactive invocation but it does NOT guarantee process termination after `/bmad-adv-auto-dev` completes its pipeline. The slash command's "done" state and the parent `claude` process's exit are not linked tightly. The process can sit idle indefinitely waiting for nothing in particular.
+**Rule**: BEFORE launching a new auto-dev (or any long-running `claude -p` subprocess), ALWAYS verify no previous one is still alive:
+```bash
+pgrep -af "claude -p" || echo "(no previous claude -p alive — safe to launch)"
+# If any survivor, SIGTERM it cleanly:
+pgrep -f "claude -p" | xargs -r kill -TERM
+sleep 3
+# Confirm it's gone, SIGKILL if needed:
+pgrep -f "claude -p" | xargs -r kill -KILL
+```
+Better: wrap every `claude -p` launch with a **session ID env var** (`MMD_RUN_ID=v0.2-fast-engine-$(date +%s)`) recorded in `status.json`, so any orchestrator (Conductor in v0.5+) can `pgrep -af "MMD_RUN_ID=<previous>" | xargs kill` to enforce single-active-run-per-worktree as a constitutional invariant.
+**To promote if**: 5 reuses validated (counter: 1) — likely to inform the Conductor's lifecycle management in v0.5
+**Keywords for matching**: claude -p zombie, sleeping process, previous auto-dev, single active run, MMD_RUN_ID, process cleanup, SIGTERM SIGKILL
+
+---
+
 *This file is the project-scoped Layer F of the multi-layer constitution. Per scoping §6.5, when any lesson reaches N=5 validated re-uses, the Documentalist will (a) promote it to the appropriate constitution module, (b) remove it from here, (c) record the promotion event in `docs/adr/` if architectural.*

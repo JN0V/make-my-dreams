@@ -68,8 +68,30 @@ function clearMessage() {
 }
 
 btnCamera.addEventListener('click', async () => {
+  // Distinguish three failure modes so the message is actually useful:
+  //   1. Page opened via file:// or http:// non-localhost — browser blocks
+  //      navigator.mediaDevices (which then appears "undefined"). Fix: serve
+  //      via http://localhost or https://. This is by far the most common
+  //      cause of "camera not working" reports.
+  //   2. Genuinely-old browser without the MediaDevices API.
+  //   3. API present but getUserMedia returns null/undefined.
+  // Per constitution v1.2 principle IV (every failure deserves a red-green
+  // pass): the v0.1 message "Camera API not available in this browser" was
+  // misleading for case 1, which is what Sébastien observed when opening
+  // via file://. Test in test/integration/camera-secure-context.test.js.
+  if (!window.isSecureContext) {
+    showMessage(
+      'Camera blocked: this page is not in a secure context. ' +
+        'Open it via http://localhost or https:// to enable the camera. ' +
+        'In the meantime you can still upload an image and draw.'
+    );
+    return;
+  }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    showMessage('Camera API not available in this browser. You can still upload an image and draw.');
+    showMessage(
+      'Camera API not available in this browser (try Chrome 120+, Firefox 120+, or Safari 17+). ' +
+        'You can still upload an image and draw.'
+    );
     return;
   }
   btnCamera.disabled = true;

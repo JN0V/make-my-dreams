@@ -190,10 +190,16 @@ test('@integration v0.2a AC-2 + F6: --here from main auto-creates slice branch A
     // Confirm we are on main.
     const before = git(['rev-parse', '--abbrev-ref', 'HEAD'], tmp).trim();
     assert.equal(before, 'main');
-    const r = runMmd(['--here', 'a tweak from main'], { cwd: tmp });
+    const dream = 'a tweak from main';
+    const expectedSlug = slugify(dream);
+    const r = runMmd(['--here', dream], { cwd: tmp });
     assert.equal(r.status, 0, `protected-branch run should succeed; got ${r.status}; stderr=${r.stderr}`);
     const after = git(['rev-parse', '--abbrev-ref', 'HEAD'], tmp).trim();
-    assert.match(after, /^slice\/here-tweak-from-main-\d+$/, `expected slice branch, got ${after}`);
+    assert.match(
+      after,
+      new RegExp(`^slice/here-${expectedSlug}-\\d+$`),
+      `expected slice branch, got ${after}`,
+    );
     // F6: protected-branch note observable on stderr.
     assert.match(
       r.stderr,

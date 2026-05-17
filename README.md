@@ -46,7 +46,38 @@ mmd "a drawing app that overlays an image on the camera feed"
 # → creates ./demo/drawing-app-overlays-image-camera-feed/ with a working PWA
 ```
 
-Env vars: `MMD_AUTODEV_CMD` (override subprocess for testing), `MMD_TIMEOUT_MS` (default 1800000), `MMD_REALITY_CHECK_BACKEND` (`mcp` | `playwright` | `skip`), `MMD_DREAM_MAX_LEN` (default 500).
+Env vars: `MMD_AUTODEV_CMD` (override subprocess for testing), `MMD_AUTODEV_MODE` (`cli` | `test` — explicit, replaces the v0.1 path heuristic), `MMD_QUIET=1` (suppress subprocess output on the terminal; log file preserved), `MMD_TIMEOUT_MS` (default 1800000), `MMD_REALITY_CHECK_BACKEND` (`mcp` | `playwright` | `skip`), `MMD_DREAM_MAX_LEN` (default 500).
+
+### FAST mode — *new in v0.2*
+
+For small features or quick iterations on brownfield projects, prefix the dream with `--fast`:
+
+```bash
+mmd --fast "add a red color button to the drawing app"
+```
+
+FAST runs a **trimmed auto-dev pipeline** with reduced ceremony — 1× Party Mode (instead of 3×), Phase 2 adversarial spec review skipped opportunistically (when the upfront spec passes a robustness heuristic), Phases 3 + 4 kept full because correctness is non-negotiable. Target wall-clock: **under 10 minutes per slice**, versus 30–90 min for the default `mmd <dream>` (STANDARD engine).
+
+Before invoking auto-dev, FAST writes a deterministic 1-page minimal spec to `.mmd/shared/slice.md` (≤ 50 lines, ≤ 3000 chars, generated heuristically from the dream + any existing `vision.md`). Without this grounding the trimmed pipeline diverges; with it, the LLM stays on track. See [ADR-004](./docs/adr/004-fast-engine-trimmed-not-ralph.md) for why FAST is a trimmed auto-dev rather than a Ralph Loop.
+
+After the run, `.mmd/shared/status.json` records the engine and a few metrics that seed the future `dream-bench` (v0.2b):
+
+```json
+{
+  "engine": "fast",
+  "engine_metrics": {
+    "duration_seconds": 412.3,
+    "party_mode_rounds": 1,
+    "phase2_skipped": null,
+    "phase2_skip_reason": null
+  }
+}
+```
+
+FAST-specific env vars:
+- `MMD_FAST_MAX_MINUTES` — soft budget (default 12). If the run exceeds it, stderr emits a warning suggesting `--standard`; the subprocess is NEVER killed (would lose work).
+
+Engine flags (`--fast`, `--standard`, `--deep`) are mutually exclusive. `--standard` and `--deep` parse cleanly in v0.2 but resolve to the default STANDARD engine — their distinct semantics land in v0.2d. POSIX `--` is supported: anything after `--` is treated as positional dream text, so a dream like `--literally-my-dream` can be passed as `mmd -- --literally-my-dream`.
 
 ### Web mode (no terminal — for non-technical users)  — *new in v0.2.5*
 

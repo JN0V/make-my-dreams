@@ -80,4 +80,15 @@ The same rule generalizes: configuration values, file paths, port numbers — wh
 
 ---
 
+## L-006 — Tests must NOT hardcode slugifier output either; use a slug that survives the stopword/dropchars pipeline
+
+**Status**: active (1 occurrence in v0.2 session)
+**Date**: 2026-05-17
+**Origin**: slice v0.2, `test/integration/deferred-v01.test.js` initial draft expected `demo/literally-a-dream` for the input `mmd -- --literally-a-dream`. The slugifier drops the `--`, then drops the stopword "a" (`STOPWORDS` in `lib/parse-dream.js`), then rejoins, producing `literally-dream`. The test asserted on the wrong directory name and failed RED. Trivial fix (pick a stopword-free dream like `--literally-my-dream` → `literally-my-dream`), but worth noting.
+**Rule**: when an integration test asserts on a slugifier-derived path, choose dream strings whose tokens are NONE of the `STOPWORDS` list (current: `a, an, the, that, on, of, for, to, in, with, and, or`). A safer pattern is to ask the slugifier itself for the expected output: `import { slugify } from '../../lib/parse-dream.js'; const expectedSlug = slugify(dream);` and assert on `demo/${expectedSlug}`. This generalizes L-005: tests must read the SAME source as production code. Hardcoding a path string here is the same antipattern as hardcoding a version string.
+**To promote if**: 3 reuses validated (counter: 1) — strong candidate to fold into L-005 as a generalization rather than a separate lesson.
+**Keywords for matching**: slug, slugifier, stopwords, demo dir, integration test, hardcoded path, parse-dream
+
+---
+
 *This file is the project-scoped Layer F of the multi-layer constitution. Per scoping §6.5, when any lesson reaches N=5 validated re-uses, the Documentalist will (a) promote it to the appropriate constitution module, (b) remove it from here, (c) record the promotion event in `docs/adr/` if architectural.*

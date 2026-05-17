@@ -170,6 +170,28 @@ Using `mmd --here` instead of raw `claude -p` is the difference between "MMD's r
 
 ---
 
+## L-012 — gStack was named as a pillar but never invoked: the L-009 pattern, repeated
+
+**Status**: active (1 occurrence, surfaced by Sébastien immediately after launching v0.2b)
+**Date**: 2026-05-17
+**Origin**: After v0.2a's L-010 closed the wrapper-narrowness gap, Sébastien asked: "par contre, ça fait uniquement auto dev, jamais de gstack ?" Verified on the spot:
+  - gStack is installed at `~/.claude/skills/gstack/` (with sub-skills openclaw-ceo-review, openclaw-investigate, openclaw-office-hours, etc.)
+  - `bun` (a gStack runtime dependency for some skills) is NOT on `PATH`
+  - No slash commands `/qa`, `/cso`, `/ship`, `/document-release`, `/context-save` exist anywhere in `~/.claude/commands/` or in the MMD repo's `.claude/commands/` (which only contains `bmad-adv-auto-dev.md`)
+  - Every MMD slice from v0.0 through v0.2b was implemented by `claude -p /bmad-adv-auto-dev …` only — zero gStack invocations
+  - The `install-mmd.sh` script's Phase B comment (lines 7, 52-54, 123-128) explicitly says gStack integration is "deferred to subsequent MMD versions" — but no subsequent version (v0.1, v0.2, v0.2.5, v0.2a, v0.2b) has actually wired it in
+**The pattern**: this is L-009 in another domain. The design (README "MMD stands on the shoulders of Spec Kit, OpenSpec, BMAD, gStack, Ralph Loop"; MAKE_MY_DREAMS.md scoping mentioning gStack throughout) claims gStack as a foundational pillar. The current implementation never calls it. L-009's rule ("distinguish design scope from current implementation scope, name the gap") was not applied to gStack — so the gap accumulated for 11 slices without being named.
+**Rule**: extend L-009's rule with an explicit check at every release: before tagging vN, audit "what frameworks does the README claim we stand on, and which of them have actually been invoked in vN's slices?" If the answer is "none" for any claimed framework, the README and scoping MUST either (a) remove the framework from the pillar list, or (b) name it explicitly in the release notes as "still deferred — planned for vN+k." Silent deferral indefinitely is a documentation defect. Practically, add a `scripts/audit-pillars.sh` (v0.2c+) that greps for invocation patterns of each claimed framework across the slice's commits and reports the audit at PR/merge time.
+**To promote if**: 3 reuses validated (counter: 1) — strong candidate to promote to `documentation.md` as "Pillar-claim audit: README claims must be testable against actual invocations." Until promoted, it's the second occurrence of the L-009 pattern, which itself suggests the underlying meta-rule (design-vs-implementation discipline) deserves promotion sooner rather than later.
+**Closure options to consider** (the user picked option 1 as the next slice after v0.2b lands):
+  1. **Light**: `mmd ship` wrapper invoking `/ship` + `/document-release` automatically at merge time — would have replaced the manual `git merge --ff-only && git tag && git push --tags` sequence used for v0.2.1.
+  2. **Medium**: a Conductor stub orchestrating `auto-dev → /qa → /cso → /ship` as a real sequence (each step commited separately, allows measuring which steps add value).
+  3. **Heavy**: fold gStack invocation into the auto-dev workflow itself (Phase 3 reviews via `/qa`, Phase 4 via `/cso`) — most integrated but largest blast radius.
+**Note on numbering**: L-011 was reserved by auto-dev itself on the v0.2b slice (commit `7fa8aec chore(v0.2b): bump version to 0.2.2 + L-011 reflexive milestone capture`) for the v0.2b reflexive milestone, parallel to L-010 for v0.2a. This L-012 was captured in parallel on a side branch (per L-003) to avoid concurrent git ops in the same worktree while auto-dev was active.
+**Keywords for matching**: gStack, gstack, pillar, framework claim, design vs implementation, /qa, /cso, /ship, /document-release, /context-save, install-mmd.sh Phase B, audit-pillars, README claim audit
+
+---
+
 *This file is the project-scoped Layer F of the multi-layer constitution. Per scoping §6.5, when any lesson reaches N=5 validated re-uses, the Documentalist will (a) promote it to the appropriate constitution module, (b) remove it from here, (c) record the promotion event in `docs/adr/` if architectural.*
 
 ---

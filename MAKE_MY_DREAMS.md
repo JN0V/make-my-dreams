@@ -1,4 +1,4 @@
-# Make My Dreams — Scoping Document (v16)
+# Make My Dreams — Scoping Document (v17)
 
 > **Objective**: enable any human — from a 13-year-old kid to a pro developer — to describe an application need in natural language and see a **MVP delivered quickly**, then enriched iteratively, by an autonomous AI. The tool must work equally well in **greenfield** and **brownfield** modes, and must itself stay up to date with the latest advances in the AI-dev ecosystem through an **automated watch**.
 >
@@ -628,6 +628,92 @@ def ralph_engine(vision, slice, constitution, repo_state):
 ```
 
 **Guardrails**: round cap (e.g. 10), cost cap (e.g. 5 USD), stagnation detection (same diff 2 rounds in a row), user checkpoint beyond N=3 if on a Kid profile.
+
+### 4.5 Progress visibility — the anti-"Schrödinger run" mechanism (new v17)
+
+A recurring pain point in agentic dev: during a 30–90 min run, the user has no idea whether the agent is working, blocked, or dead. MMD addresses this with an enriched `status.json` + heartbeat + multi-layer UI, designed so the Conductor stays light (it never produces the content, just consumes it for staleness detection).
+
+#### 4.5.1 Enriched `status.json`
+
+Extension of the existing `status.json` (per §6.8 `.mmd/shared/`):
+
+```json
+{
+  "slice_id": "drawing-app-overlays-image-camera-feed",
+  "state": "in_progress",
+  "engine": "standard",
+  "created_at": "2026-05-17T10:00:00Z",
+  "updated_at": "2026-05-17T10:23:42Z",
+  "heartbeat_at": "2026-05-17T10:23:42Z",
+  "heartbeat_interval_seconds": 30,
+
+  "current_phase": "Phase 3 — Implementation",
+  "current_phase_started_at": "2026-05-17T10:18:00Z",
+  "progress_percent": 38,
+
+  "estimated_completion_at": "2026-05-17T11:15:00Z",
+  "estimated_next_user_action_at": "2026-05-17T11:20:00Z",
+  "next_user_action_label": "Validate the generated PWA in the browser",
+
+  "phases": [
+    {"id": 1, "name": "Spec (3x Party Mode)", "state": "done", "duration_s": 465},
+    {"id": 2, "name": "Adv. spec review", "state": "done", "duration_s": 570, "iterations": 2},
+    {"id": 3, "name": "Impl + 3-reviewer review", "state": "in_progress", "progress_percent": 35, "current_step": "Worker Amelia: writing lib/parse-dream.js"},
+    {"id": 4, "name": "Final adv. code review", "state": "pending"}
+  ],
+
+  "last_log_lines": [
+    "[10:23:30] Amelia: writing lib/parse-dream.js (45 lines)",
+    "[10:23:42] Amelia: tests passing 14/14 for parse-dream.js"
+  ]
+}
+```
+
+#### 4.5.2 Heartbeat — deterministic staleness detection
+
+Each active Worker updates `heartbeat_at = now()` every N seconds (default 30). A reader (UI, watcher, or Conductor) classifies a run as:
+
+- **healthy**: `now() - heartbeat_at < heartbeat_interval_seconds * 1`
+- **suspect**: `< heartbeat_interval_seconds * 2` (60 s default) — warn but keep showing progress
+- **stale (probably crashed)**: `> heartbeat_interval_seconds * 5` (2.5 min default) — alert user, offer recovery
+
+No fragile heuristic on log content — pure wall-clock.
+
+#### 4.5.3 Who writes, who reads (preserves Conductor lightness)
+
+| Component | Role re: `status.json` |
+|---|---|
+| **Workers (active)** | Write `current_step`, `last_log_lines`, `heartbeat_at`, intra-phase `progress_percent` |
+| **Orchestrator** (per slice) | Writes phase transitions in `phases[]`, global `current_phase`, global `progress_percent`, ETAs |
+| **Conductor** (meta) | **Does NOT write content** — only reads `heartbeat_at` for staleness detection. Optionally triggers a recovery flow on stale state. Context stays <10k tokens (its lightness contract). |
+| **UI `mmd serve`** | Reads via fetch or SSE every ~5 s, displays live progress + heartbeat warning if stale |
+| **CLI `mmd status`** | One-shot read, formatted ASCII table |
+| **CLI `mmd watch`** | Loops `mmd status` every N seconds |
+
+#### 4.5.4 UI layers — from minimalist to full comfort
+
+| Layer | How to consult | Audience |
+|---|---|---|
+| 0 — raw file | `cat .mmd/shared/status.json \| jq` | Debug |
+| 1 — CLI snapshot | `mmd status <slice>` (ASCII table) | Dev in terminal |
+| 2 — CLI live | `mmd watch <slice>` (auto-refresh) | Sébastien busy elsewhere |
+| 3 — Web | `mmd serve` page (v0.2.5): progress bar, phases, heartbeat warning if stale | Sébastien's daughter; or anyone without a terminal open |
+| 4 — Desktop notification (future) | `notify-send "MMD: dream ready"` when user action required | Comfort, optional |
+
+#### 4.5.5 Roadmap implications
+
+- **v0.1 (delivered)**: minimal `status.json` (slice_id, state, dates, tasks). Baseline OK.
+- **v0.2**: enrich to the full schema above. Add `mmd status` + `mmd watch` CLI subcommands.
+- **v0.2.5** (`mmd serve`): web page consumes the enriched schema with live SSE refresh + visible heartbeat warning when stale.
+- **v0.5** (Conductor): staleness detection logic + recovery offer (the Conductor's only job vis-à-vis status — no content contribution).
+- **v0.9** (worktrees parallelism): each parallel slice has its own `status.json` under its `.mmd/shared/` subtree; the Conductor aggregates a `dashboard.json` at the parent level.
+
+#### 4.5.6 Mapping to existing principles
+
+This section is the concrete UX expression of:
+- **Bundle C — Observability** (P-10, P-17, P-18, P-20).
+- **Constitution module `observability.md`** §V "Telemetry for self-improvement" — the same `tool_invocation` / `error_fixed` events that feed autolearning also feed `last_log_lines`.
+- **The "Schrödinger run" failure pattern**, identified by Sébastien from real auto-dev usage where lack of feedback led to uncertainty about whether the pipeline was dead.
 
 ---
 
@@ -1457,7 +1543,7 @@ Decisions in §11 can be deferred — most of them only matter from v0.3+. The e
 
 ---
 
-*Scoping document — v16 — generated on 2026-05-16.*
+*Scoping document — v17 — generated on 2026-05-16.*
 
 *Changes v1→v2: addition of the Ralph Loop pattern, reworking of the strategy around "two engines one brain" (FAST + STRUCTURED), introduction of multi-audience user profiles (Kid/Curious/Pro/Custom), multi-layer constitution, explicit brownfield mode, automated watch, MVP-first roadmap.*
 
@@ -1488,3 +1574,5 @@ Decisions in §11 can be deferred — most of them only matter from v0.3+. The e
 *Changes v14→v15: **FAST engine simplification — Ralph Loop deprioritized**. After v0.1 walking skeleton delivered successfully in ~45 min via `auto-dev` (Standard engine) WITHOUT Ralph, and given Sébastien's prior experience with Ralph being underwhelming, revised §3.1 to define the FAST engine as a **trimmed `auto-dev`** (1× Party Mode instead of 3×, opportunistic Phase 2 skip, 1-page upfront spec) targeting <10 min per slice — rather than a Ralph Loop wrapper. The `/ralph-loop` Anthropic plugin (discovered in this iteration) is kept as a deferred option (v0.6+) for trivial one-shot iterations where even quick-`auto-dev` is overkill. Updated §3.1 description, §3.3 orchestration map row for the Fast Engine, §5.3 mode-engine mapping table, and v0.2 roadmap entry. ADR-003 to be written when v0.2 lands, capturing the full rationale.*
 
 *Changes v15→v16: **§8 auto-watch enriched with official Anthropic docs as a recurring source**. After `/loop` (scheduled tasks, Claude Code 2.1.72+) and the official `ralph-loop` plugin were both discovered by accident in this iteration — AFTER we had planned to build them ourselves — Sébastien proposed adding "regular review of official Anthropic docs" to the self-improvement loop. Added: (a) https://code.claude.com/docs, https://docs.claude.com, https://docs.anthropic.com as weekly-monitored sources; (b) the `~/.claude/plugins/marketplaces/claude-plugins-official/plugins/` marketplace as a watched location (new entries often immediate MMD-integration candidates); (c) explicit rationale in the source list: "prevents this class of 'we just reinvented something Anthropic already shipped' failures". Also added new §8.2bis on the `/loop` slash-command and on the FBR (`/loop` for in-session monitoring vs GitHub Actions / Routines / desktop scheduled tasks for cross-session needs like `dev-ai-watch` itself).*
+
+*Changes v16→v17: **§4.5 Progress visibility** added — the anti-"Schrödinger run" mechanism. Sébastien reported the recurring agentic-dev pain of running a 30–90 min auto-dev pipeline with zero feedback: is it working, blocked, or crashed? The fix is an enriched `status.json` schema (phases[], current_phase, progress_percent, ETAs, last_log_lines), a heartbeat-based staleness detection (`heartbeat_at` updated every 30s, suspect at 60s, stale at 2.5min — pure wall-clock, no log heuristic), a write-vs-read separation that preserves the Conductor's <10k-token lightness contract (Workers and Orchestrator write content; Conductor only reads `heartbeat_at` for alerts and recovery), and four UI layers from `cat | jq` to a future desktop notification, with the `mmd serve` web page (v0.2.5) as the kid-friendly endpoint that shows progress bar + heartbeat warning. Roadmap implications surfaced for v0.2 (schema + CLI), v0.2.5 (web), v0.5 (Conductor staleness logic), v0.9 (parallel slice aggregation). This section is the concrete UX expression of Bundle C Observability already present in §6.6.*

@@ -219,3 +219,30 @@ After L-011, raw `claude -p` for a regular feature slice is a **constitution vio
 
 **To promote if**: this is a marker, not a counter-tracked lesson. Keep here as a historical anchor; promote to the History section of README.md when v0.3 ships (the version that demonstrates dream-bench actually gates a release).
 **Keywords for matching**: reflexive bootstrap, §7, v0.2b, dream-bench, --here, symbolic gate, milestone, MMD develops MMD, L-010 strengthened
+
+---
+
+## L-013 — Reflexive bootstrap §7 — third validation on a wrapper-modifying slice
+
+**Status**: milestone (not a failure-derived lesson — a captured proof-of-life per SPEC_V02F DoD §12)
+**Date**: 2026-05-17
+**Origin**: Sébastien launched `mmd --here "implement v0.2.f per SPEC_V02F.md ..."` from inside `~/Documents/make-my-dreams/`. The supported `mmd --here` path produced the entire v0.2.f slice — install hardening (Phase 0 bun + Phase 6 gStack functional verify), `bin/mmd` PATH shim, `mmd ship` subcommand (argv parsing + branch validation + prompt builder + claude invocation + summary), `scripts/audit-pillars.sh` + patterns.json, README + ADR-007 + MAKE_MY_DREAMS.md updates, 66+ new tests. This is the **third** reflexive use after L-010 (trivial) and L-011 (feature) — and the **first** that intentionally modifies the wrapper itself (the L-010 carve-out #1: "chicken/egg — use `claude -p` once, then test the modified wrapper from the next slice"). The slice was developed with the existing `mmd --here` wrapper (pre-shim), and the next slice will use the post-shim wrapper to validate the change.
+
+**Numbers** (the symbolic gate, per SPEC_V02F DoD §12):
+- Slice branch: `slice/here-implement-v0-2-f-per-spec-v02f-md-authoritative-install-1779037717`, base on main pre-slice
+- Files created: 12+ new (lib/ship/{build-prompt, validate-branch, invoke-claude, summary}.js, bin/ship.js, bin/mmd shim, scripts/audit-pillars.sh, scripts/audit-pillars.patterns.json, test/fixtures/fake-claude-ship.sh, test/unit/ship-*.test.js × 3, test/unit/audit-pillars.test.js, test/integration/ship-dry-run.test.js, test/integration/ship-fake-claude.test.js, test/integration/install-mmd.test.js, docs/adr/007-gstack-effective-via-ship-subcommand.md)
+- Files modified: 6 (install-mmd.sh, bin/mmd.js, lib/argv-parser.js, package.json, README.md, MAKE_MY_DREAMS.md, test/unit/argv-parser.test.js)
+- Test results: full suite (`npm run test:full`) passes — 424+ tests, 0 failures, 0 skipped
+- `mmd ship --dry-run` actual wall-clock on a temp slice repo: ~90 ms (well under the 5-second DoD §3 budget)
+- Exit code 0
+- v0.2.f's wrapper change (the `mmd ship` subcommand) IS the slice — making this the first reflexive run whose primary deliverable is the wrapper itself. After v0.2.f merges, subsequent slices use the new shim PATH-elevation + the `mmd ship` subcommand to ship themselves.
+
+**Rule** (operative implication — extends L-011): the L-010 carve-out #1 ("the slice modifies the wrapper") is now exercised. Concretely, v0.2.f used the **existing** `mmd --here` (which does not depend on the changes being introduced) to produce a slice that modifies `bin/mmd` (new shim), `bin/mmd.js` (ship dispatch wiring), `lib/argv-parser.js` (parseShipArgs), and adds `bin/ship.js`. The development worked because:
+  1. The pre-shim `mmd --here` does not need the post-shim PATH elevation (auto-dev doesn't call `bun` directly — only the new `mmd ship` does).
+  2. The pre-ship `mmd --here` does not invoke `mmd ship` (the new subcommand is invoked at release time, not at slice-creation time).
+  3. The new test suite for `mmd ship` uses `MMD_SHIP_CMD=<fixture>` so the post-shim PATH elevation can be verified in CI without requiring `bun` to be installed on the runner.
+
+The reflexive bootstrap §7 now has three distinct validations (trivial / feature / infrastructure-touching) — sufficient to retire any remaining language about §7 being aspirational. The next test for §7 is whether `mmd ship` itself can ship v0.2.f to main (the SPEC_V02F DoD §9 acid test — "ship uses ship") — captured separately by Sébastien post-merge.
+
+**To promote if**: marker, not a counter-tracked lesson. Keep as a historical anchor. Promote to README History when v0.3 ships and the full reflexive loop (slice → ship → release-notes → tag → next slice) is demonstrated end-to-end with `mmd ship` at the helm.
+**Keywords for matching**: reflexive bootstrap, §7, v0.2.f, mmd ship, gStack effective, --here, symbolic gate, milestone, MMD develops MMD, L-011 strengthened, wrapper-modifying slice, L-010 carve-out #1

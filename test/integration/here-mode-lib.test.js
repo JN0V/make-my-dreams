@@ -17,6 +17,7 @@ import {
 } from '../../lib/here-mode.js';
 
 const SKIP_ON_WINDOWS = platform() === 'win32';
+const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 
 function makeTmp(prefix = 'mmd-here-lib-') {
   return mkdtempSync(path.join(tmpdir(), prefix));
@@ -180,6 +181,55 @@ test('@integration createSliceBranch: refuses suspicious names (leading dash, wh
     const r2 = await createSliceBranch(tmp, 'with space');
     assert.equal(r2.ok, false);
     assert.equal(r2.exitCode, 5);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+// F3 (Phase 4 review) — runGit must NEVER reject. Exercise the
+// "git binary is unavailable" failure mode by spawning a child node process
+// with an empty PATH and asserting that validateHereTarget returns a clean
+// typed result `{ ok: false, exitCode: 3, message }` instead of rejecting
+// past the top-level catch (which would have produced exit 99).
+//
+// We use a subprocess because mutating process.env.PATH inside this worker
+// would affect every other test running in parallel.
+test('@integration F3 — runGit failure (git not on PATH) returns ok:false exit 3, never rejects', { skip: SKIP_ON_WINDOWS }, () => {
+  const tmp = makeTmp();
+  try {
+    // Use a node script that imports validateHereTarget and prints its result.
+    // PATH is set to an empty dir so `git` cannot be found by execvp.
+    const probe = `
+      import { validateHereTarget } from ${JSON.stringify(
+        path.join(REPO_ROOT, 'lib', 'here-mode.js'),
+      )};
+      try {
+        const r = await validateHereTarget(${JSON.stringify(tmp)});
+        process.stdout.write(JSON.stringify(r));
+        process.exit(0);
+      } catch (e) {
+        // F3 invariant: no rejection should reach here.
+        process.stderr.write('REJECTED: ' + (e.stack || e.message));
+        process.exit(42);
+      }
+    `;
+    const emptyDir = mkdtempSync(path.join(tmpdir(), 'mmd-empty-path-'));
+    try {
+      // Use absolute path to node so the child can launch even with PATH=emptyDir.
+      const nodeBin = process.execPath;
+      const r = spawnSync(nodeBin, ['--input-type=module', '-e', probe], {
+        env: { PATH: emptyDir },
+        encoding: 'utf8',
+        timeout: 10000,
+      });
+      assert.equal(r.status, 0, `validateHereTarget rejected (F3 regression): stderr=${r.stderr}`);
+      const parsed = JSON.parse(r.stdout);
+      assert.equal(parsed.ok, false);
+      assert.equal(parsed.exitCode, 3);
+      assert.match(parsed.message, /git could not run|could not run/i);
+    } finally {
+      rmSync(emptyDir, { recursive: true, force: true });
+    }
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

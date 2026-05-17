@@ -133,4 +133,19 @@ The systemic fix: always run the merge BEFORE the cleanup, and ONLY run the clea
 
 ---
 
+## L-009 — Walking-skeleton scope is NOT design scope: the `mmd <dream>` wrapper was too narrow
+
+**Status**: active (1 occurrence at v0.2 retro, surfaced by Sébastien's direct challenge)
+**Date**: 2026-05-17
+**Origin**: After v0.2 merge, Sébastien asked whether MMD was really being used to develop MMD. My honest answer was "I use the Standard engine (auto-dev) but not the wrapper `mmd <dream>`, because the wrapper creates `demo/<slug>/` and produces external PWAs, not self-modifying code." Sébastien pushed back: "le principe de mmd, c'est que ça puisse fonctionner sur n'importe quoi, y compris sur soi-même." He was right. The "wrapper only produces external demos" is a SPEC_V01 limitation (greenfield-only walking skeleton), not a MMD design constraint. The design (MAKE_MY_DREAMS.md §7 reflexive bootstrap + Project Onboarder) explicitly says MMD must work on any project, including itself. I had internalized an implementation limit as a design constraint, which silently capped the reflexive bootstrap and made §7 dishonest in practice.
+**Rule**: when communicating the **current state** of MMD, explicitly distinguish:
+  1. What the **design** (MAKE_MY_DREAMS.md + scoping docs) requires
+  2. What the **current implementation** (latest spec + code) actually does
+  3. The **gap** between (1) and (2), and which planned slice closes it
+Never present an implementation limitation as a design choice — it hides debt and erodes the design's integrity. A concrete check before any architectural statement: "is this true of the *design*, of the *current code*, or both?" If only the code, name the gap and the planned closure (e.g., "currently greenfield-only — `--here` mode planned in v0.2a"). This generalizes beyond MMD: in any spec-driven workflow, walking-skeleton scope must be communicated as deliberately partial, not as the system's true boundary.
+**To promote if**: 3 reuses validated (counter: 1) — strong candidate for promotion to `documentation.md` as an explicit rule "Always distinguish design scope from current-implementation scope".
+**Keywords for matching**: walking skeleton, design scope, implementation gap, reflexive bootstrap, brownfield, self-modification, --here, scope confusion, premature constraint
+
+---
+
 *This file is the project-scoped Layer F of the multi-layer constitution. Per scoping §6.5, when any lesson reaches N=5 validated re-uses, the Documentalist will (a) promote it to the appropriate constitution module, (b) remove it from here, (c) record the promotion event in `docs/adr/` if architectural.*

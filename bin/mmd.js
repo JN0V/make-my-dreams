@@ -20,7 +20,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { slugify, initStateFiles, nextAvailableSlug } from '../lib/parse-dream.js';
-import { ensureLayout, readStatus, writeStatus, ensureGitignore, appendDecision } from '../lib/state.js';
+import { ensureLayout, readStatus, writeStatus, ensureGitignore } from '../lib/state.js';
 import { invokeAutodev } from '../lib/invoke-autodev.js';
 import { realityCheck } from '../lib/reality-check.js';
 import { parseArgv, resolveEngine } from '../lib/argv-parser.js';
@@ -176,7 +176,15 @@ async function runHereMode({ cwd: targetDir, dream, slug, engine }) {
     'utf8',
   );
 
+  // F5 (Phase 4 review): embed the --here invocation context as the `reason`
+  // of the existing (initial)->in_progress transition. writeStatus appends a
+  // decisions.log audit line with `[reason: ...]` when reason is set, so we
+  // never emit a synthetic `here-context` state value that consumers can't
+  // map to the pending|in_progress|done|failed machine. The reason is dropped
+  // before persistence so status.json stays clean.
   const initialEngineRecord = buildEngineRecord(engine);
+  const hereContextReason =
+    `slice=${sliceBranch} base=${baseBranch}@${baseSha} target=${absTargetDir}`;
   const inProgressStatus = {
     slice_id: slug,
     dream,
@@ -189,22 +197,10 @@ async function runHereMode({ cwd: targetDir, dream, slug, engine }) {
     slice_branch: sliceBranch,
     base_branch: baseBranch,
     base_sha: baseSha,
+    reason: hereContextReason,
     ...initialEngineRecord,
   };
   await writeStatus(absTargetDir, inProgressStatus);
-
-  // Audit (observability.md §III): record the --here invocation context as a
-  // free-form annotation on the existing (initial)->in_progress transition.
-  // writeStatus already appended the state line; we append a separate
-  // "context: ..." line so the audit log carries the slice + base in a way
-  // that does not duplicate or contradict the state machine.
-  await appendDecision(
-    absTargetDir,
-    slug,
-    'in_progress',
-    'here-context',
-    `slice=${sliceBranch} base=${baseBranch}@${baseSha} target=${absTargetDir}`,
-  );
 
   // AC-4 — build the in-place prompt for auto-dev (no demo/ scaffold).
   const herePrompt = buildHerePrompt({ dream, sliceBranch, targetDir: absTargetDir, engine });

@@ -151,11 +151,28 @@ test('@integration v0.2a AC-1+3+5+6: --here on clean repo creates slice branch, 
     // AC-6: Reality Check skipped on stdout with the documented reason.
     assert.match(r.stdout, /Reality Check: SKIPPED — --here mode/);
 
-    // Auto-dev was invoked on the slice branch (fixture recorded it).
+    // F1 (Phase 4 review): two independent oracles for AC-3.
+    //   (a) The fixture-recorded branchRecord (what auto-dev SAW during its
+    //       run) must match the canonical slice-branch pattern derived from
+    //       the slugifier — NOT from a post-hoc git read. If an L-008-style
+    //       violation occurred (auto-dev switched branches after running),
+    //       comparing branchRecord against a post-hoc rev-parse would still
+    //       pass; comparing against the pattern catches it.
+    //   (b) The post-hoc git rev-parse (`branch` above) confirms AC-3's
+    //       "the user is left on the slice branch for review" — independent
+    //       reading after auto-dev finished.
+    // Per ai-coding.md §V (verification before delivery): an independent
+    // oracle is required when one exists.
     const branchRecord = readFileSync(
       path.join(tmp, '.mmd', 'local', 'runs', 'here-branch.txt'),
       'utf8',
     ).trim();
+    assert.match(
+      branchRecord,
+      new RegExp(`^slice/here-${expectedSlug}-\\d+$`),
+      `fixture recorded branch '${branchRecord}' must match the canonical slice-branch pattern`,
+    );
+    // Secondary safety check: both oracles agree.
     assert.equal(branchRecord, branch, 'fixture should have run on the slice branch');
   } finally {
     rmSync(tmp, { recursive: true, force: true });

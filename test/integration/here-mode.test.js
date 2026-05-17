@@ -245,7 +245,11 @@ test('@integration v0.2a AC-6: --here suggests `npm test` when cwd package.json 
     );
     git(['add', 'package.json'], tmp);
     git(['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-m', 'pkg', '-q'], tmp);
-    const r = runMmd(['--here', 'verify suggestion path'], { cwd: tmp });
+    // v0.2c: --skip-onboarding bypasses the new Project Onboarder gate.
+    // The cwd now LOOKS like a brownfield (has package.json) so the gate
+    // would fire otherwise (exit 5). This test exercises AC-6 (npm test
+    // suggestion), not AC-7 (the gate); --skip-onboarding scopes the run.
+    const r = runMmd(['--here', '--skip-onboarding', 'verify suggestion path'], { cwd: tmp });
     assert.equal(r.status, 0, r.stderr);
     assert.match(r.stdout, /Suggestion: run `npm test`/);
   } finally {

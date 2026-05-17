@@ -1,4 +1,4 @@
-# Make My Dreams — Scoping Document (v14)
+# Make My Dreams — Scoping Document (v15)
 
 > **Objective**: enable any human — from a 13-year-old kid to a pro developer — to describe an application need in natural language and see a **MVP delivered quickly**, then enriched iteratively, by an autonomous AI. The tool must work equally well in **greenfield** and **brownfield** modes, and must itself stay up to date with the latest advances in the AI-dev ecosystem through an **automated watch**.
 >
@@ -139,7 +139,7 @@ The same prompt, executed in a loop, until convergence. The agent decides at eac
 
 Make My Dreams exposes **a single interface** to the human, but embeds **three execution engines** that a *Mode Router* chooses based on context. Moving from 2 to 3 engines (v8) addresses a finding: pure Ralph Loop does not always converge, and full `auto-dev` is sometimes excessive — an intermediate tier is needed.
 
-- **FAST engine (Ralph Loop with minimal upfront spec)**: to iterate fast on clear brownfield, add a small feature, experiment. A 1-page **minimal spec** (constraints + acceptance criteria) is produced by the Dream Catcher in under 1 minute, then a bounded Ralph Loop iterates with capped budget/rounds. Without this upfront spec, Ralph diverges — that's what's observed in practice.
+- **FAST engine (auto-dev "quick mode" — revised v15)**: to iterate fast on clear brownfield, add a small feature, experiment. Invokes `auto-dev` with a **trimmed pipeline**: 1× Party Mode instead of 3× (skip the multi-round investigation), Phase 2 adversarial spec review skipped if Phase 1 is robust (configurable threshold), 1-page upfront spec from Dream Catcher. Target: under 10 minutes per slice. **Why not Ralph Loop**: Sébastien's empirical testing (and v0.1 evidence that `auto-dev` delivered a quality walking skeleton in ~45 min without Ralph) shows Ralph's convergence properties are weaker than a trimmed `auto-dev`. The `/ralph-loop` Anthropic plugin is kept as a **deferred option** (v0.6+) for the specific case where even quick-`auto-dev` is overkill: trivial one-shot iterations on brownfield, where the goal is "tweak this single thing" rather than "implement this slice". See ADR-003 (to be written when this version lands) for the full rationale.
 - **STANDARD engine (accelerated auto-dev)**: lightweight version of the 4-phase pipeline. Phase 1 Spec + Party Mode (1× instead of 3×), Phase 2 opportunistic adversarial review (skipped if Phase 1 robust), Phase 3 Implementation with 3 reviewers, Phase 4 final review. This is the **default mode** for requests that are neither trivial nor ambitious — i.e. the majority.
 - **DEEP engine (full BMAD process)**: for ambitious greenfield projects or poorly known domains. Mobilizes the **full BMAD personas** — Mary (Analyst), John (PM), Winston (Architect), Sally (UX), Bob (SM) create detailed stories with embedded context; Amelia (Dev) implements; Quinn (QA) + Christie (Reviewer) validate. It's slow but the most robust on complex problems.
 
@@ -207,7 +207,7 @@ Detailed table of each MMD component: which part is **built by MMD** and which p
 | **Plan-Review (§4 box 1d)** | Activation decision by profile | `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/plan-devex-review` |
 | **Tech Architect (§4 box 2)** | Stack choice adapted to profile + Reality Check strategy selection | `/plan-tune` for auto-calibration |
 | **Mode Router (§4 box 3)** | 3-engine routing logic + escalation heuristics | — (no gStack equivalent) |
-| **Fast Engine (§4 box 3a)** | 1-page minimal spec, bounded Ralph loop | `/investigate` for in-loop debug |
+| **Fast Engine (§4 box 3a)** | 1-page minimal spec, trimmed `auto-dev` invocation (1× party, opportunistic Phase 2) | `/investigate` for in-loop debug |
 | **Standard Engine (§4 box 3b)** | Lightweight auto-dev (existing Extend BMAD) | — |
 | **Deep Engine (§4 box 3c)** | Orchestration of BMAD personas | — (pure BMAD process) |
 | **Reality Check (§4 box 4)** | Multi-mode choice by deliverable, aggregation | `/qa`, `/qa-only`, `/design-review`, `/devex-review`, `/cso`, `/health`, `/canary` |
@@ -694,7 +694,7 @@ Not all users want the same level of exchange before delivery. Sébastien himsel
 
 | Mode | For whom | Upfront questions | Checkpoints | Default engine |
 |---|---|---|---|---|
-| **Autonomous** ("Just do it") | User who knows precisely what they want | 0–1 (simple rephrasing) | Minimal (result + 1 final y/n) | FAST (Ralph) |
+| **Autonomous** ("Just do it") | User who knows precisely what they want | 0–1 (simple rephrasing) | Minimal (result + 1 final y/n) | FAST (trimmed auto-dev) |
 | **Intermediate** ("Collaborate") | Default case, reasonably clear request | 2–4 on real detected ambiguities | Mockup before code + checkpoint after delivery | Auto (Mode Router decides) |
 | **Guided** ("Explore") | Fuzzy need, exploration, workshops, teens discovering | Deep conversation, user stories, examples | Multiple mockups, validations at each step | STRUCTURED (BMAD spec + party mode) |
 
@@ -1158,9 +1158,9 @@ Each version delivers something usable. No "foundation phase" lasting 3 weeks be
 - **Test**: `mmd "a drawing app that overlays an image on the camera"` produces a functional PWA.
 
 ### v0.2 — FAST engine + v0.1 CLI polish backlog  *(3–4 days)*
-- Implements the bounded Ralph loop (§4.1).
+- Implements `auto-dev` "quick mode" invocation (1× party, opportunistic Phase 2 skip, 1-page upfront spec) — NOT Ralph Loop (see §3.1 v15 revision and ADR-003).
 - Adds Mode Router with simple rules.
-- **Test**: `mmd --fast "add a button to change the stroke color"` on the v0.1 project → enriched MVP in < 5 min.
+- **Test**: `mmd --fast "add a button to change the stroke color"` on the v0.1 project → enriched MVP in < 10 min.
 
 **Deferred-from-v0.1 cluster (from `_bmad-output/implementation-artifacts/deferred-work.md`, 5 items, pulled into v0.2 because they all touch the CLI surface that v0.2 will modify anyway)**:
 - **B2**: replace heuristic `claude` CLI detection (`cmd === 'claude' || /\/claude$/.test(cmd)`) with explicit `MMD_AUTODEV_MODE=cli|test` env var, so user wrappers like `claude-wrapper` are handled cleanly.
@@ -1439,7 +1439,7 @@ Decisions in §11 can be deferred — most of them only matter from v0.3+. The e
 
 ---
 
-*Scoping document — v14 — generated on 2026-05-16.*
+*Scoping document — v15 — generated on 2026-05-16.*
 
 *Changes v1→v2: addition of the Ralph Loop pattern, reworking of the strategy around "two engines one brain" (FAST + STRUCTURED), introduction of multi-audience user profiles (Kid/Curious/Pro/Custom), multi-layer constitution, explicit brownfield mode, automated watch, MVP-first roadmap.*
 
@@ -1466,3 +1466,5 @@ Decisions in §11 can be deferred — most of them only matter from v0.3+. The e
 *Changes v12→v13: continuation of the v12 logic — if the script is becoming MMD's installer, it should be named accordingly. **`install-auto-dev.sh` renamed to `install-mmd.sh`** via `git mv` (preserves history). Script header rewritten: title, lineage paragraph, **6-phase installation roadmap** (A Standard engine active, B FAST engine, C Bundle A Security, D Project Onboarder, E Conductor + Observability, F Worktrees + Bundle E parallelism) progressively activated with each MMD version. INSTALLER_VERSION bumped **4.0.0 → 5.0.0** to mark the transition. Welcome banner and final usage message updated to reflect MMD context with the coming-phases roadmap shown to users. All scoping-document references updated except for the historical lineage mention in §1 Context (where the original name is kept for traceability). BOOTSTRAP.md and SPEC_V01.md references updated. No structural change to architecture — this is a workflow naming alignment.*
 
 *Changes v13→v14: Sébastien raised a fundamental question — without an IDE, how does his daughter actually use MMD? Realized that the roadmap delivered the accessibility experience (full Web Dream Catcher) at v0.10, far too late given that differentiator #1 (multi-audience accessibility) is MMD's whole reason to exist. Added a new **v0.2.5 milestone** to deliver a minimal usable web UI early: `mmd serve` command starts a local HTTP server, opens the default browser, and serves a deliberately simple HTML page (~200 lines vanilla, no framework). Sébastien's daughter opens the page on the same machine running MMD, types her dream, clicks a button, watches streamed progress, and gets a link to her PWA. **No tunnel, no cloud, no deployment** — purely local. Implementation is intentionally trivial (~2-3 days, ~300 lines total: CLI subcommand + Node HTTP server + vanilla HTML page + SSE for progress). Remote access (Wi-Fi + Cloudflare Tunnel) deferred to v0.6+. v0.10 (Full Dream Catcher Web UI) clarified as an enrichment of v0.2.5, not the unlock — the unlock for the daughter happens in v0.2.5. BOOTSTRAP.md updated to surface v0.2.5 as the "accessibility milestone" between v0.2d and v0.3a.*
+
+*Changes v14→v15: **FAST engine simplification — Ralph Loop deprioritized**. After v0.1 walking skeleton delivered successfully in ~45 min via `auto-dev` (Standard engine) WITHOUT Ralph, and given Sébastien's prior experience with Ralph being underwhelming, revised §3.1 to define the FAST engine as a **trimmed `auto-dev`** (1× Party Mode instead of 3×, opportunistic Phase 2 skip, 1-page upfront spec) targeting <10 min per slice — rather than a Ralph Loop wrapper. The `/ralph-loop` Anthropic plugin (discovered in this iteration) is kept as a deferred option (v0.6+) for trivial one-shot iterations where even quick-`auto-dev` is overkill. Updated §3.1 description, §3.3 orchestration map row for the Fast Engine, §5.3 mode-engine mapping table, and v0.2 roadmap entry. ADR-003 to be written when v0.2 lands, capturing the full rationale.*

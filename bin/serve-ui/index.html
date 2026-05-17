@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Make My Dreams</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/%3E">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="container">
+    <h1>Make My Dreams</h1>
+    <p class="tagline">Décris ton rêve, on le construit. / Describe your dream, we build it.</p>
+
+    <form id="dream-form" autocomplete="off">
+      <label for="dream-input" class="visually-hidden">Décris ton rêve / Describe your dream</label>
+      <textarea
+        id="dream-input"
+        name="dream"
+        rows="3"
+        maxlength="500"
+        placeholder="Décris ton rêve / Describe your dream"
+        required
+      ></textarea>
+      <button id="submit-btn" type="submit">Vas-y / Go</button>
+    </form>
+
+    <section id="progress" role="log" aria-live="polite" aria-atomic="false" hidden>
+      <h2>En cours… / Working…</h2>
+      <progress id="progress-bar" max="100"></progress>
+      <p id="phase-line" class="phase"></p>
+      <p id="heartbeat" class="heartbeat" hidden></p>
+      <pre id="log-output" class="log"></pre>
+    </section>
+
+    <section id="result" role="status" aria-live="polite" hidden>
+      <h2 id="result-title"></h2>
+      <p id="result-message"></p>
+      <pre id="result-debug" class="log" hidden></pre>
+      <div class="result-actions">
+        <a id="open-app" class="button" href="#" hidden>Ouvrir mon appli / Open my app</a>
+        <button id="new-dream" type="button" hidden>Nouveau rêve / Start a new dream</button>
+        <button id="retry" type="button" hidden>Réessayer / Try again</button>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <small>Make My Dreams — local only. No tracking, no signup.</small>
+    </footer>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "description": "Pillar invocation patterns for scripts/audit-pillars.sh (L-012 closure). Each pillar lists regex patterns matched against the slice's commit messages + diff. A pillar is INVOKED iff at least one pattern matches and no negative_pattern matches the same context.",
+  "pillars": [
+    {
+      "name": "Spec Kit",
+      "patterns": [
+        "\\.specify/memory/",
+        "spec[ -_]kit",
+        "Spec Kit"
+      ],
+      "negative_patterns": []
+    },
+    {
+      "name": "OpenSpec",
+      "patterns": [
+        "openspec/",
+        "OpenSpec",
+        "open[ -_]spec"
+      ],
+      "negative_patterns": []
+    },
+    {
+      "name": "BMAD",
+      "patterns": [
+        "_bmad/",
+        "_bmad-output/",
+        "/bmad-adv-auto-dev",
+        "bmad-method",
+        "BMAD",
+        "auto-dev"
+      ],
+      "negative_patterns": []
+    },
+    {
+      "name": "gStack",
+      "patterns": [
+        "~/\\.claude/skills/gstack/",
+        "\\.claude/skills/gstack",
+        "/ship\\b",
+        "/qa\\b",
+        "/cso\\b",
+        "/document-release",
+        "/context-save",
+        "gstack-config",
+        "mmd ship",
+        "gStack"
+      ],
+      "negative_patterns": []
+    },
+    {
+      "name": "Ralph Loop",
+      "patterns": [
+        "ralph[ -_]loop",
+        "Ralph Loop",
+        "bounded loop"
+      ],
+      "negative_patterns": []
+    }
+  ]
+}

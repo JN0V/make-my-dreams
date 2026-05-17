@@ -9,12 +9,17 @@ import { rm, lstat } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { slugify, initStateFiles, nextAvailableSlug } from '../lib/parse-dream.js';
 import { ensureLayout, readStatus, writeStatus, ensureGitignore } from '../lib/state.js';
 import { invokeAutodev } from '../lib/invoke-autodev.js';
 import { realityCheck } from '../lib/reality-check.js';
 
-const VERSION = '0.1.0';
+// F30 — version sourced once from package.json (shared with GET /api/health).
+const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
+const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
 
 const USAGE = `mmd ${VERSION} — Make My Dreams CLI (walking skeleton)
 
@@ -80,6 +85,11 @@ async function main() {
   if (rawArgs.includes('--help') || rawArgs.includes('-h')) {
     stdout.write(USAGE);
     return 0;
+  }
+  // v0.2.5 — dispatch `serve` subcommand to bin/serve.js (AC-1).
+  if (rawArgs[0] === 'serve') {
+    const { runServe } = await import('./serve.js');
+    return runServe(rawArgs.slice(1));
   }
   const flags = {
     resume: rawArgs.includes('--resume'),

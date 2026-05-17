@@ -1,0 +1,107 @@
+# Constitution bindings — who loads which modules
+#
+# Source of truth for: "for a given skill/worker/engine/profile/context, which
+# constitution modules MUST be injected into its prompt?"
+#
+# Mechanism:
+#   1. `universal.md` is always loaded (defaults.always).
+#   2. The active profile adds its layer (kid.md, pro.md, etc.).
+#   3. The context can add layers (brownfield.md if brownfield detected).
+#   4. The skill/worker/engine adds its own module set per the bindings below.
+#   5. The composer (lib/constitution-compose.js, v0.2+) takes the union,
+#      reads each .md file, concatenates them, and injects into the prompt.
+#
+# Conventions:
+#   - Module names match files in .specify/memory/constitution/ (without .md).
+#   - "all" is a shortcut for all modules in the directory (use sparingly).
+#   - If a skill is not listed here, the composer falls back to
+#     `defaults.skill_unknown` (conservative: load universal + ai-coding).
+
+version: "2.0.0"
+
+defaults:
+  always: [universal, ai-coding]
+  skill_unknown: [universal, ai-coding]    # conservative fallback
+
+# ---- gStack skills ----------------------------------------------------------
+skills:
+  "/office-hours":      [ai-coding]
+  "/design-consultation": [ai-coding, architecture]
+  "/design-shotgun":    [ai-coding, architecture]
+  "/plan-ceo-review":   [ai-coding, architecture]
+  "/plan-eng-review":   [architecture, security, testing]
+  "/plan-design-review": [architecture, documentation]
+  "/plan-devex-review": [architecture, documentation]
+  "/plan-tune":         [ai-coding]
+  "/learn":             [ai-coding]
+  "/investigate":       [error-handling, ai-coding]
+  "/qa":                [testing, security, error-handling]
+  "/qa-only":           [testing, error-handling]
+  "/design-review":     [documentation]
+  "/devex-review":      [documentation, architecture]
+  "/health":            [observability, testing]
+  "/ship":              [commit-git, observability]
+  "/land-and-deploy":   [commit-git, security, observability]
+  "/canary":            [observability, security]
+  "/landing-report":    [observability]
+  "/setup-deploy":      [security, architecture]
+  "/document-generate": [documentation]
+  "/document-release":  [documentation, commit-git]
+  "/retro":             [observability, ai-coding]
+  "/review":            [security, testing, commit-git]
+  "/cso":               [security, architecture, error-handling]
+  "/context-save":      [ai-coding]
+  "/context-restore":   [ai-coding]
+  "/scrape":            [security, ai-coding]
+  "/skillify":          [ai-coding, architecture, testing]
+  "/careful":           [security]
+  "/freeze":            [security]
+  "/guard":             [security]
+  "/setup-gbrain":      [architecture]
+  "/sync-gbrain":       [observability]
+
+# ---- MMD Workers ------------------------------------------------------------
+workers:
+  tech-architect:       [architecture, testing, security]
+  dream-catcher:        [ai-coding]
+  dream-expander:       [ai-coding]
+  mockup-generator:     [architecture, documentation]
+  plan-review:          [architecture, testing, security]
+  documentalist:        [documentation, ai-coding]
+  context-worker:       [ai-coding]
+  security-worker:      [security, error-handling, observability]
+  reality-check:        [testing, error-handling]
+  dream-delivery:       [commit-git, security, observability]
+  retro-trend:          [observability, ai-coding]
+  project-onboarder:    [ai-coding, architecture, documentation]
+  worker-merger:        [commit-git, security, testing]
+  conductor:            [ai-coding, observability]    # light by design
+  orchestrator:         [ai-coding, observability]
+
+# ---- MMD Engines ------------------------------------------------------------
+engines:
+  fast:                 [testing, commit-git, error-handling, ai-coding]
+  standard:             [universal, security, testing, commit-git, error-handling, documentation, architecture, ai-coding, observability]
+  deep:                 [all]                         # full BMAD process needs everything
+
+# ---- Profile-based additive layers ------------------------------------------
+profiles:
+  Kid:                  [safe-by-default, kid]
+  Curious:              [safe-by-default]
+  Pro:                  [pro]
+  Custom:               []                            # explicit setup required
+
+# ---- Context-based additive layers ------------------------------------------
+contexts:
+  brownfield:           [brownfield]
+  greenfield:           []
+  parallel:             []                            # Bundle E module to be added later
+
+# ---- MMD CLI itself --------------------------------------------------------
+cli:
+  mmd:                  [universal, commit-git, ai-coding]
+  mmd-discover:         [universal, ai-coding, architecture, documentation]
+  mmd-serve:            [universal, ai-coding, observability]
+  mmd-status:           [observability]
+  mmd-watch:            [observability]
+  mmd-doctor:           [observability, security]

@@ -1,184 +1,59 @@
-# Project Constitution
+# Project Constitution — Index (v2.0.0, modular)
 
-## Core Principles
+> **NEW in v2.0.0**: the constitution is now **modular**. Instead of one large monolithic file injected everywhere (which wasted context and made amendments scary), each concern lives in its own module under `constitution/`. A bindings table (`constitution-bindings.yaml`) tells the composer which modules to load for each skill/worker/engine/profile/context. The result: a `/qa-only` invocation loads ~300 lines instead of ~1500. See changelog at the bottom for the v1.0 → v2.0 evolution.
 
-### I. SOLID Principles (NON-NEGOTIABLE)
+## How to read this file
 
-Code MUST follow SOLID principles:
+This file is an **index**, not the constitution itself. The actual rules live in `.specify/memory/constitution/*.md`. Each module is loaded on demand per `constitution-bindings.yaml`.
 
-- **S - Single Responsibility Principle (SRP)**: Each class/module has only one reason to change
-- **O - Open/Closed Principle**: Open for extension, closed for modification
-- **L - Liskov Substitution Principle**: Subtypes must be substitutable for their base types
-- **I - Interface Segregation Principle**: Prefer multiple specific interfaces over one general-purpose interface
-- **D - Dependency Inversion Principle**: Depend on abstractions, not implementations
+For a human reviewer or maintainer:
+- To understand what governs a specific skill, look up its name in `constitution-bindings.yaml` and read the listed modules.
+- To amend a rule, find the right module (see the catalog below) and edit it directly. Bump that module's version.
+- To add a new concern, create a new module file + add bindings + bump this file's version.
 
-**Rationale**: These principles ensure maintainable, testable, and evolvable code over the long term.
+For an AI agent or worker:
+- You should NOT load this index. Your composer (or the prompt that spawned you) has already selected the modules you need. If you see this file at the top of your context, ask your invoker to use the composer.
 
-### II. KISS - Keep It Simple, Stupid (NON-NEGOTIABLE)
+## Module catalog
 
-- Code MUST favor simplicity over cleverness
-- All complexity MUST be justified by a concrete business need
-- Premature abstractions are FORBIDDEN
-- YAGNI (You Ain't Gonna Need It): do not implement what is not explicitly required
+| Module | Always-loaded? | Loaded by |
+|---|---|---|
+| `universal.md` | YES (defaults.always) | Everyone — SOLID, KISS, DRY, separation of concerns, language convention, failure honesty |
+| `security.md` | No | Most engines + security-sensitive skills (`/qa`, `/cso`, `/ship`, `/canary`, `/scrape`, security-worker, etc.) — OWASP, secrets, slopsquatting, lethal trifecta, sandbox |
+| `testing.md` | No | All code-touching skills/workers — TDD, red-green for every failure, **test stratification (smoke/unit/integration/e2e/mutation)** |
+| `commit-git.md` | No | Anything that touches git — Conventional Commits, AI attribution policy, commit early/often/push always, **branch-based workflow** |
+| `documentation.md` | No | Documentalist, `/document-generate`, `/document-release` — Diataxis, ADR format, post-ship sync, doc concision |
+| `error-handling.md` | No | Any code-producing skill — defensive prog, error classification, graceful degradation, retry policy |
+| `observability.md` | No | Runtime-code + self-improvement components — structured logging, audit logging, request correlation, telemetry signals for autolearning |
+| `architecture.md` | No | Tech Architect, Plan-Review (Eng), Security Worker — ADR triggers, separation, premature-distribution-avoidance, stateless preferred, contract-first |
+| `ai-coding.md` | YES (defaults.always) | Every LLM-driven component — honest failure reporting, tool-choice discipline, prompt hygiene, context discipline, verification before delivery |
+| `safe-by-default.md` | Profile-loaded | Kid + Curious — no tracking, hardware permissions on demand, no signup, graceful failure, minimal a11y |
+| `kid.md` | Profile-loaded | ONLY Kid — no social, no commerce, plain vocabulary, adult-account hosting, no AI in delivered app |
+| `pro.md` | Profile-loaded | ONLY Pro — stack richness allowed, CI/CD expected, doc depth, i18n wired, observability wired |
+| `brownfield.md` | Context-loaded | ONLY when brownfield detected — respect existing patterns, dependency justification, regression tests mandatory, migration plans |
 
-**Rationale**: Simplicity reduces bugs, eases maintenance, and accelerates onboarding.
+## Composer
 
-### III. DRY - Don't Repeat Yourself
+`lib/constitution-compose.js` (v0.2+) takes `{ skill, profile, context }` and returns the concatenated constitution as a single string suitable for prompt injection. Until v0.2, the legacy injection mechanism in `install-mmd.sh` reads the full bundle (`cat .specify/memory/constitution/*.md`) — this is suboptimal but ensures no rule is missed during the transition.
 
-- Avoid duplicating business logic
-- Extract common code only when duplication is proven (not preemptively)
-- Prefer duplication over a bad abstraction
+## Version
 
-**Rationale**: DRY reduces inconsistencies, but must be applied with judgment (cf. KISS/YAGNI).
+**Version**: 2.0.0 | **Generated by install-mmd.sh, modularized in MMD repo**
 
-### IV. Test-First & Integration Testing (NON-NEGOTIABLE)
+## Changelog (constitution as a whole)
 
-- **Integration tests are mandatory**: Every change MUST include integration tests
-- **Unit tests**: Required only when isolated business logic warrants it
-- **Red-Green-Refactor**: Write the test → Verify it fails → Implement → Verify it passes → Refactor
-- **Every failure deserves a red-green pass — not just bugs (NON-NEGOTIABLE)**: ANY failure encountered during development MUST trigger a red-green sequence. "Failure" is interpreted broadly: a failing test, a crashing install script, a misbehaving pipeline phase, a tool that does not produce the expected output, an integration that does not handshake, a Worker that returns the wrong shape, an autodev iteration that loops without converging, a Reality Check that fails — all of these are failures and all of them follow the same protocol:
-  1. **RED**: write or run an explicit test/check that demonstrates the failure deterministically. The test MUST be repeatable; an ad-hoc reproduction does not count.
-  2. **GREEN**: implement the fix and verify the test now passes.
-  3. **Document the failure + fix** in a lessons-learned entry (when MMD's autolearning is active, this becomes automatic per MAKE_MY_DREAMS.md §6.5).
-  Even when the failure is in the installer, the workflow file, the constitution itself, or a configuration glitch (e.g. BMAD's unresolved `{output_folder}` variable), the same protocol applies. **There is no such thing as "just fix it" — there is always a test or check that proves the failure was understood and is now corrected.**
-- **Bug fix = test first**: Every bug fix MUST start with a non-regression test that reproduces the bug (red), then fix the bug (green). This is a specific application of the rule above.
-- Tests MUST cover API contracts (inputs/outputs)
-- No code is merged without passing tests
-- **TDD by default**: Test-driven development is the standard working method
+**1.0.0 → 1.1.0**: principle IX softened — "FORBIDDEN to mention AI in commits" replaced by an honest-attribution policy.
 
-**Rationale**: Integration tests validate the real behavior of the system and catch regressions.
+**1.1.0 → 1.2.0**: principle IV extended to "every failure deserves a red-green pass — not just bugs". Principle IX hardened with "commit early, commit often, push always".
 
-### V. Security & OWASP Top 10 (NON-NEGOTIABLE)
+**1.2.0 → 1.3.0**: principle IX completed with "branch-based workflow".
 
-Code MUST follow security best practices and guard against OWASP Top 10 vulnerabilities:
+**1.3.0 → 2.0.0** (BREAKING — structural reorganization): the monolithic `constitution.md` (165 lines) split into:
+- 9 always-or-frequently-loaded modules: `universal.md`, `security.md`, `testing.md`, `commit-git.md`, `documentation.md`, `error-handling.md`, `observability.md`, `architecture.md`, `ai-coding.md`.
+- 4 profile/context layers: `safe-by-default.md`, `kid.md`, `pro.md`, `brownfield.md`.
+- A new `constitution-bindings.yaml` table that maps skill/worker/engine/profile/context → required modules.
+- A future composer (`lib/constitution-compose.js`, v0.2+) that assembles per-invocation bundles.
 
-- **A01:2021 - Broken Access Control**: Strict access control, principle of least privilege
-- **A02:2021 - Cryptographic Failures**: Encrypt sensitive data, no plaintext secrets
-- **A03:2021 - Injection**: Validate and sanitize all inputs, use parameterized queries
-- **A04:2021 - Insecure Design**: Threat modeling, security by design
-- **A05:2021 - Security Misconfiguration**: Secure defaults, no default credentials
-- **A06:2021 - Vulnerable Components**: Keep dependencies up to date, regular vulnerability scanning
-- **A07:2021 - Authentication Failures**: Robust authentication, secure session management
-- **A08:2021 - Software and Data Integrity**: Integrity verification, secure CI/CD pipelines
-- **A09:2021 - Security Logging and Monitoring**: Log security events
-- **A10:2021 - Server-Side Request Forgery**: URL validation, network restrictions
+Rationale: context economy (a `/qa-only` invocation no longer drags rules about Diataxis docs and AI attribution), maintainability (touch testing → touch only `testing.md`), and selective evolution (modules versioned independently). Net new content beyond restructuring: `testing.md` §V "Test stratification" (full tag taxonomy + budgets + impact analysis), `safe-by-default.md` (formalization of Bundle B), and tighter wording across the board.
 
-**Mandatory measures**:
-- Secrets managed via environment variables or a secrets manager
-- HTTP security headers configured (CORS, CSP, etc.)
-- Rate limiting on sensitive endpoints
-
-**Rationale**: Security is not optional. Any exposed service must be protected against common attacks.
-
-### VI. Separation of Concerns
-
-- Strict separation between business logic, presentation, and infrastructure
-- Layers MUST communicate through clean interfaces
-- No business logic in controllers/handlers
-- No direct database access from the presentation layer
-
-**Rationale**: Separation of concerns eases testing, maintenance, and independent evolution of layers.
-
-### VII. Defensive Programming
-
-- Validate all inputs at system boundaries (user input, external APIs)
-- Fail fast: detect and report errors as early as possible
-- Never trust external data
-- Handle error cases explicitly (no silent catches)
-
-**Rationale**: Defensive programming prevents undefined behavior and eases diagnosis.
-
-### VIII. Comprehensive Documentation
-
-- **Code documentation**: Public interfaces documented
-- **Architecture documentation**: Diagrams and decisions documented
-- **README** kept up to date with setup and contribution instructions
-- Each business entity documented (purpose, relations, constraints)
-
-**Rationale**: Documentation ensures sustainability and knowledge transfer.
-
-### IX. Commit Control (NON-NEGOTIABLE)
-
-- **No commit without explicit user approval**
-- Each commit must be atomic and correspond to an identifiable task
-- Conventional Commit messages:
-  - `feat:` for new features
-  - `fix:` for bug fixes
-  - `docs:` for documentation
-  - `test:` for tests
-  - `refactor:` for refactoring
-- **AI attribution policy (OPTIONAL, honest)**: mentioning AI involvement in commits, PRs or code comments is **permitted and even encouraged** when it adds useful traceability (e.g. `feat: generate drawing-camera PWA (auto-dev v0.X)`, `refactor: simplify state.js per Christie review`). It is NOT required for every commit. Authors should not contort messages to either hide AI usage (dishonest) or showcase it gratuitously (noise) — focus on clarity of what changed and why. The previous "FORBIDDEN to mention AI" rule (constitution v1.0) was dropped in v1.1 because it pushed both humans and AI to write misleading commits.
-- **Commit early, commit often, push always (NON-NEGOTIABLE, v1.2)**: any meaningful chunk of work — even partial, even broken-on-purpose during a red phase — MUST be committed as soon as it constitutes a recoverable unit (typically: every passing test, every isolated refactor, every successful step of a multi-step task). Work that is not committed AND pushed to the remote does not exist: a crash, a forced reboot, a Cursor worktree that gets cleaned up, a misclick in a file manager — and your work is gone. The rule:
-  1. **Commit early**: do not batch a day's worth of changes into a single end-of-day commit. Atomic commits per logical step.
-  2. **Commit often**: when in doubt, commit. A messy history is fixable; lost work is not.
-  3. **Push always**: every commit MUST be followed by `git push` to the remote (or to a tracked branch with a tracked remote). A commit that only lives in the local `.git/` is one disk failure away from oblivion.
-  4. **Worktrees and disposable environments are NOT excuses to delay commits**: in fact they make this rule more critical, because their cleanup pathways are aggressive.
-  This rule applies to humans AND to AI agents. An agent that performs 30 minutes of generation without intermediate commits has produced fragile work, regardless of how well it ran.
-- **Branch-based workflow (NON-NEGOTIABLE, v1.3)**: every non-trivial change MUST be developed on a dedicated branch, never directly on `main`. Branches are the prerequisite that makes "commit early, push always" safe (you can push 100 work-in-progress commits on a feature branch without polluting `main`'s history) and that enables MMD's worktrees parallelization (MAKE_MY_DREAMS.md §4.3). Protocol:
-  1. **Naming convention**: `feat/<short-slug>` for features, `fix/<short-slug>` for fixes, `slice/<slice-name>` for MMD slices (per §3.4 vision/slice model), `docs/<short-slug>` for doc-only changes, `chore/<short-slug>` for tooling/config.
-  2. **Created before any code**: `git checkout -b feat/X` is the FIRST step of any work session. Not after the first commit, not after "I see it works" — first.
-  3. **Pushed early with tracking**: `git push -u origin feat/X` IMMEDIATELY after branch creation, even before the first commit. Combined with rule "push always", this guarantees the work survives any local disaster from the very first second.
-  4. **Merged via PR (team mode) or fast-forward (solo mode)**: `main` only receives reviewed, tested merges. PR descriptions summarize what changed and what was verified; FF merges in solo mode still get a clear summary commit.
-  5. **Deleted after merge**: `git branch -d feat/X && git push origin --delete feat/X` to keep the namespace clean.
-  6. **Required for every auto-dev or MMD slice run**: a MMD slice (per §3.4) runs on its own `slice/<slice-name>` branch, even when not using worktrees yet. This isolates a possibly-rogue agent pipeline from `main` and allows trivial rollback (`git checkout main && git branch -D slice/X`) without losing anything else.
-  7. **Exception**: trivial typo fixes or single-file doc tweaks MAY go directly on `main` if the author judges the cost of a branch+PR exceeds the safety benefit. This exception is the author's documented responsibility, not a free pass.
-  This rule applies to humans AND AI agents. An AI that commits directly on `main` for a non-trivial change is violating this principle and triggers a red-green failure pass (per principle IV extended).
-
-**Rationale**: Commit control ensures traceability and code quality. Honesty about authorship — including AI co-authorship — is part of that traceability. **Uncommitted-and-unpushed work is not work; it is a draft that the universe may reclaim at any moment.** Branches make `main` safe: a `main` that breaks once a day is a `main` that everyone learns to distrust, and a project that breaks itself.
-
-### X. Audit Logging
-
-**Every business action in the system MUST be audit-logged.**
-
-- **Covered actions**: Creation, modification, deletion, status changes, permission changes
-- **Mandatory fields**: Entity, action, changed fields, before/after values, user identity, UTC timestamp
-- **Non-deletion**: Audit logs MUST NEVER be deleted or modified
-
-**Rationale**: Complete traceability is essential for compliance, debugging, and accountability.
-
-### XI. Observability & Structured Logging
-
-- Structured logs (JSON) with appropriate levels (debug, info, warn, error)
-- Performance metrics on critical operations
-- Request correlation (request ID / trace ID)
-- Error and anomaly monitoring
-
-**Rationale**: Observability enables fast diagnosis of production issues.
-
-### XII. Least Privilege & Defense in Depth
-
-- Each component must have only the minimum permissions necessary
-- Multiple independent security layers (authentication, authorization, validation, encryption)
-- Component isolation (no implicit trust between services)
-
-**Rationale**: Defense in depth limits the impact of a compromise.
-
-## Development Workflow
-
-### Quality Gates
-
-1. **Before implementation**: Tests written and failing
-2. **After implementation**: All tests pass
-3. **Before commit**: User approval required
-4. **Documentation**: Code documented, API documented
-5. **Review**: SOLID, KISS, and security verification
-
-### Conventions
-
-- Code, variable names, technical comments in **English**
-- Commit messages in **English** (Conventional Commits)
-
-## Governance
-
-- This constitution **takes precedence over all other practices**
-- Any amendment to the constitution requires:
-  1. Documented rationale for the change
-  2. Explicit approval
-  3. Migration plan if existing code is impacted
-- Code reviews MUST verify compliance with these principles
-- Any violation MUST be justified and documented
-
-**Version**: 1.3.0 | **Generated by install-mmd.sh, amended in MMD repo**
-**Changes 1.0.0 → 1.1.0**: principle IX softened — "FORBIDDEN to mention AI in commits" replaced by an honest-attribution policy that permits and encourages AI mentions when they add traceability, while not requiring them. The strict prohibition led both humans and AI to write misleading commits in practice.
-**Changes 1.1.0 → 1.2.0**: (1) principle IV extended — "Bug fix = test first" generalized to **every failure**, not just bugs. Any failure (test, install script, pipeline phase, integration handshake, Worker output shape, autodev convergence, Reality Check, etc.) MUST trigger a deterministic red-green sequence. (2) principle IX hardened with **"Commit early, commit often, push always"** — any uncommitted-and-unpushed work does not exist (a reboot, a worktree cleanup, a misclick can erase it). Applies to humans AND AI agents.
-**Changes 1.2.0 → 1.3.0**: principle IX completed with **"Branch-based workflow"** — every non-trivial change on a dedicated branch (`feat/`, `fix/`, `slice/`, `docs/`, `chore/`), created before any code, pushed with `-u origin` immediately, merged into `main` via PR (team) or fast-forward (solo). Every MMD slice runs on its own `slice/<name>` branch. `main` is protected from rogue agents and reboots. This is the prerequisite that makes "push early/often" safe AND enables the worktrees parallelization planned in MAKE_MY_DREAMS.md §4.3.
+No principle was DROPPED in 2.0.0 — all v1.3 rules are preserved, just better organized.

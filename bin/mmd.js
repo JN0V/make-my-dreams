@@ -31,6 +31,7 @@ import {
   generateSliceBranchName,
   createSliceBranch,
   buildHerePrompt,
+  parseProtectedBranches,
 } from '../lib/here-mode.js';
 import { readFile as fsReadFile } from 'node:fs/promises';
 
@@ -148,6 +149,21 @@ async function runHereMode({ cwd: targetDir, dream, slug, engine }) {
     return branchResult.exitCode;
   }
   stdout.write(`Slice branch: ${sliceBranch} (base: ${baseBranch} @ ${baseSha.slice(0, 7)})\n`);
+
+  // F6 (Phase 4 review): give MMD_HERE_PROTECTED_BRANCHES a runtime
+  // consequence so it is observable (universal.md §II KISS: no dead-code).
+  // When the base branch is protected the slice creation already succeeded —
+  // we only emit an informational note that the protected branch was NOT
+  // modified (per AC-2 "auto-creates the slice branch anyway"). The env var
+  // is honored: a user can broaden the list (e.g. include `release`) and
+  // observe the note when --here-ing from those branches.
+  const protectedBranches = parseProtectedBranches(env.MMD_HERE_PROTECTED_BRANCHES);
+  if (protectedBranches.includes(baseBranch)) {
+    stderr.write(
+      `Note: --here from a protected branch '${baseBranch}' — slice branch ` +
+        `'${sliceBranch}' was created from current HEAD; '${baseBranch}' is never modified.\n`,
+    );
+  }
 
   // AC-5 — write state under <cwd>/.mmd/shared/.
   await ensureLayout(absTargetDir);

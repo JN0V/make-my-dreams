@@ -162,7 +162,10 @@ test('@integration v0.2a AC-1+3+5+6: --here on clean repo creates slice branch, 
 });
 
 // AC-2 protected-branch exemption: --here from main does NOT fail; it creates the slice anyway.
-test('@integration v0.2a AC-2: --here from main auto-creates slice branch (does not exit 4 on the protected-branch case)', { skip: SKIP_ON_WINDOWS }, () => {
+// F6 (Phase 4 review): also asserts the MMD_HERE_PROTECTED_BRANCHES note is
+// emitted to stderr when --here-ing from a protected branch, giving the env
+// var an observable runtime consequence (universal.md §II KISS, no dead code).
+test('@integration v0.2a AC-2 + F6: --here from main auto-creates slice branch AND emits protected-branch note', { skip: SKIP_ON_WINDOWS }, () => {
   const tmp = makeTmp();
   try {
     initCleanRepo(tmp);
@@ -173,6 +176,35 @@ test('@integration v0.2a AC-2: --here from main auto-creates slice branch (does 
     assert.equal(r.status, 0, `protected-branch run should succeed; got ${r.status}; stderr=${r.stderr}`);
     const after = git(['rev-parse', '--abbrev-ref', 'HEAD'], tmp).trim();
     assert.match(after, /^slice\/here-tweak-from-main-\d+$/, `expected slice branch, got ${after}`);
+    // F6: protected-branch note observable on stderr.
+    assert.match(
+      r.stderr,
+      /Note: --here from a protected branch 'main'/,
+      'stderr should announce that the slice was created from a protected branch',
+    );
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+// F6 (Phase 4 review): when --here is run from a NON-protected branch (e.g.
+// an existing topic branch), the protected-branch note MUST NOT appear.
+test('@integration v0.2a F6: --here from a topic branch does NOT emit the protected-branch note', { skip: SKIP_ON_WINDOWS }, () => {
+  const tmp = makeTmp();
+  try {
+    initCleanRepo(tmp);
+    // Move off main onto a topic branch BEFORE running --here.
+    git(['checkout', '-b', 'topic/some-feature', '-q'], tmp);
+    const before = git(['rev-parse', '--abbrev-ref', 'HEAD'], tmp).trim();
+    assert.equal(before, 'topic/some-feature');
+    const r = runMmd(['--here', 'tweak from topic branch'], { cwd: tmp });
+    assert.equal(r.status, 0, `run from topic branch should succeed; got ${r.status}; stderr=${r.stderr}`);
+    // F6: no protected-branch note when base is not in MMD_HERE_PROTECTED_BRANCHES.
+    assert.doesNotMatch(
+      r.stderr,
+      /Note: --here from a protected branch/,
+      'protected-branch note must NOT appear when base branch is not protected',
+    );
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

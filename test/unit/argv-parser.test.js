@@ -209,7 +209,7 @@ test('@unit parseArgv: dream containing -- in the middle is preserved as a singl
 
 // v0.2b — parseBenchArgs + detectSubcommand coverage (SPEC_V02B AC-1).
 
-import { parseBenchArgs, detectSubcommand, SUBCOMMANDS } from '../../lib/argv-parser.js';
+import { parseBenchArgs, detectSubcommand, SUBCOMMANDS, parseShipArgs } from '../../lib/argv-parser.js';
 
 test('@unit detectSubcommand: bench is recognized as a subcommand', () => {
   assert.equal(detectSubcommand(['bench', '--dry-run']), 'bench');
@@ -299,4 +299,73 @@ test('@unit parseBenchArgs: flags compose (--dry-run --engine fast --dreams kid-
   assert.equal(r.dryRun, true);
   assert.equal(r.engine, 'fast');
   assert.deepEqual(r.dreams, ['kid-01', 'kid-02']);
+});
+
+// v0.2.f — parseShipArgs + ship subcommand recognition (SPEC_V02F AC-3).
+
+test('@unit detectSubcommand: ship is recognized as a subcommand', () => {
+  assert.equal(detectSubcommand(['ship']), 'ship');
+  assert.equal(detectSubcommand(['ship', '--dry-run']), 'ship');
+});
+
+test('@unit SUBCOMMANDS contains ship (in addition to bench + serve)', () => {
+  assert.ok(SUBCOMMANDS.includes('ship'));
+});
+
+test('@unit parseShipArgs: defaults — no flags, no positional', () => {
+  const r = parseShipArgs([]);
+  assert.equal(r.error, null);
+  assert.equal(r.dryRun, false);
+  assert.equal(r.help, false);
+  assert.equal(r.branch, null);
+});
+
+test('@unit parseShipArgs: --dry-run', () => {
+  const r = parseShipArgs(['--dry-run']);
+  assert.equal(r.error, null);
+  assert.equal(r.dryRun, true);
+});
+
+test('@unit parseShipArgs: --help and -h', () => {
+  assert.equal(parseShipArgs(['--help']).help, true);
+  assert.equal(parseShipArgs(['-h']).help, true);
+});
+
+test('@unit parseShipArgs: positional <branch>', () => {
+  const r = parseShipArgs(['slice/foo']);
+  assert.equal(r.error, null);
+  assert.equal(r.branch, 'slice/foo');
+});
+
+test('@unit parseShipArgs: --dry-run + positional <branch> compose', () => {
+  const r = parseShipArgs(['--dry-run', 'slice/foo']);
+  assert.equal(r.error, null);
+  assert.equal(r.dryRun, true);
+  assert.equal(r.branch, 'slice/foo');
+});
+
+test('@unit parseShipArgs: positional + --dry-run (order-independent)', () => {
+  const r = parseShipArgs(['slice/foo', '--dry-run']);
+  assert.equal(r.error, null);
+  assert.equal(r.dryRun, true);
+  assert.equal(r.branch, 'slice/foo');
+});
+
+test('@unit parseShipArgs: second positional rejected with exit 2', () => {
+  const r = parseShipArgs(['slice/foo', 'slice/bar']);
+  assert.ok(r.error);
+  assert.equal(r.error.exitCode, 2);
+  assert.match(r.error.message, /at most one positional/);
+});
+
+test('@unit parseShipArgs: unknown flag rejected with exit 2', () => {
+  const r = parseShipArgs(['--bogus']);
+  assert.ok(r.error);
+  assert.equal(r.error.exitCode, 2);
+  assert.match(r.error.message, /unknown ship arg/);
+});
+
+test('@unit parseShipArgs: non-array rejected', () => {
+  const r = parseShipArgs(null);
+  assert.ok(r.error);
 });

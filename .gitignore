@@ -6,7 +6,7 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # MMD local artifacts (scratchpad, not for team — cf MAKE_MY_DREAMS.md §6.8)
-.mmd/local/
+.mmd/
 
 # MMD runtime ephemeral files
 mmd-discovery-report.md

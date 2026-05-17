@@ -148,4 +148,26 @@ Never present an implementation limitation as a design choice — it hides debt 
 
 ---
 
+## L-010 — Reflexive bootstrap §7 validated in practice (symbolic gate)
+
+**Status**: milestone (not a failure-derived lesson — a captured proof-of-life per SPEC_V02A DoD §10)
+**Date**: 2026-05-17
+**Origin**: AC-7 of SPEC_V02A passed on first attempt. The test runs `mmd --here "<trivial change>"` inside a fresh `git worktree` of MMD, lets the real `claude` CLI run the full Standard auto-dev pipeline, and verifies the slice branch carries the change. Until this moment, every claim that MMD develops MMD (MAKE_MY_DREAMS.md §7) was true only in the abstract — concretely, every reflexive run had been via raw `claude -p /bmad-adv-auto-dev …`, bypassing the wrapper. With v0.2a + AC-7 passing, the supported `mmd --here` path is the proof.
+**Numbers** (the symbolic gate, per DoD §10):
+- Slice branch: `slice/v0.2a-here-mode`, base `cb8833c`, tip `49a3094` (13 commits)
+- Test that validates: `test/e2e/self-dogfood.test.js` (`@e2e @slow`, gated `MMD_RUN_E2E=1`)
+- Wall-clock for the acid test (real auto-dev, trivial change): **121 s** (2 min 1 s)
+- Test result: 1/1 PASS, 0 fail, 0 skip
+- Auto-dev run id: `v0.2a-AC7-e2e-1779029559`
+- Worktree path used: `/tmp/mmd-e2e-mka3NF/mmd-clone` (cleaned up by the test's `finally` block)
+- The exact change applied by the dogfood: `<!-- self-dogfood smoke 2026-05-17T14:52:40.069Z -->` at the top of `docs/lessons-learned.md` (on the dogfood slice branch only — never reached this file in main)
+**Rule** (operative implication, not a lesson-rule per se): from now on, every NEW slice on MMD itself SHOULD be launched via `mmd --here` rather than raw `claude -p`, except in two cases:
+  1. The slice modifies the wrapper itself (chicken/egg — use `claude -p` once, then test the modified wrapper from the next slice).
+  2. The slice has a known dependency on a feature that's not yet on `main` (e.g. v0.2b being developed before its dependencies are merged).
+Using `mmd --here` instead of raw `claude -p` is the difference between "MMD's reflexive bootstrap is documented" and "MMD's reflexive bootstrap is the supported workflow." This is the change that justifies removing the asterisk on §7.4's roadmap statement ("v0.2+: MMD is used to develop MMD").
+**To promote if**: this is a marker, not a counter-tracked lesson. Keep here as a historical anchor; do not promote to a constitution module — it belongs in the project narrative (the History section of README.md gains a paragraph noting v0.2a is the version that made §7 real).
+**Keywords for matching**: reflexive bootstrap, §7, AC-7, dogfood, --here, symbolic gate, milestone, MMD develops MMD, v0.2a
+
+---
+
 *This file is the project-scoped Layer F of the multi-layer constitution. Per scoping §6.5, when any lesson reaches N=5 validated re-uses, the Documentalist will (a) promote it to the appropriate constitution module, (b) remove it from here, (c) record the promotion event in `docs/adr/` if architectural.*

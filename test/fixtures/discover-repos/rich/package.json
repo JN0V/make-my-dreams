@@ -1,0 +1,9 @@
+{
+  "name": "rich-fixture",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": { "test": "node --test" },
+  "devDependencies": {
+    "vitest": "^1.0.0"
+  }
+}

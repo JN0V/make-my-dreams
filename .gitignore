@@ -43,3 +43,15 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+
+# MMD v0.1 — auto-managed by `mmd <dream>`
+.mmd/local/
+
+# MMD v0.2c — fixtures under test/fixtures/discover-repos/ legitimately include
+# stub `.mmd/`, `_bmad/` and `mmd-discovery-report.md` markers (they describe
+# brownfield states the onboarder must detect). Negations re-allow them.
+!test/fixtures/discover-repos/**/.mmd/
+!test/fixtures/discover-repos/**/.mmd/**
+!test/fixtures/discover-repos/**/_bmad/
+!test/fixtures/discover-repos/**/_bmad/**
+!test/fixtures/discover-repos/**/mmd-discovery-report.md

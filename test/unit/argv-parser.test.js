@@ -19,6 +19,7 @@ test('@unit parseArgv: empty argv → all flags false, no positional, no error',
     fast: false, standard: false, deep: false,
     resume: false, fresh: false, cancel: false,
     here: false,
+    'skip-onboarding': false,
   });
   assert.deepEqual(r.positional, []);
   assert.equal(r.error, null);
@@ -368,4 +369,96 @@ test('@unit parseShipArgs: unknown flag rejected with exit 2', () => {
 test('@unit parseShipArgs: non-array rejected', () => {
   const r = parseShipArgs(null);
   assert.ok(r.error);
+});
+
+// v0.2c — parseDiscoverArgs + discover subcommand + --skip-onboarding.
+
+import { parseDiscoverArgs } from '../../lib/argv-parser.js';
+
+test('@unit detectSubcommand: discover is recognized as a subcommand (v0.2c)', () => {
+  assert.equal(detectSubcommand(['discover']), 'discover');
+  assert.equal(detectSubcommand(['discover', '.']), 'discover');
+});
+
+test('@unit SUBCOMMANDS contains discover (v0.2c)', () => {
+  assert.ok(SUBCOMMANDS.includes('discover'));
+});
+
+test('@unit parseDiscoverArgs: defaults', () => {
+  const r = parseDiscoverArgs([]);
+  assert.equal(r.error, null);
+  assert.equal(r.approve, false);
+  assert.equal(r.refresh, false);
+  assert.equal(r.inferWithClaude, false);
+  assert.equal(r.noReportUpdate, false);
+  assert.equal(r.forceNonGit, false);
+  assert.equal(r.help, false);
+  assert.equal(r.path, null);
+});
+
+test('@unit parseDiscoverArgs: every boolean flag is recognized', () => {
+  for (const [flag, key] of [
+    ['--approve', 'approve'],
+    ['--refresh', 'refresh'],
+    ['--infer-with-claude', 'inferWithClaude'],
+    ['--no-report-update', 'noReportUpdate'],
+    ['--force-non-git', 'forceNonGit'],
+    ['--help', 'help'],
+    ['-h', 'help'],
+  ]) {
+    const r = parseDiscoverArgs([flag]);
+    assert.equal(r.error, null, `parse failed for ${flag}: ${r.error && r.error.message}`);
+    assert.equal(r[key], true, `${flag} should set ${key}=true`);
+  }
+});
+
+test('@unit parseDiscoverArgs: positional <path>', () => {
+  const r = parseDiscoverArgs(['/some/path']);
+  assert.equal(r.error, null);
+  assert.equal(r.path, '/some/path');
+});
+
+test('@unit parseDiscoverArgs: flags + positional compose (any order)', () => {
+  const a = parseDiscoverArgs(['--refresh', '/x']);
+  assert.equal(a.refresh, true);
+  assert.equal(a.path, '/x');
+  const b = parseDiscoverArgs(['/x', '--refresh']);
+  assert.equal(b.refresh, true);
+  assert.equal(b.path, '/x');
+});
+
+test('@unit parseDiscoverArgs: second positional rejected', () => {
+  const r = parseDiscoverArgs(['/x', '/y']);
+  assert.ok(r.error);
+  assert.equal(r.error.exitCode, 2);
+  assert.match(r.error.message, /at most one positional/);
+});
+
+test('@unit parseDiscoverArgs: unknown flag rejected with helpful message', () => {
+  const r = parseDiscoverArgs(['--bogus']);
+  assert.ok(r.error);
+  assert.equal(r.error.exitCode, 2);
+  assert.match(r.error.message, /unknown discover arg/);
+});
+
+test('@unit parseDiscoverArgs: non-array rejected', () => {
+  const r = parseDiscoverArgs(null);
+  assert.ok(r.error);
+});
+
+test('@unit parseArgv (v0.2c): --skip-onboarding sets flags["skip-onboarding"]=true', () => {
+  const r = parseArgv(['--skip-onboarding', 'dream']);
+  assert.equal(r.error, null);
+  assert.equal(r.flags['skip-onboarding'], true);
+});
+
+test('@unit parseArgv (v0.2c): --skip-onboarding composes with --here', () => {
+  const r = parseArgv(['--here', '--skip-onboarding', 'change']);
+  assert.equal(r.error, null);
+  assert.equal(r.flags.here, true);
+  assert.equal(r.flags['skip-onboarding'], true);
+});
+
+test('@unit MODE_FLAGS contains skip-onboarding (v0.2c)', () => {
+  assert.ok(MODE_FLAGS.includes('skip-onboarding'));
 });

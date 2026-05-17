@@ -1,0 +1,1 @@
+_bmad/ exists so `mmd discover` flags this fixture as a BMAD project (in addition to Spec Kit).

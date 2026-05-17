@@ -1,0 +1,3 @@
+# Defensive: prevent any nested .git/ from creeping in if a test forgets to
+# isolate its tmp-dir copy. The fixtures themselves are content-only.
+.git/

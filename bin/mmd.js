@@ -34,6 +34,7 @@ import {
   parseProtectedBranches,
 } from '../lib/here-mode.js';
 import { readFile as fsReadFile } from 'node:fs/promises';
+import { checkGate } from '../lib/discover/gate.js';
 
 // F30 — version sourced once from package.json (shared with GET /api/health).
 const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
@@ -47,6 +48,7 @@ Usage:
   mmd --here "<change>"                Modify the current git repo in place (v0.2a)
   mmd bench [--dry-run]                Run the dream-bench v0 harness (v0.2b)
   mmd ship [<branch>] [--dry-run]      Invoke gStack ship skill on the current slice (v0.2.f)
+  mmd discover [<path>]                Project Onboarder for brownfield repos (v0.2c)
   mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
   mmd --help, -h                       Print this usage and exit
@@ -58,6 +60,7 @@ Engine flags (mutually exclusive):
 
 Mode flags (orthogonal to engine):
   --here                               Self / brownfield-in-place: modify cwd, no demo/<slug>/ scaffold (v0.2a)
+  --skip-onboarding                    Bypass the v0.2c Project Onboarder gate (NOT RECOMMENDED)
 
 Idempotent re-run flags (used when a demo dir already exists):
   --resume                             Print current dream state and exit 3
@@ -129,7 +132,7 @@ async function resolveExistingChoice(flags) {
  *   - Reality Check is short-circuited (AC-6).
  *   - status.json carries mode/target_dir/slice_branch/base_branch/base_sha (AC-5).
  */
-async function runHereMode({ cwd: targetDir, dream, slug, engine }) {
+async function runHereMode({ cwd: targetDir, dream, slug, engine, skipOnboarding }) {
   // F2 (Phase 4 review): canonicalize the target dir via fs.realpath so we
   // do NOT record a symlinked path in status.json (audit trail integrity)
   // while git operates on the real path. path.resolve alone does not follow
@@ -147,6 +150,17 @@ async function runHereMode({ cwd: targetDir, dream, slug, engine }) {
   stdout.write(`Mode: --here (modifying current repo: ${absTargetDir})\n`);
   if (engine === 'fast') {
     stdout.write('Engine: FAST (trimmed auto-dev — target <=10 min)\n');
+  }
+
+  // v0.2c AC-7: Project Onboarder validation gate. Block --here when the
+  // target is a brownfield without a VALIDATED discovery report, unless the
+  // user explicitly opts out with --skip-onboarding.
+  if (!skipOnboarding) {
+    const gate = await checkGate(absTargetDir);
+    if (!gate.ok) {
+      stderr.write(`${gate.message}\n`);
+      return 5;
+    }
   }
 
   // AC-2 — git validation (exit 3 / exit 4).
@@ -376,6 +390,12 @@ async function main() {
     const { runShip } = await import('./ship.js');
     return runShip(rawArgs.slice(1));
   }
+  if (rawArgs[0] === 'discover') {
+    // v0.2c AC-1: `mmd discover` subcommand. Dispatched here for the same
+    // reason as `ship`/`bench` (must not parse as a dream string).
+    const { runDiscover } = await import('./discover.js');
+    return runDiscover(rawArgs.slice(1));
+  }
   if (rawArgs.includes('--version')) {
     stdout.write(`${VERSION}\n`);
     return 0;
@@ -419,11 +439,28 @@ async function main() {
     return 2;
   }
 
+  // v0.2c: extract --skip-onboarding once; both the --here path and the
+  // greenfield-with-existing-package.json path consult it.
+  const skipOnboarding = flags['skip-onboarding'] === true;
+
   // v0.2a: --here dispatches into the self / brownfield-in-place pipeline.
   // No demo/<slug>/ is created; state files live under <cwd>/.mmd/shared/.
   // The greenfield path below is unchanged when --here is absent.
   if (flags.here) {
-    return runHereMode({ cwd: cwd(), dream, slug, engine });
+    return runHereMode({ cwd: cwd(), dream, slug, engine, skipOnboarding });
+  }
+
+  // v0.2c AC-7: greenfield path consults the gate too. The greenfield use
+  // case is "no demo/<slug>/ yet" but the cwd itself may still be a
+  // brownfield (e.g. user runs `mmd "tiny PWA"` from inside their existing
+  // project root with a package.json). Gate fires only when cwd looks like
+  // brownfield AND no validated report exists.
+  if (!skipOnboarding) {
+    const gate = await checkGate(cwd());
+    if (!gate.ok) {
+      stderr.write(`${gate.message}\n`);
+      return 5;
+    }
   }
 
   let demoDir = path.join(cwd(), 'demo', slug);

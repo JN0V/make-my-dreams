@@ -1,4 +1,4 @@
-# Make My Dreams — Scoping Document (v15)
+# Make My Dreams — Scoping Document (v16)
 
 > **Objective**: enable any human — from a 13-year-old kid to a pro developer — to describe an application need in natural language and see a **MVP delivered quickly**, then enriched iteratively, by an autonomous AI. The tool must work equally well in **greenfield** and **brownfield** modes, and must itself stay up to date with the latest advances in the AI-dev ecosystem through an **automated watch**.
 >
@@ -1117,22 +1117,40 @@ The AI-dev ecosystem moves very fast (gStack is one year old, Spec Kit too, Ralp
 **Frequency**: weekly (configurable).
 
 **Scanned sources**:
+- **Official Anthropic docs (added v15)**: https://code.claude.com/docs, https://docs.claude.com, https://docs.anthropic.com — checked weekly for new slash-commands, plugins, CLI flags, MCP capabilities. **Rationale**: in this scoping iteration alone we discovered `/loop` (scheduled tasks), `/ralph-loop` (bounded agent loop), the official `ralph-loop` plugin marketplace, and the `mmd-gstack-invoke` viability — all by accident, after building plans that ignored them. Proactively monitoring official docs prevents this class of "we just reinvented something Anthropic already shipped" failures.
 - GitHub Trending (filters: `agent`, `coding`, `ai-coding`, `mcp`, `claude`, `agentic`, various languages).
-- GitHub stars deltas on a curated list (Spec Kit, BMAD, gStack, Cline, Aider, Roo Code, Continue, Plandex, OpenHands…).
+- GitHub stars deltas on a curated list (Spec Kit, OpenSpec, BMAD, gStack, Cline, Aider, Roo Code, Continue, Plandex, OpenHands…).
+- **Anthropic claude-plugins-official marketplace** (`~/.claude/plugins/marketplaces/claude-plugins-official/plugins/`) — list grows; new entries are often immediate candidates for MMD integration (cf `ralph-loop` discovered here).
 - HackerNews tags `ai-coding`, `agents`.
 - Reddit `r/ChatGPTCoding`, `r/LocalLLaMA`, `r/ClaudeAI`.
 - arXiv categories `cs.SE` + filters "LLM agent", "code generation".
-- Newsletters / blogs: Geoffrey Huntley, Simon Willison, latent.space, Sourcegraph blog.
+- Newsletters / blogs: Geoffrey Huntley, Simon Willison, latent.space, Sourcegraph blog, Anthropic engineering blog.
 
 **Pipeline**:
 1. Fetch sources.
-2. Filtering: new project OR major update of a tracked project.
+2. Filtering: new project OR major update of a tracked project OR new official Anthropic feature.
 3. Automatic summary (1 paragraph per item).
 4. Relevance scoring vs Make My Dreams (5 criteria: SDD, agentic, multi-agent, deploy-to-prod, non-tech-friendly).
 5. Weekly digest sent (Markdown or Slack/email, to wire).
 6. For items > relevance threshold: integration proposal ("this new pattern X from tool Y could replace/enrich our component Z").
 
 **Implementation**: uses the `schedule` skill (already available in Cowork setup) for scheduling, and delegates fetch+summary to a general sub-agent.
+
+### 8.2bis Scheduled tasks: `/loop` (in-session) vs cross-session
+
+Claude Code 2.1.72+ ships a built-in `/loop` slash-command (bundled skill) that re-executes a prompt at a chosen interval **within the current session** (session-scoped, max 50 tasks, expires after 7 days, no catch-up). See https://code.claude.com/docs/en/scheduled-tasks.
+
+**Use of `/loop` in MMD operations** (in-session, by Sébastien or another operator):
+- `/loop 30s tail .mmd/local/runs/<latest>.log and summarize new failures` — monitor a running auto-dev subprocess.
+- `/loop 5m check status.json across all in-progress slices and report any STALE state` — keep an eye on multi-slice progress.
+- `/loop 1h show me what arrived in docs/lessons-learned.md today` — soft autolearning monitoring during a long work session.
+
+**NOT used for `dev-ai-watch`** (§8.2) because that watch must run even when no session is active. The official doc itself recommends, for that use case:
+- **Routines** (Anthropic cloud) when available.
+- **Desktop scheduled tasks** (`cron`, `launchd`, Windows Task Scheduler).
+- **GitHub Actions cron** (recommended for MMD because the repo lives on GitHub anyway).
+
+The `dev-ai-watch` skill (v0.8) ships as a **GitHub Actions workflow** triggered by cron, so the watch fires regardless of whether anyone has Claude Code open.
 
 ### 8.3 Link with self-improvement (§7)
 
@@ -1439,7 +1457,7 @@ Decisions in §11 can be deferred — most of them only matter from v0.3+. The e
 
 ---
 
-*Scoping document — v15 — generated on 2026-05-16.*
+*Scoping document — v16 — generated on 2026-05-16.*
 
 *Changes v1→v2: addition of the Ralph Loop pattern, reworking of the strategy around "two engines one brain" (FAST + STRUCTURED), introduction of multi-audience user profiles (Kid/Curious/Pro/Custom), multi-layer constitution, explicit brownfield mode, automated watch, MVP-first roadmap.*
 
@@ -1468,3 +1486,5 @@ Decisions in §11 can be deferred — most of them only matter from v0.3+. The e
 *Changes v13→v14: Sébastien raised a fundamental question — without an IDE, how does his daughter actually use MMD? Realized that the roadmap delivered the accessibility experience (full Web Dream Catcher) at v0.10, far too late given that differentiator #1 (multi-audience accessibility) is MMD's whole reason to exist. Added a new **v0.2.5 milestone** to deliver a minimal usable web UI early: `mmd serve` command starts a local HTTP server, opens the default browser, and serves a deliberately simple HTML page (~200 lines vanilla, no framework). Sébastien's daughter opens the page on the same machine running MMD, types her dream, clicks a button, watches streamed progress, and gets a link to her PWA. **No tunnel, no cloud, no deployment** — purely local. Implementation is intentionally trivial (~2-3 days, ~300 lines total: CLI subcommand + Node HTTP server + vanilla HTML page + SSE for progress). Remote access (Wi-Fi + Cloudflare Tunnel) deferred to v0.6+. v0.10 (Full Dream Catcher Web UI) clarified as an enrichment of v0.2.5, not the unlock — the unlock for the daughter happens in v0.2.5. BOOTSTRAP.md updated to surface v0.2.5 as the "accessibility milestone" between v0.2d and v0.3a.*
 
 *Changes v14→v15: **FAST engine simplification — Ralph Loop deprioritized**. After v0.1 walking skeleton delivered successfully in ~45 min via `auto-dev` (Standard engine) WITHOUT Ralph, and given Sébastien's prior experience with Ralph being underwhelming, revised §3.1 to define the FAST engine as a **trimmed `auto-dev`** (1× Party Mode instead of 3×, opportunistic Phase 2 skip, 1-page upfront spec) targeting <10 min per slice — rather than a Ralph Loop wrapper. The `/ralph-loop` Anthropic plugin (discovered in this iteration) is kept as a deferred option (v0.6+) for trivial one-shot iterations where even quick-`auto-dev` is overkill. Updated §3.1 description, §3.3 orchestration map row for the Fast Engine, §5.3 mode-engine mapping table, and v0.2 roadmap entry. ADR-003 to be written when v0.2 lands, capturing the full rationale.*
+
+*Changes v15→v16: **§8 auto-watch enriched with official Anthropic docs as a recurring source**. After `/loop` (scheduled tasks, Claude Code 2.1.72+) and the official `ralph-loop` plugin were both discovered by accident in this iteration — AFTER we had planned to build them ourselves — Sébastien proposed adding "regular review of official Anthropic docs" to the self-improvement loop. Added: (a) https://code.claude.com/docs, https://docs.claude.com, https://docs.anthropic.com as weekly-monitored sources; (b) the `~/.claude/plugins/marketplaces/claude-plugins-official/plugins/` marketplace as a watched location (new entries often immediate MMD-integration candidates); (c) explicit rationale in the source list: "prevents this class of 'we just reinvented something Anthropic already shipped' failures". Also added new §8.2bis on the `/loop` slash-command and on the FBR (`/loop` for in-session monitoring vs GitHub Actions / Routines / desktop scheduled tasks for cross-session needs like `dev-ai-watch` itself).*

@@ -1,4 +1,4 @@
-# Make My Dreams — Scoping Document (v17)
+# Make My Dreams — Scoping Document (v18)
 
 > **Objective**: enable any human — from a 13-year-old kid to a pro developer — to describe an application need in natural language and see a **MVP delivered quickly**, then enriched iteratively, by an autonomous AI. The tool must work equally well in **greenfield** and **brownfield** modes, and must itself stay up to date with the latest advances in the AI-dev ecosystem through an **automated watch**.
 >
@@ -950,6 +950,82 @@ Two possible scopes, to clarify (decision §10.13):
 
 Recommendation: both scopes, with precedence rule (local > global) and origin tag.
 
+### 6.5b Tool-choice autolearning (new v18)
+
+The autolearning loop §6.5 captures lessons from coding errors. The **tool-choice autolearning** loop captures lessons from suboptimal tool/skill choices — same Documentalist, same promotion mechanism, different trigger event.
+
+#### Why a separate sub-section
+
+When a Worker invokes `/qa` (gStack) where `/qa-only` would have sufficed, or invokes the full `auto-dev` pipeline for a 3-line fix, that's not a "bug" in the §6.5 sense — no exception thrown, no test failed. But it's a **suboptimal choice** that wastes budget, time, and context. Over weeks, recurring suboptimal choices add up to a noticeable productivity drag.
+
+#### Architectural placement: the Documentalist (NOT the Conductor)
+
+Sébastien initially asked whether the Conductor should observe these choices. Answer: **no**. The Conductor's value comes from being light (<10k tokens, only reads `status.json` + last handoff). Adding qualitative analysis of tool choices would break that contract.
+
+The Documentalist (§6) is already event-driven and already owns the lessons-learned pipeline. Adding a new event type `tool_invocation` is a natural fit and re-uses existing infrastructure.
+
+#### Event flow
+
+```
+Worker X invokes /qa (gStack) with args Y → Orchestrator logs to status.json
+        │
+        ▼
+On phase completion or slice DONE, Orchestrator emits 'tool_invocation' batch
+        │
+        ▼
+Conductor triggers Documentalist with the batch
+        │
+        ▼
+Documentalist appends to .mmd/shared/tool-choice-log.jsonl
+{
+  ts, slice_id, worker_id, tool: "/qa", args_summary, context_keywords,
+  outcome: "success|fail|aborted", duration_ms, cost_usd,
+  expected_alternative: null    ← filled by the analyzer pass
+}
+        │
+        ▼ (periodic — daily by default, or on-demand via "mmd analyze tools")
+A small Worker analyzes N recent entries
+        │
+        ▼
+Pattern detection examples:
+  - "/qa chosen in 80% of cases where /qa-only would have sufficed"
+    (no fix expected, just a report — and /qa-only is 40% cheaper)
+  - "auto-dev full pipeline invoked for changes <50 LOC in 12 cases —
+    FAST engine would have been adequate"
+  - "/design-shotgun never invoked despite 30 prompts asking for UI variants"
+        │
+        ▼
+Generates lessons-learned entries (constitution layer F dynamic):
+"Prefer /qa-only over /qa when the goal is a report without fixes
+ (keywords: 'review', 'audit', 'check', 'no fix needed')"
+        │
+        ▼
+Lesson injected into future Worker prompts via composer (CLAUDE.md / bindings)
+        │
+        ▼
+After N validated re-uses (default 5), the lesson is promoted into the
+relevant constitution module (typically ai-coding.md §II Tool-choice
+discipline gets enriched with the specific guidance).
+```
+
+#### Difference from §6.5 (error-fixed autolearning)
+
+| Aspect | §6.5 (error autolearning) | §6.5b (tool-choice autolearning) |
+|---|---|---|
+| Trigger event | `error_fixed` (a failure was corrected) | `tool_invocation` (a tool was chosen) |
+| Detection mode | Reactive (an explicit failure occurred) | Proactive (statistical pattern over many invocations) |
+| Lesson form | "Always do X before Y" | "Prefer tool A over tool B in context K" |
+| Analysis frequency | Per fix (real-time) | Daily batch (or on-demand) |
+| Promotion target | Often a new bullet in `error-handling.md` | Often a refinement of `ai-coding.md` §II |
+
+#### Composer link
+
+When the lesson is promoted into a constitution module, the composer (`lib/constitution-compose.js`, v0.2+) automatically picks it up because it reads the modules per binding. No additional plumbing — that's the point of the modular constitution from v2.0.
+
+#### Privacy + scope
+
+`tool-choice-log.jsonl` lives in `.mmd/local/` (NOT committed — it's noisy per-session telemetry). The extracted lessons, once promoted, go into `docs/lessons-learned.md` (project, committed) or `~/.mmd/lessons-learned.md` (global personal). Same dual-scope rule as §6.5.
+
 ### 6.6 Integration of external issues (4 bundles)
 
 A structured watch (delegated to a sub-agent in v5→v6) identified 26 classical and emerging issues of AI-dev, grouped into 4 bundles. Detail is in the [PROBLEMS.md](./PROBLEMS.md) appendix. Rather than activating everything permanently (heavy, costly), each bundle has a **contextual activation rule**:
@@ -1543,7 +1619,7 @@ Decisions in §11 can be deferred — most of them only matter from v0.3+. The e
 
 ---
 
-*Scoping document — v17 — generated on 2026-05-16.*
+*Scoping document — v18 — generated on 2026-05-16.*
 
 *Changes v1→v2: addition of the Ralph Loop pattern, reworking of the strategy around "two engines one brain" (FAST + STRUCTURED), introduction of multi-audience user profiles (Kid/Curious/Pro/Custom), multi-layer constitution, explicit brownfield mode, automated watch, MVP-first roadmap.*
 
@@ -1576,3 +1652,5 @@ Decisions in §11 can be deferred — most of them only matter from v0.3+. The e
 *Changes v15→v16: **§8 auto-watch enriched with official Anthropic docs as a recurring source**. After `/loop` (scheduled tasks, Claude Code 2.1.72+) and the official `ralph-loop` plugin were both discovered by accident in this iteration — AFTER we had planned to build them ourselves — Sébastien proposed adding "regular review of official Anthropic docs" to the self-improvement loop. Added: (a) https://code.claude.com/docs, https://docs.claude.com, https://docs.anthropic.com as weekly-monitored sources; (b) the `~/.claude/plugins/marketplaces/claude-plugins-official/plugins/` marketplace as a watched location (new entries often immediate MMD-integration candidates); (c) explicit rationale in the source list: "prevents this class of 'we just reinvented something Anthropic already shipped' failures". Also added new §8.2bis on the `/loop` slash-command and on the FBR (`/loop` for in-session monitoring vs GitHub Actions / Routines / desktop scheduled tasks for cross-session needs like `dev-ai-watch` itself).*
 
 *Changes v16→v17: **§4.5 Progress visibility** added — the anti-"Schrödinger run" mechanism. Sébastien reported the recurring agentic-dev pain of running a 30–90 min auto-dev pipeline with zero feedback: is it working, blocked, or crashed? The fix is an enriched `status.json` schema (phases[], current_phase, progress_percent, ETAs, last_log_lines), a heartbeat-based staleness detection (`heartbeat_at` updated every 30s, suspect at 60s, stale at 2.5min — pure wall-clock, no log heuristic), a write-vs-read separation that preserves the Conductor's <10k-token lightness contract (Workers and Orchestrator write content; Conductor only reads `heartbeat_at` for alerts and recovery), and four UI layers from `cat | jq` to a future desktop notification, with the `mmd serve` web page (v0.2.5) as the kid-friendly endpoint that shows progress bar + heartbeat warning. Roadmap implications surfaced for v0.2 (schema + CLI), v0.2.5 (web), v0.5 (Conductor staleness logic), v0.9 (parallel slice aggregation). This section is the concrete UX expression of Bundle C Observability already present in §6.6.*
+
+*Changes v17→v18: **§6.5b Tool-choice autolearning** added — same Documentalist, same promotion mechanism as §6.5 error autolearning, different trigger event (`tool_invocation`). Sébastien asked whether the Conductor should observe tool choices for auto-improvement; the answer is no (would break the Conductor's <10k-token lightness contract) — instead the Documentalist (already event-driven, already owns lessons-learned) gets an additional event type. Detection is proactive/statistical (vs §6.5 reactive/per-fix), with daily-batch analysis. Pattern examples: "/qa chosen in 80% of cases where /qa-only would suffice", "auto-dev full pipeline invoked for <50 LOC changes 12× where FAST would do". Extracted lessons go into ai-coding.md §II "Tool-choice discipline" after N validated re-uses. Privacy: per-session telemetry (.mmd/local/tool-choice-log.jsonl) stays uncommitted; only promoted lessons land in docs/lessons-learned.md or ~/.mmd/lessons-learned.md.*

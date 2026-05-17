@@ -14,6 +14,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   mkdtempSync, rmSync, readFileSync, existsSync, writeFileSync, mkdirSync,
+  chmodSync, symlinkSync, realpathSync,
 } from 'node:fs';
 import { tmpdir, platform } from 'node:os';
 import path from 'node:path';
@@ -238,6 +239,49 @@ test('@integration v0.2a AC-6: --here omits npm test suggestion when no package.
     assert.equal(r.status, 0, r.stderr);
     assert.doesNotMatch(r.stdout, /Suggestion: run `npm test`/);
   } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+// F4 (Phase 4 review) — post-checkout FS failure must:
+//   - exit 6 (subprocess-style failure, not 99 catch-all),
+//   - print the slice branch + base SHA + recovery hint to stderr,
+//   - NOT leave the user with a stack trace.
+// We force the failure by committing .mmd/shared as a REGULAR FILE in the
+// fixture repo: validation sees a clean tree (file is tracked), then
+// ensureLayout's mkdir('.mmd/shared') hits EEXIST/ENOTDIR (it's not a dir).
+test('@integration v0.2a F4: post-checkout FS failure exits 6 with recovery hint', { skip: SKIP_ON_WINDOWS }, () => {
+  const tmp = makeTmp();
+  try {
+    initCleanRepo(tmp);
+    // Pre-create .mmd as a dir, but .mmd/shared as a REGULAR FILE → tracked,
+    // clean working tree, but ensureLayout's mkdir(.mmd/shared) hits ENOTDIR
+    // (it's a file, not a dir). recursive:true on mkdir does NOT silently
+    // succeed when the leaf exists as a non-directory.
+    mkdirSync(path.join(tmp, '.mmd'));
+    writeFileSync(path.join(tmp, '.mmd', 'shared'), 'booby trap\n');
+    git(['add', '.mmd'], tmp);
+    git(['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-m', 'booby', '-q'], tmp);
+    const baseSha = git(['rev-parse', 'HEAD'], tmp).trim();
+
+    const r = runMmd(['--here', 'this should fail at state init'], { cwd: tmp });
+    assert.equal(r.status, 6, `expected exit 6; got ${r.status}; stderr=${r.stderr}`);
+    // Recovery hint contains the slice branch name (matched as a pattern,
+    // not the exact unix-ts) and the base sha + branch.
+    assert.match(r.stderr, /failed to initialize --here state/);
+    assert.match(r.stderr, /To recover: git checkout main && git reset --hard /);
+    assert.ok(
+      r.stderr.includes(baseSha),
+      `recovery hint should include base SHA ${baseSha}; got: ${r.stderr}`,
+    );
+    assert.match(r.stderr, /git branch -D slice\/here-/);
+    // The slice branch DID get created (createSliceBranch ran successfully
+    // before the FS write) — that's the recovery target.
+    const head = git(['rev-parse', '--abbrev-ref', 'HEAD'], tmp).trim();
+    assert.match(head, /^slice\/here-/);
+  } finally {
+    // Ensure we can rm the booby-trapped dir.
+    try { chmodSync(path.join(tmp, '.mmd'), 0o700); } catch { /* not present */ }
     rmSync(tmp, { recursive: true, force: true });
   }
 });

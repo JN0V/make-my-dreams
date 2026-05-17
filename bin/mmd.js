@@ -165,42 +165,20 @@ async function runHereMode({ cwd: targetDir, dream, slug, engine }) {
     );
   }
 
-  // AC-5 — write state under <cwd>/.mmd/shared/.
-  await ensureLayout(absTargetDir);
-  await ensureGitignore(absTargetDir);
-
-  // Write a minimal vision/slice for traceability — these are NOT the
-  // greenfield "new product" docs; they describe the CHANGE being applied.
-  const sharedDir = path.join(absTargetDir, '.mmd', 'shared');
-  await writeFile(
-    path.join(sharedDir, 'vision.md'),
-    `# Vision (--here mode)\n\n` +
-      `Modify the repository at: ${absTargetDir}\n` +
-      `Slice branch: ${sliceBranch}\n` +
-      `Base branch: ${baseBranch} @ ${baseSha}\n\n` +
-      `This is NOT a new-product vision. It documents an in-place change.\n`,
-    'utf8',
-  );
-  await writeFile(
-    path.join(sharedDir, 'slice.md'),
-    `# Change — ${slug}\n\n` +
-      `Dream: ${dream}\n\n` +
-      `Target: ${absTargetDir} (in-place)\n` +
-      `Slice branch: ${sliceBranch}\n` +
-      `Base: ${baseBranch} @ ${baseSha}\n\n` +
-      `Acceptance: the change is applied on the slice branch, all existing tests still pass, and a human reviews + merges.\n`,
-    'utf8',
-  );
-
+  // F4 (Phase 4 review): wrap post-checkout FS writes in a try/catch so an
+  // EACCES / ENOSPC / EISDIR after the slice branch was already created does
+  // NOT fall through to the top-level exit-99 catch. Instead surface a
+  // recovery hint that lets the user wipe the partial slice cleanly
+  // (error-handling.md §II environmental-error class — diagnostic + suggested
+  // remedy, exit code 6 / subprocess-style failure).
+  const initialEngineRecord = buildEngineRecord(engine);
+  const hereContextReason =
+    `slice=${sliceBranch} base=${baseBranch}@${baseSha} target=${absTargetDir}`;
   // F5 (Phase 4 review): embed the --here invocation context as the `reason`
   // of the existing (initial)->in_progress transition. writeStatus appends a
   // decisions.log audit line with `[reason: ...]` when reason is set, so we
   // never emit a synthetic `here-context` state value that consumers can't
-  // map to the pending|in_progress|done|failed machine. The reason is dropped
-  // before persistence so status.json stays clean.
-  const initialEngineRecord = buildEngineRecord(engine);
-  const hereContextReason =
-    `slice=${sliceBranch} base=${baseBranch}@${baseSha} target=${absTargetDir}`;
+  // map to the pending|in_progress|done|failed machine.
   const inProgressStatus = {
     slice_id: slug,
     dream,
@@ -216,7 +194,51 @@ async function runHereMode({ cwd: targetDir, dream, slug, engine }) {
     reason: hereContextReason,
     ...initialEngineRecord,
   };
-  await writeStatus(absTargetDir, inProgressStatus);
+
+  try {
+    // AC-5 — write state under <cwd>/.mmd/shared/.
+    await ensureLayout(absTargetDir);
+    await ensureGitignore(absTargetDir);
+
+    // Write a minimal vision/slice for traceability — these are NOT the
+    // greenfield "new product" docs; they describe the CHANGE being applied.
+    const sharedDir = path.join(absTargetDir, '.mmd', 'shared');
+    await writeFile(
+      path.join(sharedDir, 'vision.md'),
+      `# Vision (--here mode)\n\n` +
+        `Modify the repository at: ${absTargetDir}\n` +
+        `Slice branch: ${sliceBranch}\n` +
+        `Base branch: ${baseBranch} @ ${baseSha}\n\n` +
+        `This is NOT a new-product vision. It documents an in-place change.\n`,
+      'utf8',
+    );
+    await writeFile(
+      path.join(sharedDir, 'slice.md'),
+      `# Change — ${slug}\n\n` +
+        `Dream: ${dream}\n\n` +
+        `Target: ${absTargetDir} (in-place)\n` +
+        `Slice branch: ${sliceBranch}\n` +
+        `Base: ${baseBranch} @ ${baseSha}\n\n` +
+        `Acceptance: the change is applied on the slice branch, all existing tests still pass, and a human reviews + merges.\n`,
+      'utf8',
+    );
+
+    await writeStatus(absTargetDir, inProgressStatus);
+  } catch (err) {
+    // F4: post-checkout FS failure. The slice branch already exists but state
+    // files are partial/missing. Tell the user EXACTLY how to recover (commit
+    // -git.md branch hygiene: never leave broken WIP behind without a path
+    // back to a clean tree).
+    stderr.write(
+      `error: failed to initialize --here state after creating slice branch.\n` +
+        `  cause: ${err.code ? `${err.code}: ` : ''}${err.message}\n` +
+        `  context: slice branch '${sliceBranch}' was created from '${baseBranch}' @ ${baseSha}.\n` +
+        `  To recover: git checkout ${baseBranch} && git reset --hard ${baseSha} && git branch -D ${sliceBranch}\n`,
+    );
+    const e = new Error(`--here state init failed: ${err.message}`);
+    e.mmdExitCode = 6;
+    throw e;
+  }
 
   // AC-4 — build the in-place prompt for auto-dev (no demo/ scaffold).
   const herePrompt = buildHerePrompt({ dream, sliceBranch, targetDir: absTargetDir, engine });

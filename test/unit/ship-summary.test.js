@@ -1,139 +1,146 @@
-// @unit tests for lib/ship/summary.js — pure formatters.
+// @unit tests for lib/ship/summary.js — SPEC_V02F AC-4 + AC-7.
+// Pure function tests, no I/O.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { formatShipSummary, formatDryRun } from '../../lib/ship/summary.js';
 
-// --- formatShipSummary -----------------------------------------------------
-
-const BASE_INFO = {
-  branch: 'slice/here-add-banner-1779999999',
+const MIN_INFO = {
+  branch: 'slice/here-foo-1779537600',
   baseBranch: 'main',
-  sha: 'deadbeef1234567890abcdef0987654321aabbcc',
-  subprocessExitCode: 0,
-  subprocessSignal: null,
-  logPath: '/tmp/mmd/.mmd/local/ship-runs/x.log',
-  durationSeconds: 12.34,
-  auditOutput: null,
+  sha: 'abc1234',
 };
 
-test('@unit formatShipSummary: returns a multi-line string with the slice branch', () => {
-  const out = formatShipSummary(BASE_INFO);
-  assert.equal(typeof out, 'string');
-  assert.ok(out.includes(BASE_INFO.branch));
-  assert.ok(out.includes(BASE_INFO.baseBranch));
-  assert.ok(out.includes(BASE_INFO.sha));
+test('@unit formatShipSummary: emits the canonical header', () => {
+  const s = formatShipSummary(MIN_INFO);
+  assert.match(s, /mmd ship — summary/);
 });
 
-test('@unit formatShipSummary: includes the log path', () => {
-  const out = formatShipSummary(BASE_INFO);
-  assert.ok(out.includes(BASE_INFO.logPath));
+test('@unit formatShipSummary: includes branch + base + sha verbatim', () => {
+  const s = formatShipSummary(MIN_INFO);
+  assert.ok(s.includes(MIN_INFO.branch));
+  assert.ok(s.includes(MIN_INFO.baseBranch));
+  assert.ok(s.includes(MIN_INFO.sha));
 });
 
-test('@unit formatShipSummary: renders duration with .toFixed(1) suffix', () => {
-  const out = formatShipSummary(BASE_INFO);
-  assert.match(out, /12\.3s/);
+test('@unit formatShipSummary: optional fields render as "-" when missing', () => {
+  const s = formatShipSummary(MIN_INFO);
+  assert.match(s, /Tag created\s*:\s*-/);
+  assert.match(s, /PR URL\s*:\s*-/);
+  assert.match(s, /Log file\s*:\s*-/);
 });
 
-test('@unit formatShipSummary: nil tag/PR rendered as "-"', () => {
-  const out = formatShipSummary({ ...BASE_INFO, tag: null, prUrl: undefined });
-  assert.match(out, /Tag created\s*:\s*-/);
-  assert.match(out, /PR URL\s*:\s*-/);
-});
-
-test('@unit formatShipSummary: tag value rendered verbatim', () => {
-  const out = formatShipSummary({ ...BASE_INFO, tag: 'v0.2.3' });
-  assert.match(out, /Tag created\s*:\s*v0\.2\.3/);
-});
-
-test('@unit formatShipSummary: subprocess code propagated as code=N', () => {
-  const out = formatShipSummary({ ...BASE_INFO, subprocessExitCode: 7 });
-  assert.match(out, /code=7/);
-});
-
-test('@unit formatShipSummary: subprocess signal takes precedence over code', () => {
-  const out = formatShipSummary({
-    ...BASE_INFO,
-    subprocessExitCode: null,
-    subprocessSignal: 'SIGTERM',
+test('@unit formatShipSummary: tag + PR URL render when supplied', () => {
+  const s = formatShipSummary({
+    ...MIN_INFO,
+    tag: 'v0.2.3',
+    prUrl: 'https://github.com/JN0V/mmd/pull/42',
   });
-  assert.match(out, /signal=SIGTERM/);
+  assert.ok(s.includes('v0.2.3'));
+  assert.ok(s.includes('github.com/JN0V/mmd/pull/42'));
 });
 
-test('@unit formatShipSummary: null subprocess code rendered as code=-', () => {
-  const out = formatShipSummary({ ...BASE_INFO, subprocessExitCode: null });
-  assert.match(out, /code=-/);
+test('@unit formatShipSummary: testsRun + testsPassed bool flags render', () => {
+  const s = formatShipSummary({ ...MIN_INFO, testsRun: true, testsPassed: true });
+  assert.match(s, /Tests run\s*:\s*yes \(passed: yes\)/);
+  const s2 = formatShipSummary({ ...MIN_INFO, testsRun: true, testsPassed: false });
+  assert.match(s2, /Tests run\s*:\s*yes \(passed: no\)/);
 });
 
-test('@unit formatShipSummary: audit output is embedded after "── pillar audit ──"', () => {
-  const audit = 'gStack       | INVOKED (3)        | abc1234      | /ship · /qa · mmd ship';
-  const out = formatShipSummary({ ...BASE_INFO, auditOutput: audit });
-  assert.match(out, /pillar audit/);
-  assert.ok(out.includes(audit));
+test('@unit formatShipSummary: subprocessExitCode renders', () => {
+  const ok = formatShipSummary({ ...MIN_INFO, subprocessExitCode: 0 });
+  assert.match(ok, /Subprocess\s*:\s*code=0/);
+  const fail = formatShipSummary({ ...MIN_INFO, subprocessExitCode: 6 });
+  assert.match(fail, /Subprocess\s*:\s*code=6/);
 });
 
-test('@unit formatShipSummary: missing audit rendered as "skipped"', () => {
-  const out = formatShipSummary({ ...BASE_INFO, auditOutput: null });
-  assert.match(out, /pillar audit.*skipped/i);
+test('@unit formatShipSummary: subprocessSignal renders when present (overrides code)', () => {
+  const s = formatShipSummary({ ...MIN_INFO, subprocessExitCode: null, subprocessSignal: 'SIGTERM' });
+  assert.match(s, /signal=SIGTERM/);
 });
 
-test('@unit formatShipSummary: throws on non-object info', () => {
+test('@unit formatShipSummary: durationSeconds renders to 1 decimal', () => {
+  const s = formatShipSummary({ ...MIN_INFO, durationSeconds: 12.345 });
+  assert.match(s, /Duration\s*:\s*12\.3s/);
+});
+
+test('@unit formatShipSummary: auditOutput is included when provided', () => {
+  const audit = '\n  pillar audit table here\n';
+  const s = formatShipSummary({ ...MIN_INFO, auditOutput: audit });
+  assert.match(s, /pillar audit \(scripts\/audit-pillars\.sh\)/);
+  assert.ok(s.includes('pillar audit table here'));
+});
+
+test('@unit formatShipSummary: no auditOutput → "skipped" line printed', () => {
+  const s = formatShipSummary(MIN_INFO);
+  assert.match(s, /pillar audit:\s*skipped/);
+});
+
+test('@unit formatShipSummary: throws on non-object input', () => {
   assert.throws(() => formatShipSummary(null), TypeError);
-  assert.throws(() => formatShipSummary('not an object'), TypeError);
+  assert.throws(() => formatShipSummary('string'), TypeError);
 });
 
-// --- formatDryRun ----------------------------------------------------------
-
-const DRY_RUN_INFO = {
-  prompt: 'You are invoking the gStack ship skill.\nLine 2.\nLine 3.',
-  env: { PATH: '/home/u/.bun/bin:/usr/bin', HOME: '/home/u', MMD_DREAM_MAX_LEN: '500' },
-  command: 'claude',
-  args: ['-p', '--output-format', 'text', 'PROMPT_PLACEHOLDER'],
-  branch: 'slice/test',
-  baseBranch: 'main',
-  sha: 'deadbeef',
-};
-
-test('@unit formatDryRun: returns a string with "dry-run" anchor and exit-0 note', () => {
-  const out = formatDryRun(DRY_RUN_INFO);
-  assert.equal(typeof out, 'string');
-  assert.match(out, /dry-run/);
-  assert.match(out, /Exit 0/);
+test('@unit formatDryRun: emits the dry-run header', () => {
+  const s = formatDryRun({
+    prompt: 'fake',
+    env: { PATH: '/x:/y' },
+    command: 'claude',
+    args: ['-p', '--output-format', 'text', 'fake'],
+    branch: 'slice/foo',
+    baseBranch: 'main',
+    sha: 'abc',
+  });
+  assert.match(s, /dry-run/);
+  assert.match(s, /no subprocess was spawned/i);
 });
 
-test('@unit formatDryRun: lists env vars sorted', () => {
-  const out = formatDryRun(DRY_RUN_INFO);
-  // HOME should appear before PATH alphabetically.
-  const homeIdx = out.indexOf('HOME=');
-  const pathIdx = out.indexOf('PATH=');
-  assert.ok(homeIdx > 0);
-  assert.ok(pathIdx > homeIdx, 'HOME line should precede PATH line (sorted)');
+test('@unit formatDryRun: prompt body is included verbatim (indented)', () => {
+  const prompt = 'line1\nline2 with content\nline3';
+  const s = formatDryRun({
+    prompt,
+    env: {},
+    command: 'claude',
+    args: [],
+    branch: 'slice/x',
+    baseBranch: 'main',
+    sha: 'abc',
+  });
+  assert.ok(s.includes('line1'));
+  assert.ok(s.includes('line2 with content'));
+  assert.ok(s.includes('line3'));
 });
 
-test('@unit formatDryRun: includes the prompt verbatim', () => {
-  const out = formatDryRun(DRY_RUN_INFO);
-  for (const line of DRY_RUN_INFO.prompt.split('\n')) {
-    assert.ok(out.includes(line), `dry-run output missing prompt line: ${line}`);
-  }
+test('@unit formatDryRun: env keys printed sorted', () => {
+  const s = formatDryRun({
+    prompt: 'p',
+    env: { Z: 'z', A: 'a', M: 'm' },
+    command: 'claude',
+    args: [],
+    branch: 'slice/x',
+    baseBranch: 'main',
+    sha: 'abc',
+  });
+  const aIdx = s.indexOf('A=a');
+  const mIdx = s.indexOf('M=m');
+  const zIdx = s.indexOf('Z=z');
+  assert.ok(aIdx > 0 && mIdx > aIdx && zIdx > mIdx, 'env keys should be sorted');
 });
 
-test('@unit formatDryRun: shows the planned subprocess command + args', () => {
-  const out = formatDryRun(DRY_RUN_INFO);
-  assert.ok(out.includes('claude'));
-  // args printed via JSON.stringify so they're easy to copy-paste.
-  assert.ok(out.includes('"-p"'));
-  assert.ok(out.includes('"--output-format"'));
-  assert.ok(out.includes('"text"'));
+test('@unit formatDryRun: command + args printed as a quoted invocation', () => {
+  const s = formatDryRun({
+    prompt: 'p',
+    env: {},
+    command: 'claude',
+    args: ['-p', 'foo'],
+    branch: 'slice/x',
+    baseBranch: 'main',
+    sha: 'abc',
+  });
+  assert.match(s, /claude\s+"-p"\s+"foo"/);
 });
 
-test('@unit formatDryRun: shows the branch + base + sha', () => {
-  const out = formatDryRun(DRY_RUN_INFO);
-  assert.ok(out.includes(DRY_RUN_INFO.branch));
-  assert.ok(out.includes(DRY_RUN_INFO.baseBranch));
-  assert.ok(out.includes(DRY_RUN_INFO.sha));
-});
-
-test('@unit formatDryRun: throws on non-object info', () => {
+test('@unit formatDryRun: throws on non-object input', () => {
   assert.throws(() => formatDryRun(null), TypeError);
 });

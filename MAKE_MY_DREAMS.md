@@ -1,4 +1,4 @@
-# Make My Dreams — Scoping Document (v18)
+# Make My Dreams — Scoping Document (v19)
 
 > **Objective**: enable any human — from a 13-year-old kid to a pro developer — to describe an application need in natural language and see a **MVP delivered quickly**, then enriched iteratively, by an autonomous AI. The tool must work equally well in **greenfield** and **brownfield** modes, and must itself stay up to date with the latest advances in the AI-dev ecosystem through an **automated watch**.
 >
@@ -698,15 +698,43 @@ No fragile heuristic on log content — pure wall-clock.
 | 1 — CLI snapshot | `mmd status <slice>` (ASCII table) | Dev in terminal |
 | 2 — CLI live | `mmd watch <slice>` (auto-refresh) | Sébastien busy elsewhere |
 | 3 — Web | `mmd serve` page (v0.2.5): progress bar, phases, heartbeat warning if stale | Sébastien's daughter; or anyone without a terminal open |
-| 4 — Desktop notification (future) | `notify-send "MMD: dream ready"` when user action required | Comfort, optional |
+| 4 — Desktop notification | `notify-send "MMD: dream ready"` when user action required | Comfort, optional |
+| 5 — Mobile via Claude app (tmux wrapper) | Wrap `auto-dev` in `tmux`/`screen` so its underlying `claude` keeps a TTY → Anthropic's Remote Control (Claude Code 2.1.51+, Pro/Max/Team/Enterprise) auto-exposes the session in claude.ai/code and the Claude mobile app. See §4.5.4bis. | Sébastien on his phone, anywhere |
+| 6 — Cross-device push (webhook fan-out) | Hook `Notification`/`Stop` of Claude Code POSTs to a webhook → ntfy/Pushover/Telegram bot. Independent of the Claude app, plan-agnostic. | Anyone with a notification app |
+
+#### 4.5.4bis Layer 5 — Anthropic's Remote Control: what works, what doesn't
+
+After investigating ([code.claude.com/docs/en/remote-control](https://code.claude.com/docs/en/remote-control) + GitHub issues #29116, #30447, #30691 in v18 of this scoping document):
+
+**What works**:
+- Any Claude Code session with an attached TTY can be auto-published to the user's Claude app (mobile + web `claude.ai/code`) under the same account.
+- The user sees: session title (auto-generated or set), last response, state (running/needs-input/done), full conversation transcript, and can push input back.
+- Notifications fire when the session needs input or hits a long-task milestone (Claude decides). Asking from inside the prompt (`"notify me when the build finishes"`) works.
+- Plan-gated: requires Claude Pro / Max / Team / Enterprise account login on both ends (CLI and app). NOT available with API key only.
+
+**What does NOT work for MMD (and how we adapt)**:
+- **`claude -p ...` daemonized (no TTY) → NO Remote Control.** The session never gets a URL and never appears in the app. This is MMD's default invocation mode for auto-dev runs.
+  - **Adaptation**: when Sébastien wants observability via the Claude app for a specific run, MMD will invoke through `tmux new-session -d -s mmd-<slice-id> "claude /bmad-adv-auto-dev ..."`. The `tmux` PTY satisfies the TTY requirement; Remote Control sees the session and exposes it. From the phone he can attach in read-only mode.
+  - This is opt-in (env var `MMD_TMUX_WRAPPER=1` or CLI flag `--remote-observable`), not the default, because tmux adds a hard dependency and most runs don't need it.
+
+- **No API to push structured `status.json` into the app UI.** The only channel is the conversation transcript. We can't surface progress %, ETA, or current_phase in a dedicated widget.
+  - **Adaptation**: MMD does NOT try to mirror the full status into the Claude app. The Claude app stays a "follow along in the conversation" view. The real dashboard remains `mmd serve` (Layer 3).
+
+- **One session = one conversation, not a dashboard of N parallel slices.** When v0.9 parallel worktrees ships, the Claude app would show N separate sessions side-by-side, not a unified view.
+  - **Adaptation**: parallel-slice dashboard stays a `mmd serve` feature; Claude app is single-slice observation only.
+
+**Why not Anthropic Routines as an alternative**: Routines run in Anthropic's cloud, are quota-limited (Pro=5/day, Max=15), and follow a trigger model rather than a long-running supervised model. They don't fit MMD's needs (locally-orchestrated long auto-dev runs invoked many times per day).
+
+**Dispatch / Channels** (Anthropic, announced Q1 2026 in public roadmap): may eventually offer structured I/O on long-running sessions. To be re-evaluated by `dev-ai-watch` (§8) when documented and GA. Not blocking v0.5 / v0.9.
 
 #### 4.5.5 Roadmap implications
 
 - **v0.1 (delivered)**: minimal `status.json` (slice_id, state, dates, tasks). Baseline OK.
 - **v0.2**: enrich to the full schema above. Add `mmd status` + `mmd watch` CLI subcommands.
 - **v0.2.5** (`mmd serve`): web page consumes the enriched schema with live SSE refresh + visible heartbeat warning when stale.
-- **v0.5** (Conductor): staleness detection logic + recovery offer (the Conductor's only job vis-à-vis status — no content contribution).
-- **v0.9** (worktrees parallelism): each parallel slice has its own `status.json` under its `.mmd/shared/` subtree; the Conductor aggregates a `dashboard.json` at the parent level.
+- **v0.5** (Conductor): staleness detection logic + recovery offer (the Conductor's only job vis-à-vis status — no content contribution). Conductor also wires Layer 6 webhooks (hook `Notification`/`Stop` of underlying Claude Code → POST to a configured webhook URL → ntfy/Pushover/Telegram/Slack).
+- **v0.5b** (Documentalist + Context worker): documents the `tmux` wrapper opt-in for Layer 5 (Remote Control via Claude app) — `MMD_TMUX_WRAPPER=1` env or `--remote-observable` flag triggers `tmux new-session -d -s mmd-<slice-id> ...` instead of bare `claude -p`. No-op when tmux is absent.
+- **v0.9** (worktrees parallelism): each parallel slice has its own `status.json` under its `.mmd/shared/` subtree; the Conductor aggregates a `dashboard.json` at the parent level. Layer 5 (Claude app) remains single-slice; Layer 3 (`mmd serve`) shows the parallel dashboard.
 
 #### 4.5.6 Mapping to existing principles
 
@@ -1619,7 +1647,7 @@ Decisions in §11 can be deferred — most of them only matter from v0.3+. The e
 
 ---
 
-*Scoping document — v18 — generated on 2026-05-16.*
+*Scoping document — v19 — generated on 2026-05-16.*
 
 *Changes v1→v2: addition of the Ralph Loop pattern, reworking of the strategy around "two engines one brain" (FAST + STRUCTURED), introduction of multi-audience user profiles (Kid/Curious/Pro/Custom), multi-layer constitution, explicit brownfield mode, automated watch, MVP-first roadmap.*
 
@@ -1654,3 +1682,5 @@ Decisions in §11 can be deferred — most of them only matter from v0.3+. The e
 *Changes v16→v17: **§4.5 Progress visibility** added — the anti-"Schrödinger run" mechanism. Sébastien reported the recurring agentic-dev pain of running a 30–90 min auto-dev pipeline with zero feedback: is it working, blocked, or crashed? The fix is an enriched `status.json` schema (phases[], current_phase, progress_percent, ETAs, last_log_lines), a heartbeat-based staleness detection (`heartbeat_at` updated every 30s, suspect at 60s, stale at 2.5min — pure wall-clock, no log heuristic), a write-vs-read separation that preserves the Conductor's <10k-token lightness contract (Workers and Orchestrator write content; Conductor only reads `heartbeat_at` for alerts and recovery), and four UI layers from `cat | jq` to a future desktop notification, with the `mmd serve` web page (v0.2.5) as the kid-friendly endpoint that shows progress bar + heartbeat warning. Roadmap implications surfaced for v0.2 (schema + CLI), v0.2.5 (web), v0.5 (Conductor staleness logic), v0.9 (parallel slice aggregation). This section is the concrete UX expression of Bundle C Observability already present in §6.6.*
 
 *Changes v17→v18: **§6.5b Tool-choice autolearning** added — same Documentalist, same promotion mechanism as §6.5 error autolearning, different trigger event (`tool_invocation`). Sébastien asked whether the Conductor should observe tool choices for auto-improvement; the answer is no (would break the Conductor's <10k-token lightness contract) — instead the Documentalist (already event-driven, already owns lessons-learned) gets an additional event type. Detection is proactive/statistical (vs §6.5 reactive/per-fix), with daily-batch analysis. Pattern examples: "/qa chosen in 80% of cases where /qa-only would suffice", "auto-dev full pipeline invoked for <50 LOC changes 12× where FAST would do". Extracted lessons go into ai-coding.md §II "Tool-choice discipline" after N validated re-uses. Privacy: per-session telemetry (.mmd/local/tool-choice-log.jsonl) stays uncommitted; only promoted lessons land in docs/lessons-learned.md or ~/.mmd/lessons-learned.md.*
+
+*Changes v18→v19: §4.5 Progress visibility extended with **2 new UI layers** (5 and 6) after Sébastien asked about exposing MMD runs through the Claude mobile/desktop app. A research pass (via a sub-agent on official Anthropic docs + GitHub issues #29116, #30447, #30691) revealed: (a) Remote Control exists since Claude Code 2.1.51+ but requires a TTY, so MMD's default `claude -p` daemonized mode is invisible to it; (b) no documented API to push a structured `status.json` into the Claude app UI — only the conversation transcript is exposed; (c) Routines are unsuitable (cloud, quota-limited); (d) Dispatch/Channels are announced for Q1 2026 but not yet documented. Net result: **`mmd serve` (Layer 3) remains the canonical observability dashboard**. We add Layer 5 (opt-in `tmux` wrapper → Remote Control → Claude mobile app) and Layer 6 (Conductor hook `Notification`/`Stop` → webhook fan-out to ntfy/Pushover/Telegram). New §4.5.4bis details the Remote Control limits and the tmux-wrapper opt-in (`MMD_TMUX_WRAPPER=1` / `--remote-observable`). Roadmap updated: v0.5 owns Layer 6 webhooks, v0.5b documents Layer 5 tmux opt-in.*

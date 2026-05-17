@@ -20,12 +20,19 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { slugify, initStateFiles, nextAvailableSlug } from '../lib/parse-dream.js';
-import { ensureLayout, readStatus, writeStatus, ensureGitignore } from '../lib/state.js';
+import { ensureLayout, readStatus, writeStatus, ensureGitignore, appendDecision } from '../lib/state.js';
 import { invokeAutodev } from '../lib/invoke-autodev.js';
 import { realityCheck } from '../lib/reality-check.js';
 import { parseArgv, resolveEngine } from '../lib/argv-parser.js';
 import { deriveSpec } from '../lib/spec-derive.js';
 import { buildEngineRecord, withDuration, fastBudgetExceeded } from '../lib/engine.js';
+import {
+  validateHereTarget,
+  generateSliceBranchName,
+  createSliceBranch,
+  buildHerePrompt,
+} from '../lib/here-mode.js';
+import { readFile as fsReadFile } from 'node:fs/promises';
 
 // F30 — version sourced once from package.json (shared with GET /api/health).
 const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
@@ -36,6 +43,7 @@ const USAGE = `mmd ${VERSION} — Make My Dreams CLI
 Usage:
   mmd "<dream description>"            Generate a PWA fulfilling the dream
   mmd --fast "<dream>"                 Trimmed auto-dev pipeline (target <=10 min)
+  mmd --here "<change>"                Modify the current git repo in place (v0.2a)
   mmd --version                        Print version and exit
   mmd --help, -h                       Print this usage and exit
 
@@ -43,6 +51,9 @@ Engine flags (mutually exclusive):
   --fast                               FAST engine — trimmed auto-dev (v0.2)
   --standard                           STANDARD engine — current default (v0.2d for full semantics)
   --deep                               DEEP engine — full BMAD process (v0.2d)
+
+Mode flags (orthogonal to engine):
+  --here                               Self / brownfield-in-place: modify cwd, no demo/<slug>/ scaffold (v0.2a)
 
 Idempotent re-run flags (used when a demo dir already exists):
   --resume                             Print current dream state and exit 3
@@ -60,6 +71,9 @@ Environment variables:
   MMD_TIMEOUT_MS                       Subprocess timeout in ms (default 1800000, 0 to disable)
   MMD_REALITY_CHECK_BACKEND            mcp | playwright | skip
   MMD_DREAM_MAX_LEN                    Max dream length in chars (default 500)
+  MMD_HERE_PROTECTED_BRANCHES          Comma-separated list (default: main,master)
+                                       — slice branch is always created from HEAD,
+                                       even when on a protected branch (v0.2a AC-2)
 `;
 
 function nowIso() {
@@ -96,6 +110,196 @@ async function resolveExistingChoice(flags) {
   if (ans === 'R') return 'resume';
   if (ans === 'F') return 'fresh';
   return 'cancel';
+}
+
+/**
+ * v0.2a — `--here` mode pipeline (self / brownfield-in-place).
+ *
+ * Spec: SPEC_V02A.md AC-1..AC-7.
+ *
+ * Differences from the greenfield path:
+ *   - No demo/<slug>/ — state files live at <cwd>/.mmd/shared/.
+ *   - Validate cwd is a clean git repo (exit 3 / exit 4).
+ *   - Create slice branch slice/here-<slug>-<unix-ts> (exit 5 if it fails).
+ *   - Auto-dev prompt explicitly forbids demo/ scaffolding (AC-4).
+ *   - Reality Check is short-circuited (AC-6).
+ *   - status.json carries mode/target_dir/slice_branch/base_branch/base_sha (AC-5).
+ */
+async function runHereMode({ cwd: targetDir, dream, slug, engine }) {
+  const absTargetDir = path.resolve(targetDir);
+  stdout.write(`Mode: --here (modifying current repo: ${absTargetDir})\n`);
+  if (engine === 'fast') {
+    stdout.write('Engine: FAST (trimmed auto-dev — target <=10 min)\n');
+  }
+
+  // AC-2 — git validation (exit 3 / exit 4).
+  const validation = await validateHereTarget(absTargetDir);
+  if (!validation.ok) {
+    stderr.write(`error: ${validation.message}\n`);
+    return validation.exitCode;
+  }
+  const { baseBranch, baseSha } = validation;
+
+  // AC-3 — slice branch creation (exit 5).
+  const sliceBranch = generateSliceBranchName(slug);
+  const branchResult = await createSliceBranch(absTargetDir, sliceBranch);
+  if (!branchResult.ok) {
+    stderr.write(`error: ${branchResult.message}\n`);
+    return branchResult.exitCode;
+  }
+  stdout.write(`Slice branch: ${sliceBranch} (base: ${baseBranch} @ ${baseSha.slice(0, 7)})\n`);
+
+  // AC-5 — write state under <cwd>/.mmd/shared/.
+  await ensureLayout(absTargetDir);
+  await ensureGitignore(absTargetDir);
+
+  // Write a minimal vision/slice for traceability — these are NOT the
+  // greenfield "new product" docs; they describe the CHANGE being applied.
+  const sharedDir = path.join(absTargetDir, '.mmd', 'shared');
+  await writeFile(
+    path.join(sharedDir, 'vision.md'),
+    `# Vision (--here mode)\n\n` +
+      `Modify the repository at: ${absTargetDir}\n` +
+      `Slice branch: ${sliceBranch}\n` +
+      `Base branch: ${baseBranch} @ ${baseSha}\n\n` +
+      `This is NOT a new-product vision. It documents an in-place change.\n`,
+    'utf8',
+  );
+  await writeFile(
+    path.join(sharedDir, 'slice.md'),
+    `# Change — ${slug}\n\n` +
+      `Dream: ${dream}\n\n` +
+      `Target: ${absTargetDir} (in-place)\n` +
+      `Slice branch: ${sliceBranch}\n` +
+      `Base: ${baseBranch} @ ${baseSha}\n\n` +
+      `Acceptance: the change is applied on the slice branch, all existing tests still pass, and a human reviews + merges.\n`,
+    'utf8',
+  );
+
+  const initialEngineRecord = buildEngineRecord(engine);
+  const inProgressStatus = {
+    slice_id: slug,
+    dream,
+    state: 'in_progress',
+    created_at: nowIso(),
+    updated_at: nowIso(),
+    tasks: [{ id: 'auto-dev', state: 'in_progress' }],
+    mode: 'here',
+    target_dir: absTargetDir,
+    slice_branch: sliceBranch,
+    base_branch: baseBranch,
+    base_sha: baseSha,
+    ...initialEngineRecord,
+  };
+  await writeStatus(absTargetDir, inProgressStatus);
+
+  // Audit (observability.md §III): record the --here invocation as a business action.
+  await appendDecision(
+    absTargetDir,
+    slug,
+    '(initial)',
+    'here-invoked',
+    `slice=${sliceBranch} base=${baseBranch}@${baseSha}`,
+  );
+
+  // AC-4 — build the in-place prompt for auto-dev (no demo/ scaffold).
+  const herePrompt = buildHerePrompt({ dream, sliceBranch, targetDir: absTargetDir, engine });
+
+  const timestamp = `${nowIso().replace(/[:.]/g, '-')}-${process.pid}`;
+  const logPath = path.join(absTargetDir, '.mmd', 'local', 'runs', `${timestamp}.log`);
+
+  const startNs = process.hrtime.bigint();
+  let invokeResult;
+  try {
+    invokeResult = await invokeAutodev({
+      demoDir: absTargetDir, // cwd of subprocess = target repo root (AC-4).
+      dream,
+      slug,
+      promptParts: { dream, slug, demoDir: absTargetDir, prompt: herePrompt, mode: 'here' },
+      logPath,
+      timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+      engine,
+    });
+  } catch (err) {
+    const elapsedFail = Number(process.hrtime.bigint() - startNs) / 1e9;
+    await writeStatus(absTargetDir, {
+      ...inProgressStatus,
+      state: 'failed',
+      updated_at: nowIso(),
+      ...withDuration(initialEngineRecord, elapsedFail),
+    });
+    stderr.write(`auto-dev invocation failed: ${err.message}. See ${logPath}\n`);
+    const e = new Error(err.message);
+    e.mmdExitCode = err.mmdExitCode ?? 99;
+    throw e;
+  }
+
+  const elapsedSeconds = Number(process.hrtime.bigint() - startNs) / 1e9;
+  const finalEngineRecord = withDuration(initialEngineRecord, elapsedSeconds);
+
+  if (engine === 'fast' && fastBudgetExceeded(elapsedSeconds)) {
+    const mins = Math.floor(elapsedSeconds / 60);
+    const secs = Math.floor(elapsedSeconds % 60);
+    stderr.write(
+      `Warning: FAST mode is taking longer than expected (${mins}m ${secs}s). ` +
+        `Consider re-running with --standard.\n`,
+    );
+  }
+
+  const { code } = invokeResult;
+  if (code !== 0) {
+    await writeStatus(absTargetDir, {
+      ...inProgressStatus,
+      state: 'failed',
+      updated_at: nowIso(),
+      ...finalEngineRecord,
+    });
+    stderr.write(`auto-dev exited with code ${code}. See ${logPath}\n`);
+    const e = new Error(`auto-dev subprocess exited ${code}`);
+    e.mmdExitCode = 6;
+    throw e;
+  }
+
+  // AC-6 — Reality Check short-circuited in --here mode (no PWA to open).
+  // Also suggest `npm test` when the target repo has a test script.
+  try {
+    const rc = await realityCheck({ demoDir: absTargetDir, hereMode: true });
+    stdout.write(`Reality Check: ${rc.status}${rc.reason ? ' — ' + rc.reason : ''}\n`);
+  } catch (err) {
+    stderr.write(`Reality Check: error — ${err.message}\n`);
+  }
+  await maybeSuggestNpmTest(absTargetDir);
+
+  await writeStatus(absTargetDir, {
+    ...inProgressStatus,
+    state: 'done',
+    updated_at: nowIso(),
+    tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
+    ...finalEngineRecord,
+  });
+  stdout.write(
+    `[OK] Changes applied on ${sliceBranch}. Review with: git diff ${baseSha}..HEAD\n` +
+      `     Merge with:  git checkout ${baseBranch} && git merge --ff-only ${sliceBranch}\n` +
+      `     Discard with: git checkout ${baseBranch} && git branch -D ${sliceBranch}\n`,
+  );
+  return 0;
+}
+
+/**
+ * AC-6 — if cwd's package.json declares a `test` script, suggest `npm test`
+ * (suggestion only — never auto-runs). Defensive: any read/parse error is
+ * swallowed silently because this is a courtesy nudge, not a contract.
+ */
+async function maybeSuggestNpmTest(targetDir) {
+  try {
+    const pkgRaw = await fsReadFile(path.join(targetDir, 'package.json'), 'utf8');
+    const pkg = JSON.parse(pkgRaw);
+    if (pkg && pkg.scripts && typeof pkg.scripts.test === 'string' && pkg.scripts.test.length > 0) {
+      stdout.write(`Suggestion: run \`npm test\` from ${targetDir} to verify the change.\n`);
+    }
+  } catch {
+    // Silent: package.json missing/unreadable/malformed — no suggestion. Documented per §I.
+  }
 }
 
 async function main() {
@@ -147,6 +351,14 @@ async function main() {
     stderr.write(`error: ${err.message}\n`);
     return 2;
   }
+
+  // v0.2a: --here dispatches into the self / brownfield-in-place pipeline.
+  // No demo/<slug>/ is created; state files live under <cwd>/.mmd/shared/.
+  // The greenfield path below is unchanged when --here is absent.
+  if (flags.here) {
+    return runHereMode({ cwd: cwd(), dream, slug, engine });
+  }
+
   let demoDir = path.join(cwd(), 'demo', slug);
   stdout.write(`Catching your dream...\n  dream: ${dream}\n  slug:  ${slug}\n  dir:   ${demoDir}\n`);
   if (engine === 'fast') {

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# bin/mmd — PATH-elevating shim for the MMD CLI (v0.2.f, AC-1).
+#
+# Per docs/lessons-learned.md L-012: bun lives at $HOME/.bun/bin/bun but is not
+# on the PATH of non-interactive subprocesses (claude -p invoked by scripts,
+# cron, IDE integrations). gStack skills depend on bun. This shim guarantees
+# that whenever `mmd` is invoked through the npm-symlinked global binary,
+# ~/.bun/bin is prepended to PATH before delegating to node bin/mmd.js.
+#
+# Direct `node bin/mmd.js ...` invocations (used by the test suite and by
+# anyone who reads the package.json) continue to work — the shim is purely
+# additive for the installed-CLI case.
+#
+# Security: we never eval user input. The only string interpolation is
+# $(dirname "$0") which is shell-quoted, and "$@" passes argv verbatim.
+set -e
+
+# Resolve the directory containing this shim, following symlinks (npm installs
+# the global mmd as a symlink at /usr/local/bin/mmd -> .../bin/mmd).
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+    DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SHIM_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+
+# AC-1: prepend ~/.bun/bin to PATH so subprocesses spawned by node bin/mmd.js
+# (notably `claude -p` invoked by `mmd ship`) can resolve `bun` without
+# requiring the user's interactive shell rc to be sourced.
+export PATH="$HOME/.bun/bin:$PATH"
+
+exec node "$SHIM_DIR/mmd.js" "$@"

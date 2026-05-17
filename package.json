@@ -3,7 +3,7 @@
   "version": "0.2.2",
   "description": "Accessibility and orchestration layer for AI-driven development",
   "type": "module",
-  "bin": { "mmd": "./bin/mmd.js" },
+  "bin": { "mmd": "./bin/mmd" },
   "engines": { "node": ">=20.0.0" },
   "scripts": {
     "test": "node --test --test-reporter=spec --test-name-pattern=@unit test/unit/*.test.js",

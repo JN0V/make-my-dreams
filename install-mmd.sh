@@ -459,6 +459,19 @@ This workflow orchestrates 4 phases:
 
 ---
 
+## QUICK MODE (MMD FAST engine — opt-in trimmed pipeline)
+
+If \`MMD_AUTODEV_QUICK=1\` is present in the environment, OR the \`{dev_request}\` contains an explicit "Engine: FAST" / "MMD_AUTODEV_QUICK=1" marker, this workflow operates in **trimmed mode**. Goal: under 10 minutes per slice for small features (per scoping §3.1 v15 revision). Behavior changes vs the default 4-phase pipeline:
+
+- **Phase 1**: invoke Party Mode **ONCE** (covering scope + investigation + spec generation in a single pass), instead of 3 rounds. The single round absorbs the topics of rounds #1, #2, and #3.
+- **Phase 2 (Adversarial Spec Review)**: **opportunistic skip** if the spec at \`.mmd/shared/slice.md\` is < 200 lines AND contains < 5 TODO/TBD markers. Otherwise run normally. Log the decision: \`"Phase 2 skipped (robust spec heuristic passed)."\` OR \`"Phase 2 running (spec did not pass robustness heuristic)."\`
+- **Phase 3 (Implementation + 3-reviewer review)**: **UNCHANGED** — correctness is non-negotiable per testing.md §III red-green rule.
+- **Phase 4 (Final adversarial code review)**: **UNCHANGED** — cheap to keep and cheaper than retroactively auditing.
+
+Quick mode does NOT alter the constitution injection, the sub-agent fresh-context discipline, or the severity-tolerance loop exit. It is purely a Phase 1/Phase 2 ceremony reduction.
+
+---
+
 ## YOUR ROLE: ORCHESTRATOR
 
 You are the **macro orchestrator**. You do NOT execute the workflows yourself. Instead, you:
@@ -552,6 +565,7 @@ Report to user (adapt if no constitution):
 
 {if has_constitution: "📜 Constitution du projet chargée — toutes les phases respecteront ses principes."}
 {if not has_constitution: "ℹ️ Pas de constitution trouvée — les phases suivront les bonnes pratiques générales."}
+{if MMD_AUTODEV_QUICK=1 or "Engine: FAST" in dev_request: "⚡ Quick mode (MMD FAST engine) — 1× Party Mode, Phase 2 opportunistic. Target <=10 min."}
 Chaque phase s'exécute dans un sous-agent avec un contexte frais (Agent tool).
 C'est parti !
 \`\`\`
@@ -578,6 +592,8 @@ You are executing the SPEC PHASE of an automated quick-dev workflow. Your goal i
 IMPORTANT: You must invoke Party Mode 3 times during this phase for expert multi-agent review. Party Mode is a skill you invoke by reading and following:
 {project-root}/_bmad/core/bmad-party-mode/SKILL.md
 (which loads {project-root}/_bmad/core/bmad-party-mode/workflow.md)
+
+QUICK MODE OVERRIDE: if MMD_AUTODEV_QUICK=1 is set in the environment (or the {dev_request} contains "Engine: FAST"), you MUST invoke Party Mode ONCE total in this phase (the single round covers scope + investigation + spec generation), NOT three times. The PARTY MODE #2 and PARTY MODE #3 markers below are SKIPPED in quick mode. The single Party Mode round happens after Step 1 clarification (where PARTY MODE #1 is currently placed) and covers the topics of all three rounds.
 
 {CONSTITUTION_BLOCK — inject full block here if has_constitution, otherwise omit entirely}
 
@@ -627,7 +643,7 @@ Accept the recommendations, apply any improvements to the spec, then select [A] 
 
 ### Automation Rules (override normal interactive behavior):
 1. NEVER wait for user input — all decisions are automated
-2. You MUST invoke Party Mode exactly 3 times as described above — this is NON-NEGOTIABLE
+2. You MUST invoke Party Mode exactly 3 times as described above — this is NON-NEGOTIABLE (EXCEPTION: in QUICK MODE, exactly ONCE, after Step 1)
 3. ALWAYS accept Party Mode recommendations and incorporate them
 4. {if has_constitution: "The spec MUST respect the project constitution included above"}
 5. Produce the highest quality spec possible — it will face adversarial review next
@@ -654,6 +670,25 @@ Accept the recommendations, apply any improvements to the spec, then select [A] 
 
 ### Objective
 Review the spec adversarially. Loop until no Critical or High severity findings remain.
+
+### Quick Mode Pre-Check (optional skip)
+
+If MMD_AUTODEV_QUICK=1 is set (FAST engine), evaluate the spec at \`{spec_file_path}\` against the robustness heuristic:
+- Lines: < 200
+- TODO/TBD/FIXME markers: < 5 total
+
+If BOTH conditions are met, **skip Phase 2 entirely** and proceed directly to Phase 3. Log to the user:
+
+\`\`\`
+⚡ Phase 2 skipped (quick mode + spec passed robustness heuristic: {N_LINES} lines, {N_TODO} TODO markers).
+🔄 Lancement Phase 3 — Quick-Dev Implementation...
+\`\`\`
+
+Otherwise (one or both heuristics fail), run Phase 2 normally. Log:
+
+\`\`\`
+⚡ Quick mode: spec did NOT pass robustness heuristic ({N_LINES} lines, {N_TODO} TODO markers). Running Phase 2 normally.
+\`\`\`
 
 ### Loop Structure
 

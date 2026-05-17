@@ -1,11 +1,18 @@
 #!/usr/bin/env node
-// bin/mmd.js — MMD v0.1 walking-skeleton CLI entry point.
+// bin/mmd.js — MMD CLI entry point.
 // SRP (constitution §I.S): argv parsing + top-level flow orchestration + exit codes.
 // All FS / subprocess / state logic lives in lib/*.
+//
+// v0.2 additions: --fast routing (FAST engine, trimmed auto-dev), POSIX argv
+// parsing via lib/argv-parser.js, engine_metrics in status.json (AC-6), soft
+// FAST-budget warning (AC-5), 1-page spec generation overwriting slice.md
+// (AC-4). Deferred items: B8 (EACCES catch consolidation), E7 (lstat on
+// --resume), E13/E14 (-- separator + unknown-flag rejection — owned by
+// argv-parser).
 
 import { argv, env, stdin, stdout, stderr, exit, cwd } from 'node:process';
 import path from 'node:path';
-import { rm, lstat } from 'node:fs/promises';
+import { rm, lstat, writeFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
@@ -16,25 +23,40 @@ import { slugify, initStateFiles, nextAvailableSlug } from '../lib/parse-dream.j
 import { ensureLayout, readStatus, writeStatus, ensureGitignore } from '../lib/state.js';
 import { invokeAutodev } from '../lib/invoke-autodev.js';
 import { realityCheck } from '../lib/reality-check.js';
+import { parseArgv, resolveEngine } from '../lib/argv-parser.js';
+import { deriveSpec } from '../lib/spec-derive.js';
+import { buildEngineRecord, withDuration, fastBudgetExceeded } from '../lib/engine.js';
 
 // F30 — version sourced once from package.json (shared with GET /api/health).
 const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
 
-const USAGE = `mmd ${VERSION} — Make My Dreams CLI (walking skeleton)
+const USAGE = `mmd ${VERSION} — Make My Dreams CLI
 
 Usage:
   mmd "<dream description>"            Generate a PWA fulfilling the dream
+  mmd --fast "<dream>"                 Trimmed auto-dev pipeline (target <=10 min)
   mmd --version                        Print version and exit
   mmd --help, -h                       Print this usage and exit
+
+Engine flags (mutually exclusive):
+  --fast                               FAST engine — trimmed auto-dev (v0.2)
+  --standard                           STANDARD engine — current default (v0.2d for full semantics)
+  --deep                               DEEP engine — full BMAD process (v0.2d)
 
 Idempotent re-run flags (used when a demo dir already exists):
   --resume                             Print current dream state and exit 3
   --fresh                              Delete the demo dir and restart
   --cancel                             Abort and exit 1
 
+POSIX:
+  --                                   Stop flag parsing; treat the rest as positional
+
 Environment variables:
   MMD_AUTODEV_CMD                      Override the auto-dev subprocess (testing only)
+  MMD_AUTODEV_MODE                     'cli' | 'test' — explicit mode (replaces v0.1 heuristic)
+  MMD_QUIET=1                          Suppress terminal tee of subprocess output (log file preserved)
+  MMD_FAST_MAX_MINUTES                 Soft FAST budget (default 12; warning only — no kill)
   MMD_TIMEOUT_MS                       Subprocess timeout in ms (default 1800000, 0 to disable)
   MMD_REALITY_CHECK_BACKEND            mcp | playwright | skip
   MMD_DREAM_MAX_LEN                    Max dream length in chars (default 500)
@@ -91,14 +113,16 @@ async function main() {
     const { runServe } = await import('./serve.js');
     return runServe(rawArgs.slice(1));
   }
-  const flags = {
-    resume: rawArgs.includes('--resume'),
-    fresh: rawArgs.includes('--fresh'),
-    cancel: rawArgs.includes('--cancel'),
-  };
-  // Note: empty-string positional ('' from `mmd ""`) is allowed through here so the
-  // empty-check below fires with exit 2 (the test asserts code 2 specifically).
-  const positional = rawArgs.filter((a) => !a.startsWith('--'));
+
+  // v0.2 — POSIX-style argv parsing with mutex + unknown-flag rejection (E13/E14).
+  // Note: empty-string positional ('' from `mmd ""`) is preserved by parseArgv
+  // so the empty-check below fires with exit 2 (tests assert code 2).
+  const { flags, positional, error: argvError } = parseArgv(rawArgs);
+  if (argvError) {
+    stderr.write(`error: ${argvError.message}\n`);
+    return argvError.exitCode;
+  }
+  const engine = resolveEngine(flags);
   const dream = positional[0];
 
   if (dream === undefined) {
@@ -125,6 +149,9 @@ async function main() {
   }
   let demoDir = path.join(cwd(), 'demo', slug);
   stdout.write(`Catching your dream...\n  dream: ${dream}\n  slug:  ${slug}\n  dir:   ${demoDir}\n`);
+  if (engine === 'fast') {
+    stdout.write('Engine: FAST (trimmed auto-dev — target <=10 min)\n');
+  }
 
   // AC-7: re-run logic — only if existing state is present.
   // ENOENT = no prior run (legitimate); other errors (EACCES/EISDIR) propagate per §VII.
@@ -145,6 +172,18 @@ async function main() {
     const choice = await resolveExistingChoice(flags);
     if (choice === 'cancel') return 1;
     if (choice === 'resume') {
+      // E7: refuse --resume when demoDir is a symlink. Defends against social
+      // engineering where an attacker pre-creates demo/<slug> -> /tmp/fake so
+      // `mmd "<dream>" --resume` reports a misleading "state: done" sourced
+      // from outside ./demo/. Mirrors the --fresh symlink check.
+      const absDemoDir = path.resolve(demoDir);
+      const lst = await lstat(absDemoDir).catch(() => null);
+      if (lst && lst.isSymbolicLink()) {
+        stderr.write(`refusing to --resume from a symlinked demoDir: ${absDemoDir}\n`);
+        const e = new Error('symlinked demoDir');
+        e.mmdExitCode = 5;
+        throw e;
+      }
       stdout.write(`Existing dream state: ${existing.state}\n`);
       return 3;
     }
@@ -169,23 +208,26 @@ async function main() {
     }
   }
 
-  // Repo-root .gitignore management (no-op outside git).
-  try {
-    await ensureGitignore(cwd());
-  } catch (err) {
-    if (err && err.code === 'EACCES') {
-      stderr.write(`error: cannot write .gitignore: ${err.message}\n`);
-      const e = new Error(err.message);
-      e.mmdExitCode = 5;
-      throw e;
-    }
-    throw err;
-  }
+  // B8: ensureGitignore lets EACCES propagate to the top-level catch which
+  // already maps it to exit 5 with a friendly message. No need for a redundant
+  // EACCES short-circuit here.
+  await ensureGitignore(cwd());
 
   await ensureLayout(demoDir);
   await initStateFiles(demoDir, dream, slug);
 
+  // AC-4: FAST mode overwrites slice.md with a 1-page heuristic spec BEFORE
+  // auto-dev runs. Without this grounding the trimmed pipeline diverges
+  // (scoping §3.1). Standard mode keeps the parse-dream-generated slice.md
+  // unchanged — auto-dev's Phase 1 will produce its own richer spec.
+  if (engine === 'fast') {
+    const slicePath = path.join(demoDir, '.mmd', 'shared', 'slice.md');
+    await writeFile(slicePath, deriveSpec({ dream, slug }), 'utf8');
+  }
+
   // F5 round-2 — capture in-progress payload so the failure path preserves the full schema.
+  // AC-6: engine + engine_metrics are part of every status.json from the start.
+  const initialEngineRecord = buildEngineRecord(engine);
   const inProgressStatus = {
     slice_id: slug,
     dream,
@@ -193,6 +235,7 @@ async function main() {
     created_at: existing?.created_at || nowIso(),
     updated_at: nowIso(),
     tasks: [{ id: 'auto-dev', state: 'in_progress' }],
+    ...initialEngineRecord,
   };
   await writeStatus(demoDir, inProgressStatus);
 
@@ -200,6 +243,10 @@ async function main() {
   const timestamp = `${nowIso().replace(/[:.]/g, '-')}-${process.pid}`;
   const logPath = path.join(demoDir, '.mmd', 'local', 'runs', `${timestamp}.log`);
 
+  // AC-5 + AC-6: time the auto-dev invocation for engine_metrics.duration_seconds
+  // and the FAST soft-budget warning. Use a monotonic clock so wall-clock drift
+  // can't produce nonsense durations.
+  const startNs = process.hrtime.bigint();
   let invokeResult;
   try {
     invokeResult = await invokeAutodev({
@@ -209,18 +256,34 @@ async function main() {
       promptParts: { dream, slug, demoDir },
       logPath,
       timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+      engine,
     });
   } catch (err) {
-    // Persist failure state using captured payload (preserves schema even on fresh runs).
+    const elapsedFail = Number(process.hrtime.bigint() - startNs) / 1e9;
     await writeStatus(demoDir, {
       ...inProgressStatus,
       state: 'failed',
       updated_at: nowIso(),
+      ...withDuration(initialEngineRecord, elapsedFail),
     });
     stderr.write(`auto-dev invocation failed: ${err.message}. See ${logPath}\n`);
     const e = new Error(err.message);
     e.mmdExitCode = err.mmdExitCode ?? 99;
     throw e;
+  }
+
+  const elapsedSeconds = Number(process.hrtime.bigint() - startNs) / 1e9;
+  const finalEngineRecord = withDuration(initialEngineRecord, elapsedSeconds);
+
+  // AC-5: soft warning when FAST mode overran its target. Never kill the
+  // subprocess — that would lose work. Just nudge the user toward --standard.
+  if (engine === 'fast' && fastBudgetExceeded(elapsedSeconds)) {
+    const mins = Math.floor(elapsedSeconds / 60);
+    const secs = Math.floor(elapsedSeconds % 60);
+    stderr.write(
+      `Warning: FAST mode is taking longer than expected (${mins}m ${secs}s). ` +
+        `This may indicate the dream is too complex for FAST; consider re-running with --standard.\n`,
+    );
   }
 
   const { code } = invokeResult;
@@ -229,6 +292,7 @@ async function main() {
       ...inProgressStatus,
       state: 'failed',
       updated_at: nowIso(),
+      ...finalEngineRecord,
     });
     stderr.write(`auto-dev exited with code ${code}. See ${logPath}\n`);
     const e = new Error(`auto-dev subprocess exited ${code}`);
@@ -254,6 +318,7 @@ async function main() {
     created_at: existing?.created_at || inProgressStatus.created_at,
     updated_at: nowIso(),
     tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
+    ...finalEngineRecord,
   });
   stdout.write(`[OK] Delivered at ${demoDir}\n`);
   return 0;

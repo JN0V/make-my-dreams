@@ -101,4 +101,36 @@ Better: wrap every `claude -p` launch with a **session ID env var** (`MMD_RUN_ID
 
 ---
 
+## L-007 — Tests must NOT hardcode slugifier output either; use a slug that survives the stopword/dropchars pipeline
+
+**Status**: active (1 occurrence in v0.2 session — discovered AND fixed by auto-dev itself, captured as a lesson rather than handed off)
+**Date**: 2026-05-17
+**Origin**: slice v0.2, `test/integration/deferred-v01.test.js` initial draft expected `demo/literally-a-dream` for the input `mmd -- --literally-a-dream`. The slugifier drops the `--`, then drops the stopword "a" (`STOPWORDS` in `lib/parse-dream.js`), then rejoins, producing `literally-dream`. The test asserted on the wrong directory name and failed RED. Trivial fix (pick a stopword-free dream like `--literally-my-dream` → `literally-my-dream`), but worth noting.
+**Rule**: when an integration test asserts on a slugifier-derived path, choose dream strings whose tokens are NONE of the `STOPWORDS` list (current: `a, an, the, that, on, of, for, to, in, with, and, or`). A safer pattern is to ask the slugifier itself for the expected output: `import { slugify } from '../../lib/parse-dream.js'; const expectedSlug = slugify(dream);` and assert on `demo/${expectedSlug}`. This generalizes L-005: tests must read the SAME source as production code. Hardcoding a path string here is the same antipattern as hardcoding a version string.
+**To promote if**: 3 reuses validated (counter: 1) — strong candidate to fold into L-005 as a generalization rather than a separate lesson.
+**Keywords for matching**: slug, slugifier, stopwords, demo dir, integration test, hardcoded path, parse-dream
+
+---
+
+## L-008 — Never delete a branch when `git branch -d` warns "not yet merged to HEAD"
+
+**Status**: active (1 occurrence at v0.2 merge attempt)
+**Date**: 2026-05-17
+**Origin**: After auto-dev v0.2 finished its work on `slice/v0.2-fast-engine` (HEAD `51bb3fe`), I tried `git checkout main && git merge --ff-only slice/v0.2-fast-engine`. Git refused with `fatal: Not possible to fast-forward, aborting.` because `main` had `fc843ee` (L-006 added in a side worktree) that wasn't on the slice. I then ran `git branch -d slice/v0.2-fast-engine` which produced this warning:
+```
+warning: deleting branch 'slice/v0.2-fast-engine' that has been merged to
+         'refs/remotes/origin/slice/v0.2-fast-engine', but not yet merged to HEAD.
+Deleted branch slice/v0.2-fast-engine (was 51bb3fe).
+```
+I ignored the warning. The branch was deleted locally AND on the remote (`git push origin --delete`), losing the easy path back to the work. Recovery was possible only because the SHA was still in the reflog (`git branch slice/v0.2-fast-engine 51bb3fe`).
+**Rule**: when `git branch -d <name>` warns "**not yet merged to HEAD**", STOP. The branch contains commits that are NOT on your current branch. Three options:
+  1. Investigate why the divergence exists (typically: `main` advanced after the slice was created — rebase or cherry-pick the missing commits).
+  2. Force the deletion only if you genuinely want to discard the slice's work (`git branch -D <name>`, but this is destructive).
+  3. NEVER chain `git branch -d X && git push origin --delete X` based on a warning — confirm the merge succeeded first.
+The systemic fix: always run the merge BEFORE the cleanup, and ONLY run the cleanup if the merge produced "Fast-forward" output (or a clean merge commit). Make this a script: `git merge --ff-only X && git branch -d X && git push origin --delete X` (`&&` chain ensures cleanup runs only on merge success).
+**To promote if**: 5 reuses validated (counter: 1) — strong candidate for promotion to `commit-git.md` as an explicit rule "Cleanup branches only after merge success".
+**Keywords for matching**: git branch -d, merge ff-only failed, not yet merged to HEAD, branch deleted, recovery from SHA, reflog
+
+---
+
 *This file is the project-scoped Layer F of the multi-layer constitution. Per scoping §6.5, when any lesson reaches N=5 validated re-uses, the Documentalist will (a) promote it to the appropriate constitution module, (b) remove it from here, (c) record the promotion event in `docs/adr/` if architectural.*

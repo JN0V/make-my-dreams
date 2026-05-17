@@ -1,0 +1,8 @@
+# Per SPEC_V02B AC-5 + §5 risks: every `mmd bench` run materializes a full
+# PWA + screenshots + logs per dream under runs/<run-id>/. That output can be
+# tens or hundreds of megabytes and is reproducible from the dreams in
+# bench/dreams/ — never commit it. The `runs/` directory is preserved as a
+# placeholder so users can locate it without re-reading the README; only
+# runs/README.md is tracked.
+runs/*
+!runs/README.md

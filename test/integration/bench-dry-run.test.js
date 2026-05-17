@@ -194,6 +194,23 @@ test('@integration mmd bench --help exits 0 and lists every documented flag (AC-
   assert.match(r.stdout, /MMD_BENCH_REAL/);
 });
 
+test('@integration mmd bench --dry-run with crashing autodev exits 7 and lists failing dreams on stderr (AC-6)', () => {
+  const tmp = makeBenchTmp();
+  try {
+    const FIXTURE_FAIL_BENCH = path.join(
+      REPO_ROOT, 'test', 'fixtures', 'failing-bench-autodev.sh',
+    );
+    const r = runBench(
+      ['--dry-run', '--dreams', 'kid-01-drawing-camera-overlay'],
+      { cwd: tmp, autodevCmd: FIXTURE_FAIL_BENCH },
+    );
+    assert.equal(r.status, 7, `expected exit 7; stderr=${r.stderr}\nstdout=${r.stdout}`);
+    assert.match(r.stderr, /failing dreams: kid-01-drawing-camera-overlay/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('@integration mmd bench --dry-run --dreams kid-01-drawing-camera-overlay only runs the filtered dream', () => {
   const tmp = makeBenchTmp();
   try {

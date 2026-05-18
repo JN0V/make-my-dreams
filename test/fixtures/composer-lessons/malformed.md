@@ -42,3 +42,22 @@
 **Date**: 2026-05-18
 **Rule**: pipe-separated keywords are tolerated.
 **Keywords for matching**: foo bar | baz qux | quux
+
+---
+
+## L-105 — multi-line Keywords trigger F8 warning
+
+**Status**: active
+**Date**: 2026-05-18
+**Rule**: only first line of keywords is parsed; later lines are dropped + warned.
+**Keywords for matching**: alpha, bravo
+charlie, delta
+
+---
+
+## L-106 No-separator header should fire F13 warning
+
+**Status**: active
+**Date**: 2026-05-18
+**Rule**: this lesson should be dropped — its `## L-106 No-separator...` line lacks the canonical `—` separator.
+**Keywords for matching**: should-not-leak

@@ -163,28 +163,28 @@ test('@unit composeLessons: live file — "git checkout to switch branches" matc
     `expected L-003 in injected; got ${r.injectedLessons.map((l) => l.id).join(',')}`);
 });
 
-test('@unit composeLessons: live file — realistic dream strings yield non-zero matches', async () => {
-  // F14 (Phase-4 review): canary that the live keyword vocabulary stays
-  // in touch with realistic dream phrasings. If this test goes 0-for-N it
-  // signals lesson keywords have drifted from how humans actually type
-  // (the silent-miss failure mode named in ADR-010's "Negative" section).
+test('@unit composeLessons: live file — every realistic dream string matches at least one lesson', async () => {
+  // F14 + F26 (Phase-4 re-reviews): canary that the live keyword vocabulary
+  // stays in touch with realistic dream phrasings. Each prompt was chosen
+  // to land squarely on a documented lesson's keyword set; if ANY of them
+  // returns zero matches, the lesson keywords have drifted away from how
+  // humans actually phrase those topics (the silent-miss failure mode
+  // named in ADR-010's "Negative" §1).
   const realisticDreams = [
     'launch auto-dev in the background with nohup',
     'tail -f the claude -p log to monitor progress',
     'careful with git branch -d after a partial merge',
-    'rerun this test against the version in package.json',
+    'fix the test fragility around package.json version drift',
     'check pgrep for previous claude -p before launching',
   ];
-  let totalMatches = 0;
+  const misses = [];
   for (const dream of realisticDreams) {
     const r = await composeLessons(dream, LIVE);
-    totalMatches += r.injectedLessons.length;
+    if (r.injectedLessons.length === 0) misses.push(dream);
   }
-  // Even one match across N prompts means the canary is alive — zero means
-  // the live file has drifted past the test fixture's keyword recognition.
-  assert.ok(
-    totalMatches >= realisticDreams.length / 2,
-    `realistic-dream canary: only ${totalMatches} matches across ${realisticDreams.length} prompts — keyword vocabulary may have drifted`,
+  assert.equal(
+    misses.length, 0,
+    `realistic-dream canary: ${misses.length}/${realisticDreams.length} prompts matched nothing — keyword vocabulary has drifted. Misses: ${JSON.stringify(misses)}`,
   );
 });
 

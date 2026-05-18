@@ -64,8 +64,9 @@ test('@unit parseLessons: malformed fixture — warnings raised, parser does not
   const warnings = [];
   const lessons = parseLessons(md, { onWarn: (m) => warnings.push(m) });
 
-  // All 5 lessons should be parsed even with field gaps.
-  assert.equal(lessons.length, 5);
+  // The malformed fixture has 7 `## L-NNN` blocks but L-106 lacks the
+  // canonical separator, so it's dropped → 6 parsed lessons.
+  assert.equal(lessons.length, 6, `parsed lessons: ${lessons.map((l) => l.id).join(',')}`);
 
   // L-100 has no Status — defaults to 'unknown' + emits a warning.
   const l100 = lessons.find((l) => l.id === 'L-100');
@@ -90,6 +91,45 @@ test('@unit parseLessons: malformed fixture — warnings raised, parser does not
   // L-104 has pipe-separated keywords.
   const l104 = lessons.find((l) => l.id === 'L-104');
   assert.deepEqual(l104.keywords, ['foo bar', 'baz qux', 'quux']);
+
+  // F25 (Phase-4 re-review): L-105 has multi-line keywords. Only line 1 is
+  // parsed; the warning names the dropped content.
+  const l105 = lessons.find((l) => l.id === 'L-105');
+  assert.deepEqual(l105.keywords, ['alpha', 'bravo']);
+  assert.ok(
+    warnings.some((w) => w.includes('L-105') && w.includes('multi-line')),
+    `expected multi-line warning for L-105; got warnings: ${warnings.join(' | ')}`,
+  );
+
+  // F25 + F22: L-106's malformed header (no separator) triggers a warning,
+  // and the lesson is dropped entirely — its body MUST NOT bleed into L-105
+  // (the previous lesson). Specifically, L-105's keywords stay [alpha, bravo].
+  assert.ok(
+    warnings.some((w) => w.includes('L-106') && w.includes('malformed')),
+    `expected malformed-header warning for L-106; got: ${warnings.join(' | ')}`,
+  );
+  // L-106 must NOT be present in the parsed output (the header was dropped).
+  assert.equal(lessons.find((l) => l.id === 'L-106'), undefined);
+  // F22 regression: L-105's keywords must NOT include 'should-not-leak'
+  // (which is L-106's keyword that would have bled if F22 wasn't fixed).
+  assert.ok(
+    !l105.keywords.includes('should-not-leak'),
+    `L-105 keywords leaked from dropped L-106: ${l105.keywords.join(',')}`,
+  );
+});
+
+test('@unit parseLessons: live file emits NO warnings (no drift)', () => {
+  // F19/F25 regression: the live docs/lessons-learned.md MUST parse without
+  // spurious warnings. The original F8 implementation falsely warned about
+  // L-012's multi-line Keywords (the file-footer prose bleeding into the
+  // last field) — this test catches that regression.
+  const md = readFileSync(LIVE, 'utf8');
+  const warnings = [];
+  parseLessons(md, { onWarn: (m) => warnings.push(m) });
+  assert.equal(
+    warnings.length, 0,
+    `live lessons-learned.md parsed with warnings: ${warnings.join(' | ')}`,
+  );
 });
 
 test('@unit parseLessons: live docs/lessons-learned.md — parses without throwing', () => {

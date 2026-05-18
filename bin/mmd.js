@@ -387,7 +387,8 @@ async function main() {
   if (rawArgs[0] === 'ship') {
     // v0.2.f AC-3: `mmd ship` subcommand. Dispatched here for the same
     // reasons as `bench` (must not parse as a dream string equal to "ship").
-    const { runShip } = await import('./ship.js');
+    // v0.2.g: moved to bin/skills/ship.js per the AC-1 refactor.
+    const { runShip } = await import('./skills/ship.js');
     return runShip(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'discover') {

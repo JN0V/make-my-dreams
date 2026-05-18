@@ -1,4 +1,5 @@
-// @unit tests for lib/ship/validate-branch.js — SPEC_V02F AC-3.
+// @unit tests for lib/skills/ship/validate-branch.js — SPEC_V02F AC-3
+// (refactored per SPEC_V02G AC-1).
 //
 // Pure-predicate tests run with no I/O. The validateShipTarget tests spawn
 // `git` against a fresh tmp repo, which makes them more expensive than pure
@@ -19,7 +20,7 @@ import {
   validateShipTarget,
   PROTECTED_BRANCHES,
   ALLOWED_BRANCH_PREFIXES,
-} from '../../lib/ship/validate-branch.js';
+} from '../../lib/skills/ship/validate-branch.js';
 
 test('@unit isProtectedBranch: main/master are protected', () => {
   assert.equal(isProtectedBranch('main'), true);

@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatShipSummary, formatDryRun } from '../../lib/ship/summary.js';
+import { formatShipSummary, formatDryRun } from '../../lib/skills/ship/summary.js';
 
 const MIN_INFO = {
   branch: 'slice/here-foo-1779537600',

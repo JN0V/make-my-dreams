@@ -23,8 +23,10 @@ _bmad/
 _bmad-output/
 
 # BMAD bmb/tea modules output dir (their convention — collides naming-wise with gStack
-# but lives under repo root, separate from ~/.claude/skills/)
-skills/
+# but lives under repo root, separate from ~/.claude/skills/).
+# Anchored at the root with a leading slash to avoid swallowing
+# `bin/skills/`, `lib/skills/`, `test/integration/skills*` (v0.2.g additions).
+/skills/
 
 # OS
 .DS_Store

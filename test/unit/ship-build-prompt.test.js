@@ -9,7 +9,7 @@ import {
   buildShipPrompt,
   shipPromptAnchors,
   SHIP_SKILL_PATH,
-} from '../../lib/ship/build-prompt.js';
+} from '../../lib/skills/ship/build-prompt.js';
 
 const VALID_OPTS = {
   branch: 'slice/here-add-banner-1779537600',

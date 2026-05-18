@@ -1,0 +1,98 @@
+// @integration tests — `mmd ship --help` snapshot regression per SPEC_V02G
+// §5 commit ordering (F4 Option B).
+//
+// The snapshot is the FULL `mmd ship --help` output. It is blessed at the
+// refactor commit (footer `mmd 0.2.4`), re-blessed at the version-bump commit
+// (footer `mmd 0.2.6`). The body MUST be byte-identical pre/post-refactor
+// when MMD_GSTACK_SKILLS_DIR is unset.
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { buildSubprocessEnv } from '../../lib/invoke-autodev.js';
+
+const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
+const MMD = path.join(REPO_ROOT, 'bin', 'mmd.js');
+const PKG = JSON.parse(
+  readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'),
+);
+
+function runMmd(args, opts = {}) {
+  const baseEnv = buildSubprocessEnv(process.env);
+  // Force MMD_GSTACK_SKILLS_DIR unset for snapshot stability (the help output
+  // doesn't reference it but the build-prompt's resolveSkillPath() module-load
+  // constant would change shape if it were set).
+  const env = { ...baseEnv, ...(opts.env || {}) };
+  delete env.MMD_GSTACK_SKILLS_DIR;
+  return spawnSync('node', [MMD, ...args], {
+    cwd: REPO_ROOT,
+    env,
+    encoding: 'utf8',
+    timeout: 10000,
+  });
+}
+
+test('@smoke @integration mmd ship --help exits 0 and ends with the version footer', () => {
+  const r = runMmd(['ship', '--help']);
+  assert.equal(r.status, 0, r.stderr);
+  // Per L-005 we read the version from package.json instead of hardcoding —
+  // the same source bin/skills/ship.js reads.
+  const expectedFooter = `mmd ${PKG.version}`;
+  assert.ok(
+    r.stdout.includes(expectedFooter),
+    `expected footer '${expectedFooter}' in stdout; got: ${r.stdout}`,
+  );
+});
+
+test('@integration mmd ship --help contains the canonical anchors', () => {
+  const r = runMmd(['ship', '--help']);
+  assert.equal(r.status, 0, r.stderr);
+  for (const anchor of [
+    'mmd ship',
+    '--dry-run',
+    '--help',
+    '<branch>',
+    '~/.claude/skills/gstack/ship/SKILL.md',
+    'MMD_SHIP_TIMEOUT_MS',
+    'MMD_SHIP_CMD',
+    'MMD_QUIET',
+  ]) {
+    assert.ok(
+      r.stdout.includes(anchor),
+      `mmd ship --help must contain anchor '${anchor}'; got: ${r.stdout}`,
+    );
+  }
+});
+
+test('@integration H7 — buildShipPrompt output is stable when MMD_GSTACK_SKILLS_DIR is unset', async () => {
+  // Byte-identity check for the prompt body — guards the F4 Option B
+  // contract. The prompt is re-built twice from a fresh import each time;
+  // the dynamic import + cache-bust ensure module-load-time env read is
+  // exercised on both calls.
+  delete process.env.MMD_GSTACK_SKILLS_DIR;
+  const mod1 = await import(
+    `../../lib/skills/ship/build-prompt.js?b=${Date.now()}-a`
+  );
+  const mod2 = await import(
+    `../../lib/skills/ship/build-prompt.js?b=${Date.now()}-b`
+  );
+  const opts = {
+    branch: 'slice/test-snapshot',
+    baseBranch: 'main',
+    sha: 'deadbeef',
+    repoRoot: '/tmp/repo',
+  };
+  const a = mod1.buildShipPrompt(opts);
+  const b = mod2.buildShipPrompt(opts);
+  assert.equal(a, b);
+  // The literal tilde-form path must appear (proving resolveSkillPath
+  // returned the un-expanded form when env unset).
+  assert.ok(
+    a.includes('~/.claude/skills/gstack/ship/SKILL.md'),
+    `prompt missing the canonical tilde-form path: ${a}`,
+  );
+});

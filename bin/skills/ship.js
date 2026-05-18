@@ -1,27 +1,30 @@
 #!/usr/bin/env node
-// bin/ship.js — `mmd ship` subcommand entry point (SPEC_V02F AC-3..AC-7).
+// bin/skills/ship.js — `mmd ship` subcommand entry point (SPEC_V02F AC-3..AC-7,
+// refactored per SPEC_V02G §5 — moved from bin/ship.js, with import paths
+// adjusted one level deeper).
 //
 // SRP (universal.md §I.S): orchestrate the ship flow only. Every step lives
-// in a dedicated lib/ship/* module so this file stays a thin coordinator:
+// in a dedicated lib/skills/ship/* module so this file stays a thin coordinator:
 //
-//   1. parseShipArgs       (lib/argv-parser.js)
-//   2. validateShipTarget  (lib/ship/validate-branch.js)
-//   3. buildShipPrompt     (lib/ship/build-prompt.js)
-//   4. invokeClaudeShip    (lib/ship/invoke-claude.js)   ← skipped on --dry-run
-//   5. audit-pillars.sh    (scripts/audit-pillars.sh)
-//   6. formatShipSummary   (lib/ship/summary.js)
+//   1. parseShipArgs           (lib/argv-parser.js)
+//   2. validateShipTarget      (lib/skills/ship/validate-branch.js)
+//   3. buildShipPrompt         (lib/skills/ship/build-prompt.js)
+//   4. assertSkillInstalled    (lib/skills/_common/invoke-claude.js) — AC-2b
+//   5. invokeClaudeShip        (lib/skills/ship/invoke-claude.js)   ← skipped on --dry-run
+//   6. audit-pillars.sh        (scripts/audit-pillars.sh)
+//   7. formatShipSummary       (lib/skills/ship/summary.js)
 //
 // Exit codes (per spec §2):
 //   0  ok
 //   1  user declined a required prompt (currently unused — reserved)
 //   2  user error (bad flags, ...) — surfaced by parseShipArgs
 //   3  cwd is not a git repo / HEAD not resolvable
-//   4  protected branch / spawn failure
+//   4  protected branch / spawn failure / gStack skill missing (AC-2b)
 //   <code>  subprocess passthrough on a real ship run
 //
 // L-006 mitigation: `claude -p` can hang in `S (sleeping)` indefinitely. We
 // always set a timeout (default 30 min, overridable via MMD_SHIP_TIMEOUT_MS).
-// The exit-code is reported honestly — null/signal cases land in the summary.
+// L-002 mitigation: heartbeat every 60s (overridable via MMD_HEARTBEAT_INTERVAL_MS).
 
 import { spawnSync } from 'node:child_process';
 import { cwd as processCwd, env, stdout, stderr } from 'node:process';
@@ -29,18 +32,23 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
 
-import { parseShipArgs } from '../lib/argv-parser.js';
-import { validateShipTarget } from '../lib/ship/validate-branch.js';
-import { buildShipPrompt } from '../lib/ship/build-prompt.js';
+import { parseShipArgs } from '../../lib/argv-parser.js';
+import { validateShipTarget } from '../../lib/skills/ship/validate-branch.js';
+import { buildShipPrompt } from '../../lib/skills/ship/build-prompt.js';
 import {
   invokeClaudeShip,
   shipLogPath,
   buildShipEnv,
   buildShipArgs,
-} from '../lib/ship/invoke-claude.js';
-import { formatShipSummary, formatDryRun } from '../lib/ship/summary.js';
+} from '../../lib/skills/ship/invoke-claude.js';
+import { formatShipSummary, formatDryRun } from '../../lib/skills/ship/summary.js';
+import {
+  assertSkillInstalled,
+  maybeWarnConcurrentClaude,
+} from '../../lib/skills/_common/invoke-claude.js';
+import { resolveSkillPath } from '../../lib/skills/_common/skill-path.js';
 
-const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
+const PKG_PATH = fileURLToPath(new URL('../../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
 
 const SHIP_USAGE = `mmd ship — invoke the gStack 'ship' skill on a slice branch (SPEC_V02F)
@@ -76,14 +84,15 @@ mmd ${VERSION}
 
 /**
  * Resolve the path to scripts/audit-pillars.sh relative to this file. The
- * script lives in <repoRoot>/scripts/audit-pillars.sh; bin/ship.js lives in
- * <repoRoot>/bin/. We resolve via fileURLToPath so it works regardless of
- * how the module was imported (npm symlink, direct node invocation, etc.).
+ * script lives in <repoRoot>/scripts/audit-pillars.sh; bin/skills/ship.js lives
+ * in <repoRoot>/bin/skills/. We resolve via fileURLToPath so it works
+ * regardless of how the module was imported (npm symlink, direct node
+ * invocation, etc.).
  *
  * @returns {string}
  */
 function auditPillarsScriptPath() {
-  return fileURLToPath(new URL('../scripts/audit-pillars.sh', import.meta.url));
+  return fileURLToPath(new URL('../../scripts/audit-pillars.sh', import.meta.url));
 }
 
 /**
@@ -103,8 +112,6 @@ export function runAuditPillars({ cwd, baseBranch }) {
     encoding: 'utf8',
     timeout: 15000,
   });
-  // status can be null on timeout — surface whatever stdout we managed to
-  // capture even then (graceful degradation per error-handling.md §III).
   const out = (r.stdout || '').trim();
   if (out.length === 0) return null;
   return out;
@@ -151,6 +158,7 @@ export async function runShip(rawArgs) {
 
   if (parsed.dryRun) {
     // AC-5: print the would-be invocation and exit 0 without spawning claude.
+    // AC-2b: --dry-run SKIPS the pre-flight skill-installation check.
     stdout.write(
       formatDryRun({
         prompt,
@@ -165,9 +173,28 @@ export async function runShip(rawArgs) {
     return 0;
   }
 
+  // AC-2b pre-flight (real runs only): assert the gStack skill is installed.
+  const installed = assertSkillInstalled({
+    skillName: 'ship',
+    skillPath: resolveSkillPath('ship'),
+  });
+  if (!installed.ok) {
+    stderr.write(installed.message + '\n');
+    return installed.exitCode;
+  }
+
+  // AC-Long-Running (c): warn if another claude -p is running. Hermetic in tests.
+  maybeWarnConcurrentClaude({
+    skillName: 'ship',
+    disabled: env.MMD_DISABLE_CLAUDE_PGREP === '1',
+  });
+
   // Real ship — spawn claude -p with PATH forcing.
   const logPath = shipLogPath(root);
   const timeoutMs = env.MMD_SHIP_TIMEOUT_MS ? Number(env.MMD_SHIP_TIMEOUT_MS) : 1_800_000;
+  const heartbeatIntervalMs = env.MMD_HEARTBEAT_INTERVAL_MS
+    ? Number(env.MMD_HEARTBEAT_INTERVAL_MS)
+    : 60_000;
 
   stdout.write(
     `mmd ship: invoking gStack 'ship' on '${branch}' (base=${baseBranch}, sha=${sha.slice(0, 7)})\n` +
@@ -184,6 +211,7 @@ export async function runShip(rawArgs) {
       timeoutMs,
       quiet: env.MMD_QUIET === '1',
       command,
+      heartbeatIntervalMs,
     });
   } catch (err) {
     stderr.write(`mmd ship: ${err.message}\n`);

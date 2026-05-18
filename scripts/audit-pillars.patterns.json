@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "description": "Pillar invocation patterns for scripts/audit-pillars.sh (L-012 closure). Each pillar lists regex patterns matched against the slice's commit messages + diff. A pillar is INVOKED iff at least one pattern matches and no negative_pattern matches the same context.",
+  "version": 2,
+  "description": "Pillar invocation patterns for scripts/audit-pillars.sh (L-012 closure). Each pillar lists regex patterns matched against the slice's commit messages + diff. A pillar is INVOKED iff at least one pattern matches and no negative_pattern matches the same context. v2 (SPEC_V02G AC-6) adds an optional per-pillar `skills` array — purely informational metadata for the gStack pillar that names the individual skills v0.2.g now wraps (ship, qa, cso, document-release). The script is backward compatible: it accepts both version 1 and version 2 (the `skills` field is ignored by the count logic — additive change).",
   "pillars": [
     {
       "name": "Spec Kit",
@@ -44,9 +44,18 @@
         "/context-save",
         "gstack-config",
         "mmd ship",
+        "mmd qa",
+        "mmd cso",
+        "mmd document-release",
         "gStack"
       ],
-      "negative_patterns": []
+      "negative_patterns": [],
+      "skills": [
+        { "name": "ship",             "introduced": "v0.2.f", "wrapper": "bin/skills/ship.js" },
+        { "name": "qa",               "introduced": "v0.2.g", "wrapper": "bin/skills/qa.js" },
+        { "name": "cso",              "introduced": "v0.2.g", "wrapper": "bin/skills/cso.js" },
+        { "name": "document-release", "introduced": "v0.2.g", "wrapper": "bin/skills/document-release.js" }
+      ]
     },
     {
       "name": "Ralph Loop",

@@ -136,8 +136,10 @@ try {
     process.stderr.write("audit-pillars: failed to parse patterns JSON: " + e.message + "\n");
     process.exit(2);
 }
-if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.pillars)) {
-    process.stderr.write("audit-pillars: patterns JSON has wrong schema (need version=1 + pillars[])\n");
+// v0.2.g AC-6 accept version 1 OR 2 — v2 adds an optional per-pillar
+// `skills` metadata array which the count logic ignores (additive change).
+if (!parsed || ![1, 2].includes(parsed.version) || !Array.isArray(parsed.pillars)) {
+    process.stderr.write("audit-pillars: patterns JSON has wrong schema (need version=1|2 + pillars[])\n");
     process.exit(2);
 }
 for (const pillar of parsed.pillars) {

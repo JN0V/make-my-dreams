@@ -246,10 +246,38 @@ test('@unit audit-pillars: unknown flag exits 2', () => {
 
 test('@unit audit-pillars: patterns.json contains all 5 README pillars', () => {
   const patterns = JSON.parse(readFileSync(PATTERNS_FILE, 'utf8'));
-  assert.equal(patterns.version, 1);
+  // v0.2.g AC-6: schema bumped to v2 additively (adds optional `skills`
+  // metadata on the gStack pillar). The script accepts both versions —
+  // this test only enforces the value is one of the accepted schema versions.
+  assert.ok(
+    [1, 2].includes(patterns.version),
+    `unexpected patterns.version: ${patterns.version} (accepted: 1, 2)`,
+  );
   const names = patterns.pillars.map((p) => p.name);
   for (const expected of ['Spec Kit', 'OpenSpec', 'BMAD', 'gStack', 'Ralph Loop']) {
     assert.ok(names.includes(expected), `missing pillar: ${expected} (got: ${names.join(', ')})`);
+  }
+});
+
+test('@unit audit-pillars: v2 — gStack pillar advertises all four v0.2.g-wrapped skills', () => {
+  // v0.2.g AC-6: per-skill metadata. The schema is additive — production
+  // count logic does not depend on it — but the field's PRESENCE is what
+  // makes the patterns.json self-documenting for future skills.
+  const patterns = JSON.parse(readFileSync(PATTERNS_FILE, 'utf8'));
+  if (patterns.version < 2) {
+    // Backward-compatible escape hatch: v1 patterns don't carry the skills
+    // metadata. Skip rather than fail to keep the test future-proof.
+    return;
+  }
+  const gstack = patterns.pillars.find((p) => p.name === 'gStack');
+  assert.ok(gstack, 'gStack pillar missing');
+  assert.ok(Array.isArray(gstack.skills), 'gStack.skills must be an array in v2');
+  const skillNames = gstack.skills.map((s) => s.name);
+  for (const expected of ['ship', 'qa', 'cso', 'document-release']) {
+    assert.ok(
+      skillNames.includes(expected),
+      `missing v0.2.g-wrapped skill in patterns.json: ${expected} (got: ${skillNames.join(', ')})`,
+    );
   }
 });
 

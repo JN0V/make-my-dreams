@@ -48,6 +48,7 @@ Usage:
   mmd --here "<change>"                Modify the current git repo in place (v0.2a)
   mmd bench [--dry-run]                Run the dream-bench v0 harness (v0.2b)
   mmd ship [<branch>] [--dry-run]      Invoke gStack ship skill on the current slice (v0.2.f)
+  mmd qa [<branch>] [--dry-run]        Invoke gStack qa skill — test stratification + adversarial pass (v0.2.g)
   mmd discover [<path>]                Project Onboarder for brownfield repos (v0.2c)
   mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
@@ -390,6 +391,12 @@ async function main() {
     // v0.2.g: moved to bin/skills/ship.js per the AC-1 refactor.
     const { runShip } = await import('./skills/ship.js');
     return runShip(rawArgs.slice(1));
+  }
+  if (rawArgs[0] === 'qa') {
+    // v0.2.g AC-2: `mmd qa` subcommand. Dispatched here (before checkGate)
+    // so AC-5 gate-bypass holds structurally for read-only/advisory commands.
+    const { runQa } = await import('./skills/qa.js');
+    return runQa(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'discover') {
     // v0.2c AC-1: `mmd discover` subcommand. Dispatched here for the same

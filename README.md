@@ -270,6 +270,30 @@ Exit codes for all three: same shape as `mmd ship` — `0` ok / `2` user/argv er
 
 **Why these subcommands rather than folding the skills inside `auto-dev`?** Standalone CLI subcommands teach the user where each skill lives, can be composed with shell `&&`, and stay independently auditable in `audit-pillars.sh`. Folding inside `auto-dev` is the "Heavy option" from L-012 — deferred to v0.5+ once the Conductor design is mature. See [ADR-009](./docs/adr/009-medium-gstack-integration-pattern.md) for the full rationale.
 
+### Lessons & composer — *new in v0.2e*
+
+Every `mmd` subprocess invocation (autodev, ship, qa, cso, document-release) now passes its prompt through the **composer** before spawning `claude -p`. The composer reads `docs/lessons-learned.md`, finds the lessons whose keywords appear in the prompt (case-insensitive, word-boundary), and prepends a deterministic `## Active lessons (auto-injected by composer v0.2e)` section to the prompt. The autolearning loop from [MAKE_MY_DREAMS.md §6.5](./MAKE_MY_DREAMS.md) is now operational end-to-end: failures captured as new lessons reach every future prompt automatically.
+
+```bash
+mmd lessons                        # list every active lesson + injection count
+mmd lessons match "git checkout"   # preview which lessons would inject for an input
+mmd lessons --show L-008           # print one lesson's title + status + rule
+mmd lessons --help
+```
+
+Each composed run drops two sidecar files next to its `.mmd/local/<*>-runs/<ts>.log`:
+- `<ts>.composer.json` — audit trail: which lessons matched, which keywords hit, file SHA, elapsed_ms
+- `[composer] injected …` line at the top of the run log itself
+
+To roll up adoption across a slice: `scripts/audit-pillars.sh --with-composer main..HEAD` reports total runs, auto-injected runs, average lessons per run, and the top-5 lessons by injection count.
+
+Knobs:
+- `MMD_COMPOSER_DISABLED=1` — bypass composition (escape hatch — composer.json still written with `disabled: true`)
+- `MMD_LESSONS_FILE` — point `mmd lessons` at a non-default file (testing)
+- A missing `docs/lessons-learned.md` is a no-op (brownfield targets without `install-mmd.sh` are not penalized)
+
+Matching is deterministic, ~15ms on the live 13-lesson file, capped at 5 injections per prompt by score with ties broken by id ascending. No LLM call, no embedding model — see [ADR-010](./docs/adr/010-composer-minimal-keyword-overlap.md) for why keyword-overlap over semantic matching.
+
 ### Web mode (no terminal — for non-technical users)  — *new in v0.2.5*
 
 ```bash
@@ -319,6 +343,8 @@ This repo started as `extend-bmad` — a customization of BMAD that combined qui
 **v0.2.f (2026-05-17)** turned gStack from a documentation claim into a runtime reality. Three coordinated changes: (1) `install-mmd.sh` installs + functionally verifies `bun` and gStack (responds to `--version` / `gstack-config`, not just file presence); (2) `mmd ship [<branch>] [--dry-run]` invokes the gStack `ship` skill via `claude -p` with PATH forced to include `~/.bun/bin` — the first MMD subcommand that actually calls a non-BMAD pillar; (3) `scripts/audit-pillars.sh` reports `INVOKED (count)` / `NOT INVOKED` per pillar against the slice range and runs automatically inside every `mmd ship`. This is the operational closure of [L-012](./docs/lessons-learned.md) (gStack named as a pillar but never invoked across 11 slices). See [SPEC_V02F.md](./SPEC_V02F.md) for the 8 ACs and [ADR-007](./docs/adr/007-gstack-effective-via-ship-subcommand.md) for the design rationale.
 
 **v0.2.g (2026-05-18)** delivered the Medium gStack walking skeleton: three more skill wrappers (`mmd qa`, `mmd cso`, `mmd document-release`) sharing a reusable `lib/skills/<name>/*` pattern extracted from v0.2.f's `lib/ship/*`. The shared `lib/skills/_common/invoke-claude.js` carries the PATH-forcing, race-safe log-stream finish (the v0.2.f L-013 fix preserved), heartbeat, and ENOENT-mapping for every current and future skill wrapper. After v0.2.g, adding the next gStack skill (e.g. `/context-save`, `/freeze`) is genuinely a 1-hour exercise rather than a 1-week design problem. `audit-pillars.sh` now reports gStack invocations across 4 distinct skill names (ship + qa + cso + document-release), taking the L-012 gap from "1 of 41 skills used" to "4 of 41". See [SPEC_V02G.md](./SPEC_V02G.md) for the 7 ACs and [ADR-009](./docs/adr/009-medium-gstack-integration-pattern.md) for the design rationale (why extract the shared layer after only one skill, why the new commands bypass the discovery gate, why we did NOT fold the skills inside `auto-dev`'s pipeline — Heavy is still v0.5+).
+
+**v0.2e (2026-05-18)** delivered the **autolearning composer**: every `mmd` subprocess invocation (autodev, ship, qa, cso, document-release) now passes its prompt through a deterministic keyword-overlap matcher against `docs/lessons-learned.md` BEFORE spawning `claude -p`. Matched lessons' rules are prepended to the prompt; a `composer.json` audit trail is written alongside the run log. A new `mmd lessons` subcommand lists active lessons + injection counts, previews matches for any input, and prints individual lesson bodies. `scripts/audit-pillars.sh --with-composer` rolls up adoption across a slice. Pure-function library (`lib/composer/{parse-lessons,match,format,audit,usage-stats}.js`), sub-100ms on the live 13-lesson file, no LLM call, no embedding model — see [ADR-010](./docs/adr/010-composer-minimal-keyword-overlap.md) for the design rationale. After v0.2e, the autolearning loop from [§6.5](./MAKE_MY_DREAMS.md) is operational end-to-end: failures captured as new lessons reach every future prompt automatically. Sixth reflexive use of `mmd --here` after L-010 / L-011 / L-013 / L-015 / L-016.
 
 The folder will be renamed `make-my-dreams/` after v0.1 is validated. The repo itself can be renamed at any time on the git host.
 

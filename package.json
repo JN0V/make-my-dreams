@@ -1,6 +1,6 @@
 {
   "name": "make-my-dreams",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Accessibility and orchestration layer for AI-driven development",
   "type": "module",
   "bin": { "mmd": "./bin/mmd" },

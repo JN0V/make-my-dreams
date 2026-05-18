@@ -968,6 +968,16 @@ This is probably the most differentiating feature of Make My Dreams compared to 
 
 Not all lessons are injected into all prompts — that would be noise. The Documentalist (or a mini-agent at prompt composition time) selects relevant lessons based on the **keywords of the upcoming Worker's context** (e.g. if the Worker is going to work on a camera feature, L-042 is injected; otherwise not).
 
+**v0.2e delivered the walking-skeleton composer for conditional injection.** `lib/composer/match.js#composeLessons(promptBody, repoRoot/docs/lessons-learned.md)` is a deterministic, sub-100ms, pure keyword-overlap matcher. It is wired into `lib/invoke-autodev.js` (autodev path) AND `lib/skills/_common/invoke-claude.js` (every gStack-skill wrapper), so EVERY `claude -p` invocation from MMD now auto-receives the matched lessons. The mechanism above is now real end-to-end:
+
+- step 8 ("rule INJECTED into future Workers' prompts") happens automatically;
+- a `composer.json` audit trail is written next to every run log (which lessons matched, which keywords hit, file SHA, elapsed ms);
+- `mmd lessons` lists active lessons with per-lesson injection counts (read from the audits);
+- `scripts/audit-pillars.sh --with-composer main..HEAD` rolls up adoption across a slice;
+- `MMD_COMPOSER_DISABLED=1` is the documented escape hatch.
+
+v0.2e is intentionally minimal — no semantic matching (deterministic keyword overlap), no automatic reuse-counter increment (a match is NOT a validated reuse — the Documentalist Worker in v0.5b makes that call), no constitution-module composition (that's v0.5b too). See [ADR-010](docs/adr/010-composer-minimal-keyword-overlap.md) for the design rationale, and SPEC_V02E for the 8 ACs + DoD.
+
 #### Promotion / archival
 
 - **Promotion to permanent constitution (layer A)**: after N validated reuses (default N=5) AND no contraindication. Requires user validation if Pro profile.

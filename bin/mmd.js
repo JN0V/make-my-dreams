@@ -50,6 +50,7 @@ Usage:
   mmd ship [<branch>] [--dry-run]      Invoke gStack ship skill on the current slice (v0.2.f)
   mmd qa [<branch>] [--dry-run]        Invoke gStack qa skill — test stratification + adversarial pass (v0.2.g)
   mmd cso [<branch>] [--dry-run]       Invoke gStack cso skill — security review per Bundle A (v0.2.g)
+  mmd document-release [<from>] [<to>] Invoke gStack document-release skill — release-notes draft (v0.2.g)
   mmd discover [<path>]                Project Onboarder for brownfield repos (v0.2c)
   mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
@@ -403,6 +404,11 @@ async function main() {
     // v0.2.g AC-3: `mmd cso` subcommand. Same dispatch contract as qa.
     const { runCso } = await import('./skills/cso.js');
     return runCso(rawArgs.slice(1));
+  }
+  if (rawArgs[0] === 'document-release') {
+    // v0.2.g AC-4: `mmd document-release` subcommand. Same dispatch contract.
+    const { runDocumentRelease } = await import('./skills/document-release.js');
+    return runDocumentRelease(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'discover') {
     // v0.2c AC-1: `mmd discover` subcommand. Dispatched here for the same

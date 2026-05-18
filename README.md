@@ -266,6 +266,8 @@ mmd document-release --help                # full usage
 
 Exit codes for all three: same shape as `mmd ship` — `0` ok / `2` user/argv error / `3` not a git repo / `4` spawn failure or (for `document-release`) invalid refs / `<code>` subprocess passthrough.
 
+> **`MMD_GSTACK_SKILLS_DIR` is a test-only knob.** Leave it unset in production — the default `~/.claude/skills/gstack` is correct. The variable's value flows into the LLM prompt and into a filesystem `existsSync` check, so it must never be pointed at an untrusted directory. See [ADR-009](./docs/adr/009-medium-gstack-integration-pattern.md) and `lib/skills/_common/skill-path.js` for the security rationale.
+
 **Why these subcommands rather than folding the skills inside `auto-dev`?** Standalone CLI subcommands teach the user where each skill lives, can be composed with shell `&&`, and stay independently auditable in `audit-pillars.sh`. Folding inside `auto-dev` is the "Heavy option" from L-012 — deferred to v0.5+ once the Conductor design is mature. See [ADR-009](./docs/adr/009-medium-gstack-integration-pattern.md) for the full rationale.
 
 ### Web mode (no terminal — for non-technical users)  — *new in v0.2.5*

@@ -1,17 +1,25 @@
 // @integration tests — `mmd ship --help` snapshot regression per SPEC_V02G
-// §5 commit ordering (F4 Option B).
+// §5 commit ordering (F4 Option B) + F2 Phase-4 review (byte-identical
+// snapshot, not just substring anchors).
 //
-// The snapshot is the FULL `mmd ship --help` output. It is blessed at the
-// refactor commit (footer `mmd 0.2.4`), re-blessed at the version-bump commit
-// (footer `mmd 0.2.6`). The body MUST be byte-identical pre/post-refactor
-// when MMD_GSTACK_SKILLS_DIR is unset.
+// The snapshot fixture is `test/fixtures/ship-help.snapshot.txt`. To re-bless
+// it after an intentional change:
+//
+//   UPDATE_SNAPSHOTS=1 node --test test/integration/ship-help-output.test.js
+//
+// The byte-identical check guards the F4 Option B contract: the help body
+// MUST be stable across the v0.2.f → v0.2.g refactor when
+// MMD_GSTACK_SKILLS_DIR is unset.
+//
+// An anchor-based sub-test is retained as a sanity net: if someone re-blesses
+// the snapshot with garbage by accident, the anchor test catches obvious
+// breakage (missing usage line, missing --help flag, ...).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { buildSubprocessEnv } from '../../lib/invoke-autodev.js';
 
@@ -19,6 +27,9 @@ const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const MMD = path.join(REPO_ROOT, 'bin', 'mmd.js');
 const PKG = JSON.parse(
   readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'),
+);
+const SNAPSHOT_PATH = path.join(
+  REPO_ROOT, 'test', 'fixtures', 'ship-help.snapshot.txt',
 );
 
 function runMmd(args, opts = {}) {
@@ -48,7 +59,29 @@ test('@smoke @integration mmd ship --help exits 0 and ends with the version foot
   );
 });
 
-test('@integration mmd ship --help contains the canonical anchors', () => {
+// F2 — byte-identical snapshot. Anchors are not enough: an accidental rewrite
+// of the help text would still pass substring assertions but break user
+// muscle memory / `mmd help ship` parsers. Re-bless with UPDATE_SNAPSHOTS=1.
+test('@integration F2 — mmd ship --help is byte-identical to the snapshot', () => {
+  const r = runMmd(['ship', '--help']);
+  assert.equal(r.status, 0, r.stderr);
+  if (process.env.UPDATE_SNAPSHOTS === '1') {
+    writeFileSync(SNAPSHOT_PATH, r.stdout, 'utf8');
+    return; // Re-blessed.
+  }
+  const expected = readFileSync(SNAPSHOT_PATH, 'utf8');
+  assert.strictEqual(
+    r.stdout,
+    expected,
+    `ship --help drifted from snapshot. ` +
+    `Run UPDATE_SNAPSHOTS=1 node --test test/integration/ship-help-output.test.js ` +
+    `to re-bless if intentional.`,
+  );
+});
+
+// Sanity anchor net — even if someone re-blesses with garbage, this test
+// catches obvious breakage (missing canonical lines).
+test('@integration mmd ship --help contains the canonical anchors (sanity)', () => {
   const r = runMmd(['ship', '--help']);
   assert.equal(r.status, 0, r.stderr);
   for (const anchor of [

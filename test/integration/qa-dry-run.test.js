@@ -152,3 +152,45 @@ test('@integration mmd qa --dry-run with explicit <branch> honors it', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// F14 (Phase-4 review): suspicious branch characters are a USER ERROR
+// (exit 2), not an environment error (exit 3).
+test('@integration F14 — mmd qa with a suspicious explicit branch exits 2 (user error)', () => {
+  const dir = makeQaRepo();
+  try {
+    // Leading dash would otherwise be parsed as a flag by git — branch
+    // never reaches it (validator refuses first). Pre-fix this was exit 3.
+    const r = runMmd(['qa', '--dry-run', '-evil'], { cwd: dir });
+    assert.equal(
+      r.status,
+      2,
+      `expected exit 2 (user error) for suspicious branch; got ${r.status}\nstderr=${r.stderr}\nstdout=${r.stdout}`,
+    );
+    assert.match(r.stderr, /suspicious characters/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// F1 (Phase-4 adversarial review): ANTHROPIC_API_KEY value must NEVER appear
+// in dry-run stdout. Users paste dry-run output into bug reports / Slack;
+// a real key in there is exfiltration.
+test('@integration F1 — mmd qa --dry-run does NOT leak ANTHROPIC_API_KEY value', () => {
+  const dir = makeQaRepo();
+  try {
+    const sentinel = 'sk-test-leak-detector-d34db33f';
+    const r = runMmd(['qa', '--dry-run'], {
+      cwd: dir,
+      env: { ANTHROPIC_API_KEY: sentinel },
+    });
+    assert.equal(r.status, 0, `stderr=${r.stderr}\nstdout=${r.stdout}`);
+    assert.ok(
+      !r.stdout.includes(sentinel),
+      `ANTHROPIC_API_KEY value leaked into dry-run stdout!\nstdout=${r.stdout}`,
+    );
+    // And the key NAME should still be present, with the value redacted.
+    assert.match(r.stdout, /ANTHROPIC_API_KEY=<redacted>/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

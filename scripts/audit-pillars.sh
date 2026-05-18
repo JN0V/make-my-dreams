@@ -119,16 +119,21 @@ if ! git rev-list --count "${RANGE}" >/dev/null 2>&1; then
 fi
 
 # --- Read pillar definitions (via node) -------------------------------------
-# Output format: each pillar one line, fields tab-separated:
-#   name<TAB>patterns_joined_with_<US><TAB>negative_patterns_joined_with_<US>
-# Using ASCII Unit Separator (0x1F) as the inner delimiter avoids any
-# collision with regex characters that pillar patterns may contain.
+# Output format: each pillar one line, fields separated by ASCII Record
+# Separator (0x1E), with the inner field arrays joined by ASCII Unit
+# Separator (0x1F). RS (non-whitespace) is used between fields rather than
+# TAB because bash `read` with `IFS=$'\t'` collapses CONSECUTIVE whitespace
+# separators into a single delimiter — so a TAB-separated row with an empty
+# middle field (e.g. empty negative_patterns) silently merged the trailing
+# fields into the empty slot, corrupting downstream array parsing.
 US=$(printf '\037')
+RS=$(printf '\036')
 PILLARS_TSV="$(
     node -e '
 const fs = require("fs");
 const path = process.argv[1];
 const US = String.fromCharCode(31);
+const RS = String.fromCharCode(30);
 let parsed;
 try {
     parsed = JSON.parse(fs.readFileSync(path, "utf8"));
@@ -137,7 +142,9 @@ try {
     process.exit(2);
 }
 // v0.2.g AC-6 accept version 1 OR 2 — v2 adds an optional per-pillar
-// `skills` metadata array which the count logic ignores (additive change).
+// `skills` metadata array which is now RENDERED (one Notes line per skill).
+// Per F6 Phase-4 review: the prior v2 implementation parsed but ignored
+// skills metadata, defeating the purpose of the schema bump.
 if (!parsed || ![1, 2].includes(parsed.version) || !Array.isArray(parsed.pillars)) {
     process.stderr.write("audit-pillars: patterns JSON has wrong schema (need version=1|2 + pillars[])\n");
     process.exit(2);
@@ -146,7 +153,13 @@ for (const pillar of parsed.pillars) {
     const name = String(pillar.name || "").replace(/\t/g, " ");
     const pats = (Array.isArray(pillar.patterns) ? pillar.patterns : []).join(US);
     const neg = (Array.isArray(pillar.negative_patterns) ? pillar.negative_patterns : []).join(US);
-    process.stdout.write(name + "\t" + pats + "\t" + neg + "\n");
+    // 4th field: skill names (v2 only; empty for v1 or pillars without skills).
+    // Each skill is encoded as `<name>::<introduced>` — we only need the name
+    // for the per-skill grep, the rest is metadata for the Notes column.
+    const skills = Array.isArray(pillar.skills)
+        ? pillar.skills.map((s) => String((s && s.name) || "").trim()).filter(Boolean).join(US)
+        : "";
+    process.stdout.write(name + RS + pats + RS + neg + RS + skills + "\n");
 }
 ' "${PATTERNS_FILE}"
 )"
@@ -175,12 +188,13 @@ printf '%s\n' "-------------+--------------------+--------------+---------------
 
 ZERO_COUNT=0
 
-while IFS=$'\t' read -r NAME PATS_JOIN NEG_JOIN; do
+while IFS="${RS}" read -r NAME PATS_JOIN NEG_JOIN SKILLS_JOIN; do
     [ -z "${NAME}" ] && continue
 
     # Split joined patterns back into arrays via the US delimiter.
     IFS="${US}" read -r -a PATS <<< "${PATS_JOIN:-}"
     IFS="${US}" read -r -a NEGS <<< "${NEG_JOIN:-}"
+    IFS="${US}" read -r -a SKILLS <<< "${SKILLS_JOIN:-}"
 
     TOTAL=0
     MATCHED_PATTERNS=()
@@ -229,15 +243,46 @@ while IFS=$'\t' read -r NAME PATS_JOIN NEG_JOIN; do
     fi
 
     if [ "${TOTAL}" -gt 0 ]; then
-        # Notes column: first three matched patterns separated by " · ".
+        # F6 (Phase-4 review): when v2 skills[] metadata is present, the Notes
+        # column lists the per-skill names that actually matched in this range
+        # — answers "WHICH gStack skills were invoked?", not just "was the
+        # pillar invoked?". Falls back to the v1 behavior (first 3 matched
+        # patterns) when skills[] is absent or none of the listed skill names
+        # matched the corpus.
         NOTES=""
-        for ((k=0; k<${#MATCHED_PATTERNS[@]} && k<3; k++)); do
-            if [ -z "${NOTES}" ]; then
-                NOTES="${MATCHED_PATTERNS[$k]}"
-            else
-                NOTES="${NOTES} · ${MATCHED_PATTERNS[$k]}"
-            fi
-        done
+        INVOKED_SKILLS=()
+        if [ "${#SKILLS[@]}" -gt 0 ]; then
+            for s in "${SKILLS[@]:-}"; do
+                [ -z "${s}" ] && continue
+                # Probe: "mmd <s>" OR "/<s>\b" in either corpus file. Same
+                # case-insensitive ERE the per-pattern count uses.
+                SKILL_HIT_MSG=$(grep -E -i -c -- "(mmd ${s}|/${s}\\b)" "${MSGS_FILE}" 2>/dev/null; true)
+                SKILL_HIT_DIFF=$(grep -E -i -c -- "(mmd ${s}|/${s}\\b)" "${DIFF_FILE}" 2>/dev/null; true)
+                SKILL_HIT_MSG=${SKILL_HIT_MSG:-0}
+                SKILL_HIT_DIFF=${SKILL_HIT_DIFF:-0}
+                SKILL_TOTAL=$((SKILL_HIT_MSG + SKILL_HIT_DIFF))
+                if [ "${SKILL_TOTAL}" -gt 0 ]; then
+                    INVOKED_SKILLS+=("${s} (${SKILL_TOTAL})")
+                fi
+            done
+        fi
+        if [ "${#INVOKED_SKILLS[@]}" -gt 0 ]; then
+            for ((k=0; k<${#INVOKED_SKILLS[@]}; k++)); do
+                if [ -z "${NOTES}" ]; then
+                    NOTES="${INVOKED_SKILLS[$k]}"
+                else
+                    NOTES="${NOTES} · ${INVOKED_SKILLS[$k]}"
+                fi
+            done
+        else
+            for ((k=0; k<${#MATCHED_PATTERNS[@]} && k<3; k++)); do
+                if [ -z "${NOTES}" ]; then
+                    NOTES="${MATCHED_PATTERNS[$k]}"
+                else
+                    NOTES="${NOTES} · ${MATCHED_PATTERNS[$k]}"
+                fi
+            done
+        fi
         STATUS="INVOKED (${TOTAL})"
     else
         STATUS="NOT INVOKED (0)"

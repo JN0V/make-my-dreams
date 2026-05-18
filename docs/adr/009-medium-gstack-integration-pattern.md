@@ -49,7 +49,9 @@ The v0.2c Project Onboarder validation gate (`checkGate`) is designed to block *
 
 Forcing a discovery-report gate on these would be UX-hostile: a user with a fresh brownfield wants to RUN `mmd cso` precisely to learn what's there, not to be told "first do a discovery report" — because `mmd cso` IS itself a form of discovery (security-focused).
 
-**Implementation**: each new wrapper exports a module-level `skipDiscoveryGate: true` constant from its `validate-input.js`. Structurally, `bin/mmd.js` already dispatches `qa` / `cso` / `document-release` BEFORE the `--here`-path `checkGate` call, so the bypass is achieved by dispatch ordering rather than special-case logic inside the gate. The constant exists as an opt-in marker so any future gate-aware dispatcher can structurally consult it instead of hard-coding skill names.
+**Implementation**: the bypass is purely STRUCTURAL — `bin/mmd.js` dispatches `qa` / `cso` / `document-release` BEFORE the `--here`-path `checkGate` call (lines around `bin/mmd.js:390-412`), so the gate cannot fire for these subcommands. There is no separate config flag or marker constant: the dispatch ordering IS the contract.
+
+> v0.2.g initially shipped a vestigial `skipDiscoveryGate: true` export from each `validate-input.js` as a "forward-compat marker for a future gate-aware dispatcher". F5 in the Phase-4 adversarial review identified those exports as dead code (never consulted by any caller) and they were removed (KISS / YAGNI per `universal.md §II`). If a future gate-aware dispatcher needs to consult per-subcommand intent, it should re-introduce a typed metadata object — not a single boolean — at that point.
 
 **Alternative considered**: route through `checkGate` and let it return ok-when-skill-is-advisory. Rejected because (a) it inverts the responsibility (the gate should not know about every subcommand's read/write semantics), (b) the dispatch-ordering approach is already in place from v0.2.f's `mmd ship` (also bypassing the gate, since shipping a slice is also non-modifying of the BRANCH it ships, even though it pushes).
 

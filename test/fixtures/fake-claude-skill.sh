@@ -39,18 +39,25 @@ echo "fake-claude-skill: PATH=${PATH}"
 echo "fake-claude-skill: cwd=$(pwd)"
 echo "fake-claude-skill: prompt fingerprint=${PROMPT:0:80}"
 
-# L-013 race-fix scenario: write a final marker then sleep a bit. The wrapper
-# must NOT resolve before the log stream has flushed this final write.
+# L-013 race-fix scenario: write a final marker AND a large blob (≥64KB) to
+# ensure the writable buffer can't drain synchronously. The wrapper must NOT
+# resolve before the log stream has flushed this final write — modern Node
+# flushes fast enough for tiny writes that a broken settle() resolving on
+# 'exit' instead of 'finish' would still appear to pass on the small-marker
+# case (F3 finding from Phase-4 review). The 64KB blob forces actual stream
+# drain work between 'exit' and 'finish', making the race observable.
 if [ -n "${MMD_FAKE_SKILL_DELAY_MS:-}" ]; then
     # busy-write something to keep stdout flowing
     for i in 1 2 3; do
         echo "fake-claude-skill: tick=$i"
     done
     echo "fake-claude-skill: FINAL-MARKER-BEFORE-EXIT"
-    # NOTE: we DO NOT sleep here in this branch — the race we test is that the
-    # exit event fires before the stream finish event. The lib/_common
-    # `settle()` waits for `logStream.once('finish')`, so the FINAL-MARKER must
-    # always be present in the log when the test reads it.
+    # 64KB of 'x's — large enough that the underlying writev() can't complete
+    # synchronously on a fresh tmpfs/disk file. Printed with `dd` because
+    # `printf '%.0sx' {1..N}` is bash-specific and slow.
+    dd if=/dev/zero bs=1024 count=64 2>/dev/null | tr '\0' 'x'
+    echo ""
+    echo "fake-claude-skill: BLOB-END-MARKER"
 fi
 
 echo "fake-claude-skill: SKILL-OK"

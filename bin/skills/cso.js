@@ -21,12 +21,12 @@ import {
   invokeClaudeCso,
   csoLogPath,
   buildCsoEnv,
-  buildCsoArgs,
 } from '../../lib/skills/cso/invoke-claude.js';
 import { formatCsoSummary, formatCsoDryRun } from '../../lib/skills/cso/summary.js';
 import {
   assertSkillInstalled,
   maybeWarnConcurrentClaude,
+  buildSkillArgs,
 } from '../../lib/skills/_common/invoke-claude.js';
 import { resolveSkillPath } from '../../lib/skills/_common/skill-path.js';
 
@@ -95,7 +95,8 @@ export async function runCso(rawArgs) {
 
   const prompt = buildCsoPrompt({ branch, baseBranch, sha, repoRoot: root });
   const command = env.MMD_CSO_CMD || 'claude';
-  const args = buildCsoArgs(prompt);
+  // F10 (Phase-4 review): single source of truth — see bin/skills/qa.js.
+  const args = buildSkillArgs(prompt);
   const csoEnv = buildCsoEnv(env);
 
   if (parsed.dryRun) {

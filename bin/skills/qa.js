@@ -6,7 +6,7 @@
 //
 // Exit codes (per SPEC_V02G AC-2):
 //   0  ok
-//   2  user error (bad flags) — surfaced by parseQaArgs
+//   2  user error (bad flags, suspicious branch name) — surfaced by parseQaArgs / validateQaTarget
 //   3  cwd is not a git repo / HEAD not resolvable
 //   4  spawn failure / gStack qa skill not installed
 //   <code>  subprocess passthrough on a real run
@@ -22,12 +22,12 @@ import {
   invokeClaudeQa,
   qaLogPath,
   buildQaEnv,
-  buildQaArgs,
 } from '../../lib/skills/qa/invoke-claude.js';
 import { formatQaSummary, formatQaDryRun } from '../../lib/skills/qa/summary.js';
 import {
   assertSkillInstalled,
   maybeWarnConcurrentClaude,
+  buildSkillArgs,
 } from '../../lib/skills/_common/invoke-claude.js';
 import { resolveSkillPath } from '../../lib/skills/_common/skill-path.js';
 
@@ -55,7 +55,7 @@ Flags:
 
 Exit codes:
   0  ok
-  2  user/argv error
+  2  user/argv error (incl. suspicious branch characters)
   3  cwd is not a git repo / cannot resolve HEAD
   4  spawn failure / gStack qa skill not installed
 
@@ -96,7 +96,10 @@ export async function runQa(rawArgs) {
 
   const prompt = buildQaPrompt({ branch, baseBranch, sha, repoRoot: root });
   const command = env.MMD_QA_CMD || 'claude';
-  const args = buildQaArgs(prompt);
+  // F10 (Phase-4 review): single source of truth — the _common spawn helper
+  // calls buildSkillArgs internally too, so the dry-run preview must use
+  // the SAME function (not a wrapper-level re-export that could drift).
+  const args = buildSkillArgs(prompt);
   const qaEnv = buildQaEnv(env);
 
   if (parsed.dryRun) {

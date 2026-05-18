@@ -1,9 +1,13 @@
 // @unit tests for SPEC_V02G AC-5 — read-only/advisory commands bypass
-// the discovery gate. The contract is implemented as a module-level
-// `skipDiscoveryGate: true` exported from each validate-input.js. bin/mmd.js
-// achieves structural bypass by dispatching qa/cso/document-release BEFORE
-// checkGate() runs — these tests confirm both the export AND the dispatch
-// ordering.
+// the discovery gate. The contract is purely STRUCTURAL: bin/mmd.js
+// dispatches qa/cso/document-release BEFORE checkGate() runs in main(), so
+// the gate cannot fire for these subcommands.
+//
+// F5 (Phase-4 review): the previous `skipDiscoveryGate: true` exports from
+// each validate-input.js were dead code — never read by bin/mmd.js (which
+// uses string-equality dispatch) or by any other consumer. KISS / YAGNI:
+// removed in v0.2.g. The structural assertion below remains the only
+// AC-5 guarantee.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,26 +16,10 @@ import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { skipDiscoveryGate as qaSkip } from '../../lib/skills/qa/validate-input.js';
-import { skipDiscoveryGate as csoSkip } from '../../lib/skills/cso/validate-input.js';
-import { skipDiscoveryGate as drSkip } from '../../lib/skills/document-release/validate-input.js';
-
 import { buildSubprocessEnv } from '../../lib/invoke-autodev.js';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const MMD = path.join(REPO_ROOT, 'bin', 'mmd.js');
-
-test('@unit AC-5 — qa exports skipDiscoveryGate=true', () => {
-  assert.equal(qaSkip, true);
-});
-
-test('@unit AC-5 — cso exports skipDiscoveryGate=true', () => {
-  assert.equal(csoSkip, true);
-});
-
-test('@unit AC-5 — document-release exports skipDiscoveryGate=true', () => {
-  assert.equal(drSkip, true);
-});
 
 // Structural dispatch test: even when a PENDING discovery report would
 // normally block a `--here` invocation, qa/cso/document-release dispatch

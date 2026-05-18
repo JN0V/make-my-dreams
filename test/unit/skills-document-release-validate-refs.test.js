@@ -15,7 +15,6 @@ import path from 'node:path';
 import {
   validateDocumentReleaseTarget,
   isSuspiciousRef,
-  skipDiscoveryGate,
 } from '../../lib/skills/document-release/validate-input.js';
 
 function makeRepo(prefix = 'mmd-dr-validate-') {
@@ -33,13 +32,9 @@ function makeRepo(prefix = 'mmd-dr-validate-') {
   return { dir, git };
 }
 
-// ─── skipDiscoveryGate constant (AC-5) ───────────────────────────────────
-
-test('@unit AC-5 — skipDiscoveryGate is true for document-release (read-only/advisory)', () => {
-  assert.equal(skipDiscoveryGate, true);
-});
-
 // ─── isSuspiciousRef (pure predicate) ────────────────────────────────────
+// F5 (Phase-4 review) removed the vestigial `skipDiscoveryGate` export —
+// AC-5 gate bypass is purely structural (dispatch order in bin/mmd.js).
 
 test('@unit isSuspiciousRef: empty / non-string → true', () => {
   assert.equal(isSuspiciousRef(''), true);
@@ -64,6 +59,30 @@ test('@unit isSuspiciousRef: normal refs → false', () => {
   assert.equal(isSuspiciousRef('main'), false);
   assert.equal(isSuspiciousRef('feat/foo'), false);
   assert.equal(isSuspiciousRef('deadbeef'), false);
+});
+
+// F8 (Phase-4 review): defense-in-depth — reject shell metacharacters even
+// though we already spawn with shell=false. Guards against a future
+// regression where the spawn config drifts to `shell: true`.
+test('@unit isSuspiciousRef: shell metacharacters → true (F8 defense-in-depth)', () => {
+  for (const evil of [
+    'HEAD;rm -rf /',
+    'HEAD|cat',
+    'HEAD&background',
+    'HEAD$(whoami)',
+    'HEAD`whoami`',
+    'HEAD<file',
+    'HEAD>file',
+    'HEAD\rEOL',
+    'HEAD\nrogue-line',
+    'HEAD\0null',
+  ]) {
+    assert.equal(
+      isSuspiciousRef(evil),
+      true,
+      `expected ${JSON.stringify(evil)} to be suspicious`,
+    );
+  }
 });
 
 // ─── validateDocumentReleaseTarget ───────────────────────────────────────

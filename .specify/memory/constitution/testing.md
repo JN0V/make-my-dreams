@@ -46,7 +46,7 @@ AI-driven TDD produces test corpora that explode in size and runtime (40+ minute
 - A `@unit` test that exceeds 100 ms MUST be re-tagged `@integration` or `@slow`.
 - A `@smoke` test that exceeds 1 s MUST be re-tagged.
 - The test runner exposes `npm test:smoke`, `npm test:unit`, `npm test:integration`, `npm test:e2e`, `npm test:full` (all).
-- Default `npm test` = `unit`.
+- Default `npm test` = unit + integration (matches `npm test:full` since v0.2.g / F4 Phase-4 review). Per-convention `npm test` is what reviewers run; restricting it to unit-only produced misleading green signals.
 - CI fast lane = `npm test:integration`. CI nightly = `npm test:full`.
 
 ### Test impact analysis (preferred when available)

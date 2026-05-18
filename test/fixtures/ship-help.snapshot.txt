@@ -1,0 +1,29 @@
+mmd ship — invoke the gStack 'ship' skill on a slice branch (SPEC_V02F)
+
+Usage:
+  mmd ship [<branch>]
+  mmd ship --dry-run [<branch>]
+  mmd ship --help
+
+Behavior:
+  Reads the gStack ship skill at ~/.claude/skills/gstack/ship/SKILL.md and
+  executes its 20-step workflow on the current (or named) slice branch:
+  merge-base verify, semver bump, CHANGELOG update, WIP squash, push, tag,
+  PR creation, analytics persist. Output is tee'd to .mmd/local/ship-runs/.
+
+Flags:
+  --dry-run    Build the prompt + env and print them; do NOT spawn claude.
+  --help, -h   Print this usage and exit 0.
+
+Exit codes:
+  0  ok
+  2  user/argv error
+  3  cwd is not a git repo / cannot resolve HEAD
+  4  protected branch / spawn failure (claude not on PATH, ...)
+
+Env vars:
+  MMD_SHIP_TIMEOUT_MS    subprocess timeout in ms (default 1800000)
+  MMD_SHIP_CMD           override 'claude' command (testing fixture)
+  MMD_QUIET=1            suppress live tee to stdout (log file preserved)
+
+mmd 0.2.6

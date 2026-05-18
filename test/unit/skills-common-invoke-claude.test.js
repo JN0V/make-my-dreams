@@ -16,7 +16,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, readFileSync, existsSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, existsSync, writeFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -101,6 +101,20 @@ test('@unit skillLogPath: throws on bad args', () => {
   assert.throws(() => skillLogPath('/tmp', ''), TypeError);
 });
 
+test('@unit F15 — skillLogPath: same-instant+same-pid produces DIFFERENT paths (random suffix)', () => {
+  // F15 (Phase-4 review): prior shape was `${ts}-${pid}.log`. Two consecutive
+  // calls with a frozen clock + same pid produced the SAME filename and
+  // `flags: 'a'` would interleave their logs. Now: a random 2-byte hex suffix
+  // makes accidental collision essentially impossible.
+  const frozenNow = () => new Date('2026-05-18T12:34:56.789Z');
+  const p1 = skillLogPath('/tmp/repo', 'qa', frozenNow);
+  const p2 = skillLogPath('/tmp/repo', 'qa', frozenNow);
+  assert.notEqual(p1, p2, 'two same-instant calls must yield different paths');
+  // Sanity: both still match the shape `*-runs/<ts>-<pid>-<hex>.log`.
+  assert.match(p1, /\/qa-runs\/[^/]+-\d+-[0-9a-f]{4}\.log$/);
+  assert.match(p2, /\/qa-runs\/[^/]+-\d+-[0-9a-f]{4}\.log$/);
+});
+
 // ─── assertSkillInstalled ────────────────────────────────────────────────
 
 test('@unit assertSkillInstalled: ok when file exists', () => {
@@ -147,15 +161,21 @@ test('@unit assertSkillInstalled: type-checks its inputs', () => {
 // ─── invokeClaudeSkill (race-fix CRITICAL — L-013) ───────────────────────
 
 test(
-  '@unit invokeClaudeSkill: log stream finish race — FINAL-MARKER is in the log when the promise resolves',
-  { timeout: 10000 },
+  '@unit invokeClaudeSkill: log stream finish race — FINAL-MARKER + 64KB blob fully present when promise resolves (L-013)',
+  { timeout: 15000 },
   async () => {
-    // L-013: the wrapper MUST wait for the writeStream's 'finish' event
+    // L-013 / F3: the wrapper MUST wait for the writeStream's 'finish' event
     // before resolving its promise. If it resolved on the child's 'exit'
     // event alone, a caller that synchronously reads the log right after
-    // `await invokeClaudeSkill(...)` could see a truncated file. The fake
-    // emits a known marker right before exiting; the assertion is that
-    // marker is ALWAYS in the log when the promise resolves.
+    // `await invokeClaudeSkill(...)` could see a truncated file.
+    //
+    // F3 (Phase-4 review): a small FINAL-MARKER alone is not enough — modern
+    // Node flushes tiny writes fast enough that both correct and broken
+    // settle() would appear to pass. The fixture now emits a 64KB blob of
+    // 'x's between FINAL-MARKER and BLOB-END-MARKER; the underlying writev()
+    // cannot complete synchronously for that much data, so a broken settle()
+    // would race and miss the blob tail. We assert ALL THREE markers are
+    // present AND the file is ≥ 64KB.
     const tmp = mkdtempSync(path.join(tmpdir(), 'mmd-race-'));
     try {
       const logPath = path.join(tmp, 'runs', 'race.log');
@@ -166,17 +186,31 @@ test(
         env: buildSkillEnv('qa', { PATH: '/usr/bin:/bin', HOME: '/tmp', MMD_FAKE_SKILL_DELAY_MS: '50' }),
         cwd: tmp,
         logPath,
-        timeoutMs: 5000,
+        timeoutMs: 10000,
         quiet: true,
         heartbeatIntervalMs: 0,
       });
       assert.equal(result.code, 0);
       assert.ok(existsSync(logPath), 'log file must exist after resolve');
+      const stat = statSync(logPath);
+      // 64KB blob + markers + prompt fingerprint + PATH echo. Floor at 64KB
+      // proves the blob's tail was flushed before the promise resolved.
+      assert.ok(
+        stat.size >= 65_536,
+        `race-fix broken: log file size ${stat.size} < 64KB; broken settle() ` +
+        `resolved before stream finish event flushed the blob tail.`,
+      );
       const log = readFileSync(logPath, 'utf8');
       assert.match(
         log,
         /FINAL-MARKER-BEFORE-EXIT/,
-        `race-fix broken: FINAL-MARKER not in log when promise resolved.\nlog content:\n${log}`,
+        `race-fix broken: FINAL-MARKER not in log when promise resolved.`,
+      );
+      assert.match(
+        log,
+        /BLOB-END-MARKER/,
+        `race-fix broken: BLOB-END-MARKER (post-64KB) missing — settle() ` +
+        `did not wait for stream finish.`,
       );
       assert.match(log, /SKILL-OK/, 'final SKILL-OK marker must also be flushed');
     } finally {

@@ -6,7 +6,7 @@
   "bin": { "mmd": "./bin/mmd" },
   "engines": { "node": ">=20.0.0" },
   "scripts": {
-    "test": "node --test --test-reporter=spec --test-name-pattern=@unit test/unit/*.test.js",
+    "test": "node --test --test-reporter=spec test/unit/*.test.js test/integration/*.test.js",
     "test:unit": "node --test --test-reporter=spec test/unit/*.test.js",
     "test:integration": "node --test --test-reporter=spec test/integration/*.test.js",
     "test:smoke": "node --test --test-reporter=spec --test-name-pattern=@smoke test/integration/*.test.js",

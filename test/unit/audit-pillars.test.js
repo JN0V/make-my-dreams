@@ -281,6 +281,43 @@ test('@unit audit-pillars: v2 — gStack pillar advertises all four v0.2.g-wrapp
   }
 });
 
+test('@unit @integration F6 — audit-pillars v2 renders per-skill names in NOTES for gStack', () => {
+  // F6 (Phase-4 review): v2 added `skills[]` metadata on the gStack pillar,
+  // but the original implementation parsed and DISCARDED it — the Notes
+  // column still listed pattern strings. The fix: when v2 + skills[] is
+  // present, Notes lists per-skill names with their match counts.
+  const repo = makeTmpRepo();
+  try {
+    installScript(repo);
+    gitInRepo(repo, ['checkout', '-q', '-b', 'slice/test-skills-notes']);
+    // Seed commits that mention every v0.2.g-wrapped skill name.
+    writeFileSync(path.join(repo, 'a.md'), 'we ran mmd ship\n');
+    gitInRepo(repo, ['add', 'a.md']);
+    gitInRepo(repo, ['commit', '-q', '-m', 'feat: mmd ship test']);
+    writeFileSync(path.join(repo, 'b.md'), 'we ran mmd qa\n');
+    gitInRepo(repo, ['add', 'b.md']);
+    gitInRepo(repo, ['commit', '-q', '-m', 'feat: mmd qa test']);
+    writeFileSync(path.join(repo, 'c.md'), 'we ran mmd cso\n');
+    gitInRepo(repo, ['add', 'c.md']);
+    gitInRepo(repo, ['commit', '-q', '-m', 'feat: mmd cso test']);
+    writeFileSync(path.join(repo, 'd.md'), 'we ran mmd document-release\n');
+    gitInRepo(repo, ['add', 'd.md']);
+    gitInRepo(repo, ['commit', '-q', '-m', 'feat: mmd document-release test']);
+
+    const r = runScript(repo);
+    assert.equal(r.status, 0, `stderr=${r.stderr}\nstdout=${r.stdout}`);
+    // Each v0.2.g-wrapped skill name should appear in the gStack Notes column.
+    for (const skill of ['ship', 'qa', 'cso', 'document-release']) {
+      assert.ok(
+        r.stdout.includes(`${skill} (`),
+        `expected '${skill} (<count>)' in gStack Notes; got:\n${r.stdout}`,
+      );
+    }
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test('@unit audit-pillars: range syntax <base>..<head> is honored', () => {
   const repo = makeTmpRepo();
   try {

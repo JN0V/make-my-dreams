@@ -25,7 +25,6 @@ import {
   invokeClaudeDocumentRelease,
   documentReleasePaths,
   buildDocumentReleaseEnv,
-  buildDocumentReleaseArgs,
 } from '../../lib/skills/document-release/invoke-claude.js';
 import {
   formatDocumentReleaseSummary,
@@ -34,6 +33,7 @@ import {
 import {
   assertSkillInstalled,
   maybeWarnConcurrentClaude,
+  buildSkillArgs,
 } from '../../lib/skills/_common/invoke-claude.js';
 import { resolveSkillPath } from '../../lib/skills/_common/skill-path.js';
 
@@ -115,7 +115,8 @@ export async function runDocumentRelease(rawArgs) {
     outputPath,
   });
   const command = env.MMD_DOCUMENT_RELEASE_CMD || 'claude';
-  const args = buildDocumentReleaseArgs(prompt);
+  // F10 (Phase-4 review): single source of truth — see bin/skills/qa.js.
+  const args = buildSkillArgs(prompt);
   const drEnv = buildDocumentReleaseEnv(env);
 
   if (parsed.dryRun) {

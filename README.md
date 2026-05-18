@@ -154,6 +154,33 @@ mmd bench --help
 
 **Why these 5 dreams, why sequential, why no $-cost metric?** See [ADR-006](./docs/adr/006-dream-bench-v0-design.md).
 
+### Discover mode (`mmd discover`) — *new in v0.2c*
+
+`mmd discover [<path>]` is the Project Onboarder: it scans an existing target repo, ingests Spec Kit / BMAD / OpenSpec artifacts into `.mmd/shared/`, infers conventions deterministically, and writes `mmd-discovery-report.md` at the target root for human validation. Until the report is approved, `mmd --here` and `mmd <dream>` refuse to run on the same target (exit 5) — the **v0.2c validation gate** that catches "auto-dev hallucinates a stack" failures at the cheapest possible moment.
+
+```bash
+cd /your/project
+mmd discover .                # SCAN → INGEST → INFER → REPORT (exit 0)
+# review mmd-discovery-report.md
+mmd discover --approve .      # flip Status: → VALIDATED
+mmd --here "small change"     # now allowed
+```
+
+Flags: `--approve` (mark VALIDATED), `--refresh` (re-run from scratch), `--infer-with-claude` (LLM augmentation — stub in v0.2c), `--no-report-update` (scan only), `--force-non-git`, `--skip-onboarding` (top-level bypass — not recommended). Exit codes: `0` ok / `2` user error / `3` path missing / `4` not a git repo / `5` gate fired.
+
+Non-intrusion guarantee: writes ONLY in `<target>/.mmd/`, `<target>/docs/` (NEW files), and `<target>/mmd-discovery-report.md`. Every write goes through `assertSafeWritePath` (path-traversal + symlink defenses). See [SPEC_V02C.md](./SPEC_V02C.md) for the 8 ACs and [ADR-008](./docs/adr/008-project-onboarder-walking-skeleton.md) for the design rationale.
+
+### Brownfield install + onboarding
+
+```bash
+cd /your/project
+bash ~/Documents/make-my-dreams/install-mmd.sh .
+mmd discover .
+# review mmd-discovery-report.md
+mmd discover --approve .
+mmd --here "your first small change"
+```
+
 ### Ship mode (`mmd ship`) — *new in v0.2.f*
 
 `mmd ship` invokes the gStack [`ship`](https://github.com/garrytan/gstack) skill on the current slice branch via `claude -p`. It replaces the manual `git merge --ff-only && git tag && git push --tags && git push --tags` chain that has been used for v0.1.0 → v0.2.2 releases with a richer workflow: merge-base verify, semver bump from diff, CHANGELOG update, squash WIP commits, push, PR creation, analytics persist.
@@ -237,6 +264,8 @@ Stop with `Ctrl+C`. The server prints `À bientôt ! / Bye!` and exits cleanly.
 This repo started as `extend-bmad` — a customization of BMAD that combined quick-dev, party mode, adversarial review loops and Spec Kit-style constitution injection (see `install-mmd.sh`, formerly `install-auto-dev.sh`). After comparative usage of Spec Kit, OpenSpec, BMAD and gStack, the scoping evolved into Make My Dreams: an accessibility and orchestration layer that sits on top of these frameworks rather than replacing them. The full design rationale is in [MAKE_MY_DREAMS.md](./MAKE_MY_DREAMS.md), with 14 versioned iterations documenting how every decision was reached.
 
 **v0.2a (2026-05-17)** delivered the reflexive bootstrap [§7](./MAKE_MY_DREAMS.md) in practice via the `--here` mode flag: the same `mmd` CLI now works on greenfield (creates `demo/<slug>/`) and on any existing git repo in place (creates a slice branch and modifies cwd). This closes the gap surfaced by [L-009](./docs/lessons-learned.md) — that the walking-skeleton wrapper was silently capping the design's "MMD must work on any project, including itself" intent. See [SPEC_V02A.md](./SPEC_V02A.md) for the 7 ACs and [ADR-005](./docs/adr/005-here-mode-explicit-flag-not-auto-detect.md) for why `--here` is a named flag rather than auto-detected.
+
+**v0.2c (2026-05-17)** delivered the Project Onboarder walking skeleton: a `mmd discover [<path>]` subcommand that scans/ingests/infers/reports against any existing repo and produces `mmd-discovery-report.md` for human validation. A new constitution-enforced gate blocks `mmd --here` and `mmd <dream>` on brownfield targets until the report is `--approve`d (bypassable via `--skip-onboarding` for conscious overrides). This is the operational closure of the L-009 pattern in the brownfield dimension: auto-dev no longer runs blind. See [SPEC_V02C.md](./SPEC_V02C.md), [ADR-008](./docs/adr/008-project-onboarder-walking-skeleton.md), and the L-015 capture in [`docs/lessons-learned.md`](./docs/lessons-learned.md) (fourth reflexive use of `mmd --here`).
 
 **v0.2.f (2026-05-17)** turned gStack from a documentation claim into a runtime reality. Three coordinated changes: (1) `install-mmd.sh` installs + functionally verifies `bun` and gStack (responds to `--version` / `gstack-config`, not just file presence); (2) `mmd ship [<branch>] [--dry-run]` invokes the gStack `ship` skill via `claude -p` with PATH forced to include `~/.bun/bin` — the first MMD subcommand that actually calls a non-BMAD pillar; (3) `scripts/audit-pillars.sh` reports `INVOKED (count)` / `NOT INVOKED` per pillar against the slice range and runs automatically inside every `mmd ship`. This is the operational closure of [L-012](./docs/lessons-learned.md) (gStack named as a pillar but never invoked across 11 slices). See [SPEC_V02F.md](./SPEC_V02F.md) for the 8 ACs and [ADR-007](./docs/adr/007-gstack-effective-via-ship-subcommand.md) for the design rationale.
 

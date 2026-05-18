@@ -163,6 +163,31 @@ test('@unit composeLessons: live file — "git checkout to switch branches" matc
     `expected L-003 in injected; got ${r.injectedLessons.map((l) => l.id).join(',')}`);
 });
 
+test('@unit composeLessons: live file — realistic dream strings yield non-zero matches', async () => {
+  // F14 (Phase-4 review): canary that the live keyword vocabulary stays
+  // in touch with realistic dream phrasings. If this test goes 0-for-N it
+  // signals lesson keywords have drifted from how humans actually type
+  // (the silent-miss failure mode named in ADR-010's "Negative" section).
+  const realisticDreams = [
+    'launch auto-dev in the background with nohup',
+    'tail -f the claude -p log to monitor progress',
+    'careful with git branch -d after a partial merge',
+    'rerun this test against the version in package.json',
+    'check pgrep for previous claude -p before launching',
+  ];
+  let totalMatches = 0;
+  for (const dream of realisticDreams) {
+    const r = await composeLessons(dream, LIVE);
+    totalMatches += r.injectedLessons.length;
+  }
+  // Even one match across N prompts means the canary is alive — zero means
+  // the live file has drifted past the test fixture's keyword recognition.
+  assert.ok(
+    totalMatches >= realisticDreams.length / 2,
+    `realistic-dream canary: only ${totalMatches} matches across ${realisticDreams.length} prompts — keyword vocabulary may have drifted`,
+  );
+});
+
 test('@unit composeLessons: throws TypeError on non-string prompt', async () => {
   await assert.rejects(() => composeLessons(null, FIX_MIN), TypeError);
 });

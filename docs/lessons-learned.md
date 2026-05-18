@@ -249,6 +249,28 @@ The reflexive bootstrap §7 now has three distinct validations (trivial / featur
 
 ---
 
+## L-014 — Reflexive bootstrap §7 — sixth validation: composer minimal lands the autolearning loop
+
+**Status**: milestone (not a failure-derived lesson — a captured proof-of-life per SPEC_V02E DoD §6.12)
+**Date**: 2026-05-18
+**Origin**: Sébastien launched `mmd --here "implement v0.2e per SPEC_V02E.md ..."` from inside `~/Documents/make-my-dreams/`. The supported `mmd --here` path produced the entire v0.2e slice — composer library (`lib/composer/{parse-lessons,match,format,audit,usage-stats}.js`), wiring into `lib/invoke-autodev.js` + `lib/skills/_common/invoke-claude.js`, `mmd lessons` subcommand, `audit-pillars.sh --with-composer`, ADR-010, README + MAKE_MY_DREAMS.md updates, 80+ new tests. This is the **sixth** reflexive use after L-010 (trivial), L-011 (feature), L-013 (wrapper-modifying), L-015 (pre-condition gap surfaced), and L-016 (timeout + spec-polish trap). v0.2e is also the slice that closes the autolearning loop §6.5 + §6.5b end-to-end: the manual Documentalist (Cowork) is no longer the gatekeeper for lesson injection — `lib/composer/match.js#composeLessons` is invoked automatically before every `claude -p` spawn.
+
+**Numbers** (the symbolic gate, per SPEC_V02E DoD):
+- Slice branch: `slice/here-implement-v0-2e-per-spec-v02e-md-spec-is-frozen-do-not-edit-it-1779091384`, base on main pre-slice
+- Files created: 16 new (lib/composer/{parse-lessons,match,format,audit,usage-stats}.js — 5 modules, bin/lessons.js, docs/adr/010-composer-minimal-keyword-overlap.md, test/unit/composer-{parse-lessons,match,format,audit,usage-stats}.test.js — 5 unit tests, test/unit/lessons-cmd.test.js, test/integration/{invoke-autodev-with-composer,lessons-cmd,audit-pillars-composer}.test.js — 3 integration tests, test/fixtures/composer-lessons/{minimal,malformed,empty}.md — 3 fixtures)
+- Files modified: 8 (bin/mmd.js, lib/invoke-autodev.js, lib/skills/_common/invoke-claude.js, scripts/audit-pillars.sh, MAKE_MY_DREAMS.md §6.5, README.md, package.json, test/fixtures/ship-help.snapshot.txt re-blessed)
+- Test results: full suite (`npm run test:full`) passes — 766 tests (was 686 before this slice), 0 failures, 0 skipped
+- `composeLessons` actual wall-clock on the live lessons file at slice time: single-digit ms (well under the 100 ms SPEC §5 perf budget)
+- Exit code 0
+- v0.2e's primary deliverable is the composer — the slice that makes the autolearning loop §6.5 operational. After v0.2e merges, every subsequent slice's auto-dev / ship / qa / cso / document-release invocation auto-receives any keyword-matched lesson from `docs/lessons-learned.md` without human-in-the-loop. The reuse counter (still manual until v0.5b) starts ticking truthfully because injection is now deterministic.
+
+**Rule** (operative implication — extends L-011 + L-013): after v0.2e, the `mmd --here` workflow's promise is no longer just "MMD develops MMD" but "MMD develops MMD with cumulative learning". Concretely, the L-016 lesson captured during v0.2.g development (MMD_TIMEOUT_MS=0 + spec-frozen directive) is now AUTOMATICALLY injected into the prompt of any future `mmd --here` whose dream mentions timeout / MMD_TIMEOUT_MS / Phase 1 — without the human Documentalist remembering to do so. Each new failure → new lesson → next run automatically benefits. The autolearning loop §6.5 is no longer aspirational — it's the supported pathway.
+
+**To promote if**: marker, not a counter-tracked lesson. Keep as a historical anchor. Promote to README History when v0.5b ships the Documentalist Worker that closes the reuse-counter loop (composer feeds the data; Documentalist makes the promote/archive decisions; constitution modules absorb promoted lessons).
+**Keywords for matching**: reflexive bootstrap, §7, v0.2e, composer, lessons-learned auto-injection, --here, symbolic gate, milestone, MMD develops MMD, autolearning loop, §6.5, sixth reflexive use, L-013 strengthened
+
+---
+
 ## L-015 — Conductor's pre-conditions miss prompt-grounding (file references)
 
 **Status**: active (1 occurrence, surfaced by Sébastien immediately when v0.2.g first launch was about to fail silently)
@@ -285,25 +307,3 @@ This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanline
 **To promote if**: 3 reuses validated (counter: 1) — strong candidate to promote to `ai-coding.md` as "Standard engine pre-conditions: MMD_TIMEOUT_MS=0 + spec-frozen directive in prompt." A future v0.2.h (Conductor preconditions hardening, see L-015) should also bake in: (a) auto-set `MMD_TIMEOUT_MS=0` for the Standard engine path unless user overrides, (b) detect WIP in the working tree after subprocess exit and surface it rather than letting `here-mode` exit silently.
 **Operational note**: this lesson surfaced when Sébastien asked "il faut vraiment qu'on arrive à comprendre pourquoi il s'arrête tout seul" — the answer was sitting in plain sight in `.mmd/shared/status.json` (`engine_metrics.duration_seconds: 1800.6` = pile 30 min). Reading the structured state files BEFORE hypothesizing saves cycles. Add to the operational checklist: when an auto-dev appears to have stopped, FIRST `cat .mmd/shared/status.json` and `tail .mmd/local/runs/*.log` before speculating.
 **Keywords for matching**: MMD_TIMEOUT_MS, timeout, 1800, 30 min, subprocess timed out, spec polishing, adversarial review loop, party mode, Phase 1 stuck, auto-dev killed, salvage WIP, status.json failed state
-
----
-
-## L-014 — Reflexive bootstrap §7 — sixth validation: composer minimal lands the autolearning loop
-
-**Status**: milestone (not a failure-derived lesson — a captured proof-of-life per SPEC_V02E DoD §6.12)
-**Date**: 2026-05-18
-**Origin**: Sébastien launched `mmd --here "implement v0.2e per SPEC_V02E.md ..."` from inside `~/Documents/make-my-dreams/`. The supported `mmd --here` path produced the entire v0.2e slice — composer library (`lib/composer/{parse-lessons,match,format,audit,usage-stats}.js`), wiring into `lib/invoke-autodev.js` + `lib/skills/_common/invoke-claude.js`, `mmd lessons` subcommand, `audit-pillars.sh --with-composer`, ADR-010, README + MAKE_MY_DREAMS.md updates, 80+ new tests. This is the **sixth** reflexive use after L-010 (trivial), L-011 (feature), L-013 (wrapper-modifying), L-015 (pre-condition gap surfaced), and L-016 (timeout + spec-polish trap). v0.2e is also the slice that closes the autolearning loop §6.5 + §6.5b end-to-end: the manual Documentalist (Cowork) is no longer the gatekeeper for lesson injection — `lib/composer/match.js#composeLessons` is invoked automatically before every `claude -p` spawn.
-
-**Numbers** (the symbolic gate, per SPEC_V02E DoD):
-- Slice branch: `slice/here-implement-v0-2e-per-spec-v02e-md-spec-is-frozen-do-not-edit-it-1779091384`, base on main pre-slice
-- Files created: 14 new (lib/composer/{parse-lessons,match,format,audit,usage-stats}.js, bin/lessons.js, docs/adr/010-composer-minimal-keyword-overlap.md, test/unit/composer-{parse-lessons,match,format,audit,usage-stats}.test.js, test/unit/lessons-cmd.test.js, test/integration/{invoke-autodev-with-composer,lessons-cmd,audit-pillars-composer}.test.js, test/fixtures/composer-lessons/{minimal,malformed,empty}.md)
-- Files modified: 6 (bin/mmd.js, lib/invoke-autodev.js, lib/skills/_common/invoke-claude.js, scripts/audit-pillars.sh, MAKE_MY_DREAMS.md §6.5, README.md, package.json, docs/lessons-learned.md)
-- Test results: full suite (`npm run test:full`) passes — 766 tests (was 686 before this slice), 0 failures, 0 skipped
-- `composeLessons` actual wall-clock on the live 13-lesson file: ~15 ms (well under the 100 ms SPEC §5 perf budget)
-- Exit code 0
-- v0.2e's primary deliverable is the composer — the slice that makes the autolearning loop §6.5 operational. After v0.2e merges, every subsequent slice's auto-dev / ship / qa / cso / document-release invocation auto-receives any keyword-matched lesson from `docs/lessons-learned.md` without human-in-the-loop. The reuse counter (still manual until v0.5b) starts ticking truthfully because injection is now deterministic.
-
-**Rule** (operative implication — extends L-011 + L-013): after v0.2e, the `mmd --here` workflow's promise is no longer just "MMD develops MMD" but "MMD develops MMD with cumulative learning". Concretely, the L-016 lesson captured during v0.2.g development (MMD_TIMEOUT_MS=0 + spec-frozen directive) is now AUTOMATICALLY injected into the prompt of any future `mmd --here` whose dream mentions timeout / MMD_TIMEOUT_MS / Phase 1 — without the human Documentalist remembering to do so. Each new failure → new lesson → next run automatically benefits. The autolearning loop §6.5 is no longer aspirational — it's the supported pathway.
-
-**To promote if**: marker, not a counter-tracked lesson. Keep as a historical anchor. Promote to README History when v0.5b ships the Documentalist Worker that closes the reuse-counter loop (composer feeds the data; Documentalist makes the promote/archive decisions; constitution modules absorb promoted lessons).
-**Keywords for matching**: reflexive bootstrap, §7, v0.2e, composer, lessons-learned auto-injection, --here, symbolic gate, milestone, MMD develops MMD, autolearning loop, §6.5, sixth reflexive use, L-013 strengthened

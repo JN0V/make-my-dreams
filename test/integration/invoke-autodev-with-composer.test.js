@@ -101,6 +101,12 @@ test('@integration AC-4: missing lessons file is a no-op (brownfield-safe)', asy
 
 test('@integration AC-4: MMD_COMPOSER_DISABLED=1 short-circuits', async () => {
   const tmp = makeTmp();
+  // F16 (Phase-4 review): we still mutate process.env for MMD_AUTODEV_CMD
+  // because invokeAutodev reads it directly (legacy API), but we DELIBERATELY
+  // set MMD_COMPOSER_DISABLED via the same env var since invokeAutodev
+  // does not yet expose an explicit env-injection seam. The finally block
+  // restores both. (A future refactor could thread env through invokeAutodev
+  // as an option — out of scope for v0.2e.)
   try {
     // Seed lessons that WOULD match — but env disables composer.
     const lessonsPath = path.join(tmp, 'docs', 'lessons-learned.md');

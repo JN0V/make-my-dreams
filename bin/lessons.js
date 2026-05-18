@@ -145,7 +145,21 @@ export async function runLessons(rawArgs) {
     return 3;
   }
 
-  const markdown = readFileSync(lessonsPath, 'utf8');
+  // F1 (Phase-4 review): existsSync says yes, but the path could be a
+  // directory (EISDIR), unreadable (EACCES), or hit an I/O error (EIO).
+  // Map every "I cannot read this file" failure to exit 3 with a friendly
+  // message instead of letting the stack escape to bin/mmd.js's exit-99
+  // catch (per error-handling.md §III graceful degradation).
+  let markdown;
+  try {
+    markdown = readFileSync(lessonsPath, 'utf8');
+  } catch (err) {
+    if (err && (err.code === 'EISDIR' || err.code === 'EACCES' || err.code === 'EIO' || err.code === 'ENOENT')) {
+      stderr.write(`error: cannot read lessons file: ${lessonsPath} (${err.code})\n`);
+      return 3;
+    }
+    throw err;
+  }
   const warnings = [];
   const allLessons = parseLessons(markdown, { onWarn: (m) => warnings.push(m) });
   const active = allLessons.filter((l) => l.status === 'active');
@@ -190,7 +204,11 @@ function formatList(activeLessons, stats, lessonsPath) {
   for (const lesson of activeLessons) {
     const kw = String(lesson.keywords.length).padStart(2, ' ');
     const inj = String(stats.perLessonCount[lesson.id] || 0).padStart(3, ' ');
-    const title = lesson.title.length > 60 ? lesson.title.slice(0, 57) + '...' : lesson.title;
+    // F15 (Phase-4 review): titles may contain `|` (e.g. lesson titles with
+    // alternation), which would corrupt the table layout. Replace with `/`
+    // for display only — the underlying lesson object keeps the real title.
+    const safeTitle = lesson.title.replace(/\|/g, '/');
+    const title = safeTitle.length > 60 ? safeTitle.slice(0, 57) + '...' : safeTitle;
     lines.push(`${lesson.id} | ${kw} | ${inj} | ${title}`);
   }
   lines.push('');
@@ -229,9 +247,10 @@ function formatMatchList(prompt, matched, totalActive) {
   lines.push(`ID      | SCORE | HITS                                              | TITLE`);
   lines.push(`--------+-------+---------------------------------------------------+--------------------------------`);
   for (const lesson of matched) {
-    const hits = lesson.keywords_hit.join(', ');
+    const hits = lesson.keywords_hit.map((k) => k.replace(/\|/g, '/')).join(', ');
     const hitsTrunc = hits.length > 50 ? hits.slice(0, 47) + '...' : hits;
-    const title = lesson.title.length > 40 ? lesson.title.slice(0, 37) + '...' : lesson.title;
+    const safeTitle = lesson.title.replace(/\|/g, '/');
+    const title = safeTitle.length > 40 ? safeTitle.slice(0, 37) + '...' : safeTitle;
     lines.push(`${lesson.id} | ${String(lesson.score).padStart(5, ' ')} | ${hitsTrunc.padEnd(50, ' ')}| ${title}`);
   }
   lines.push('');

@@ -221,6 +221,53 @@ mmd ship --help                # full usage
 
 See [ADR-007](./docs/adr/007-gstack-effective-via-ship-subcommand.md) for the design rationale (why a wrapper rather than direct claude invocation, why install functional rather than file-presence, why `audit-pillars.sh` is advisory not gating).
 
+### Other gStack skill wrappers — *new in v0.2.g*
+
+Three more gStack-skill wrappers, all modelled on `mmd ship`. Same architecture (thin CLI coordinator → `claude -p` with `PATH=$HOME/.bun/bin:$PATH` forced → tees to `.mmd/local/<skill>-runs/<ts>.log`). All three are **read-only / advisory** — they never commit, never push, never create tags. They bypass the v0.2c Project Onboarder validation gate so a fresh brownfield can run `mmd cso` to learn about itself.
+
+#### QA mode (`mmd qa`)
+
+`mmd qa [<branch>] [--dry-run]` invokes the gStack [`qa`](https://github.com/garrytan/gstack) skill on the current (or named) branch: test stratification `@smoke`/`@unit`/`@integration`/`@e2e`, adversarial test pass, failure classification T1..T4 (in-branch new / pre-existing flake / infra / obsolete-deleted-spec). Output is tee'd to `.mmd/local/qa-runs/<timestamp>.log`. Expected wall-clock: 5-20 minutes.
+
+```bash
+mmd qa                       # qa the current branch
+mmd qa slice/feat-foo        # qa a specific branch
+mmd qa --dry-run             # build prompt + env, print plan
+mmd qa --help                # full usage
+```
+
+Unlike `mmd ship`, `mmd qa` does NOT enforce the slice/feat/fix/... branch-prefix list — qa is advisory and may run on `main` too.
+
+Env vars: `MMD_QA_TIMEOUT_MS` · `MMD_QA_CMD` · `MMD_GSTACK_SKILLS_DIR` · `MMD_QUIET=1`.
+
+#### CSO mode (`mmd cso`)
+
+`mmd cso [<branch>] [--dry-run]` invokes the gStack [`cso`](https://github.com/garrytan/gstack) (Chief Security Officer) skill on the current (or named) branch: secret scanning, dependency audit (incl. slopsquatting risk), lethal-trifecta check, sandbox / `settings.json` configuration validation — the Bundle A security audit per `.specify/memory/constitution/security.md`.
+
+```bash
+mmd cso                      # security review of the current branch
+mmd cso slice/feat-foo       # security review of a specific branch
+mmd cso --dry-run            # build prompt + env, print plan
+mmd cso --help               # full usage
+```
+
+Env vars: `MMD_CSO_TIMEOUT_MS` · `MMD_CSO_CMD` · `MMD_GSTACK_SKILLS_DIR` · `MMD_QUIET=1`.
+
+#### Release notes (`mmd document-release`)
+
+`mmd document-release [<from>] [<to>] [--dry-run]` invokes the gStack [`document-release`](https://github.com/garrytan/gstack) skill to auto-generate a release-notes draft from a commit range. Defaults: `<from> = git describe --tags --abbrev=0` (last tag), `<to> = HEAD`. The draft is written to `.mmd/local/document-release-runs/<timestamp>.md` — a markdown file the user reviews and edits before publishing. Inputs the skill consults: `git log`, ADRs in `docs/adr/`, and the diff of `docs/lessons-learned.md`.
+
+```bash
+mmd document-release                       # range = last-tag..HEAD
+mmd document-release v0.2.4 v0.2.6         # explicit refs
+mmd document-release --dry-run             # build prompt + env, print plan
+mmd document-release --help                # full usage
+```
+
+Exit codes for all three: same shape as `mmd ship` — `0` ok / `2` user/argv error / `3` not a git repo / `4` spawn failure or (for `document-release`) invalid refs / `<code>` subprocess passthrough.
+
+**Why these subcommands rather than folding the skills inside `auto-dev`?** Standalone CLI subcommands teach the user where each skill lives, can be composed with shell `&&`, and stay independently auditable in `audit-pillars.sh`. Folding inside `auto-dev` is the "Heavy option" from L-012 — deferred to v0.5+ once the Conductor design is mature. See [ADR-009](./docs/adr/009-medium-gstack-integration-pattern.md) for the full rationale.
+
 ### Web mode (no terminal — for non-technical users)  — *new in v0.2.5*
 
 ```bash
@@ -268,6 +315,8 @@ This repo started as `extend-bmad` — a customization of BMAD that combined qui
 **v0.2c (2026-05-17)** delivered the Project Onboarder walking skeleton: a `mmd discover [<path>]` subcommand that scans/ingests/infers/reports against any existing repo and produces `mmd-discovery-report.md` for human validation. A new constitution-enforced gate blocks `mmd --here` and `mmd <dream>` on brownfield targets until the report is `--approve`d (bypassable via `--skip-onboarding` for conscious overrides). This is the operational closure of the L-009 pattern in the brownfield dimension: auto-dev no longer runs blind. See [SPEC_V02C.md](./SPEC_V02C.md), [ADR-008](./docs/adr/008-project-onboarder-walking-skeleton.md), and the L-015 capture in [`docs/lessons-learned.md`](./docs/lessons-learned.md) (fourth reflexive use of `mmd --here`).
 
 **v0.2.f (2026-05-17)** turned gStack from a documentation claim into a runtime reality. Three coordinated changes: (1) `install-mmd.sh` installs + functionally verifies `bun` and gStack (responds to `--version` / `gstack-config`, not just file presence); (2) `mmd ship [<branch>] [--dry-run]` invokes the gStack `ship` skill via `claude -p` with PATH forced to include `~/.bun/bin` — the first MMD subcommand that actually calls a non-BMAD pillar; (3) `scripts/audit-pillars.sh` reports `INVOKED (count)` / `NOT INVOKED` per pillar against the slice range and runs automatically inside every `mmd ship`. This is the operational closure of [L-012](./docs/lessons-learned.md) (gStack named as a pillar but never invoked across 11 slices). See [SPEC_V02F.md](./SPEC_V02F.md) for the 8 ACs and [ADR-007](./docs/adr/007-gstack-effective-via-ship-subcommand.md) for the design rationale.
+
+**v0.2.g (2026-05-18)** delivered the Medium gStack walking skeleton: three more skill wrappers (`mmd qa`, `mmd cso`, `mmd document-release`) sharing a reusable `lib/skills/<name>/*` pattern extracted from v0.2.f's `lib/ship/*`. The shared `lib/skills/_common/invoke-claude.js` carries the PATH-forcing, race-safe log-stream finish (the v0.2.f L-013 fix preserved), heartbeat, and ENOENT-mapping for every current and future skill wrapper. After v0.2.g, adding the next gStack skill (e.g. `/context-save`, `/freeze`) is genuinely a 1-hour exercise rather than a 1-week design problem. `audit-pillars.sh` now reports gStack invocations across 4 distinct skill names (ship + qa + cso + document-release), taking the L-012 gap from "1 of 41 skills used" to "4 of 41". See [SPEC_V02G.md](./SPEC_V02G.md) for the 7 ACs and [ADR-009](./docs/adr/009-medium-gstack-integration-pattern.md) for the design rationale (why extract the shared layer after only one skill, why the new commands bypass the discovery gate, why we did NOT fold the skills inside `auto-dev`'s pipeline — Heavy is still v0.5+).
 
 The folder will be renamed `make-my-dreams/` after v0.1 is validated. The repo itself can be renamed at any time on the git host.
 

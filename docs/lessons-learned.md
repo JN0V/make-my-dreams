@@ -246,3 +246,20 @@ The reflexive bootstrap §7 now has three distinct validations (trivial / featur
 
 **To promote if**: marker, not a counter-tracked lesson. Keep as a historical anchor. Promote to README History when v0.3 ships and the full reflexive loop (slice → ship → release-notes → tag → next slice) is demonstrated end-to-end with `mmd ship` at the helm.
 **Keywords for matching**: reflexive bootstrap, §7, v0.2.f, mmd ship, gStack effective, --here, symbolic gate, milestone, MMD develops MMD, L-011 strengthened, wrapper-modifying slice, L-010 carve-out #1
+
+---
+
+## L-015 — Conductor's pre-conditions miss prompt-grounding (file references)
+
+**Status**: active (1 occurrence, surfaced by Sébastien immediately when v0.2.g first launch was about to fail silently)
+**Date**: 2026-05-18
+**Origin**: Launching v0.2.g via `mmd --here "implement v0.2.g per SPEC_V02G.md (authoritative): ..."` the prompt referenced `SPEC_V02G.md` as authoritative. I had drafted that spec in a side worktree on branch `docs/spec-v02g` and **assumed** my `git merge --ff-only origin/docs/spec-v02g` into main had landed it. In reality, `docs/spec-v02g` had been forked from `main@ffc6b3a` (pre-v0.2c), while current main was at `fc0962c` (post-v0.2c). The spec branch was BEHIND main, so `--ff-only` did nothing ("Already up to date") — and `SPEC_V02G.md` never reached main. Auto-dev would have spent 30-90 min reading a non-existent file via the dream prompt, producing nonsense. Sébastien caught it by asking "le Conductor aurait-il vu ce que tu as vu ?" — answer: **no, it would not have**, because `lib/here-mode.js` (today's closest thing to a Conductor) does `validateGitRepo → validateCleanTree → createSliceBranch → buildPrompt → spawn`, with zero introspection of prompt content.
+**The pattern**: third occurrence of the L-009 design-vs-implementation drift. The scoping §4 describes the Conductor as "stateless orchestrator that verifies pre-conditions". Today's pre-conditions are domain-general (git state) but not domain-specific (does the file the prompt cites actually exist?). The gap was never named until it bit.
+**Rule**: any pre-launch validation must include **prompt-grounding** checks. Concretely, before `spawn` in `lib/here-mode.js` / `lib/invoke-autodev.js`:
+  1. Parse the dream/prompt body with a regex extracting referenced file paths: `\bSPEC_[A-Z0-9_]+\.md\b`, `\bdocs/[a-z0-9/\-_]+\.md\b`, `\b\.specify/[a-z0-9/\-_]+\.md\b`, etc.
+  2. For each extracted path, verify it exists on the slice's base SHA: `git show <base_sha>:<path>` must succeed.
+  3. If any cited file is missing, exit non-zero (proposed exit code 6 — "prompt-grounding failed") with the list of missing files. The user must either fix the prompt or land the missing files on the base first.
+This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanliness check was insufficient. Implementation is a slice of its own (~v0.2.h, see Future tasks) because it touches `here-mode.js` core paths and needs careful test coverage to not break existing flows.
+**To promote if**: 3 reuses validated (counter: 1) — once exercised twice more, strong candidate to promote to `ai-coding.md` as "Prompt-grounding pre-condition: every file path cited in a dream/prompt MUST be verified to exist on the launch base before subprocess spawn." Until promoted, sits here as a flagrant L-009-pattern instance.
+**Operational mitigation while the gap exists**: I (the manual Conductor) MUST run `git show <base>:<each-spec-file> > /dev/null` before launching any `mmd --here` whose dream references a spec file. The check takes <1 s and saves 30-90 min of wasted auto-dev time.
+**Keywords for matching**: prompt-grounding, conductor, pre-conditions, SPEC_*.md, ff-only no-op, dream file reference, here-mode validation, L-009 pattern third occurrence

@@ -9,15 +9,20 @@
 # Usage:
 #   scripts/audit-pillars.sh [<base-branch>|<base>..<head>]
 #   scripts/audit-pillars.sh --ci [<base-branch>]
+#   scripts/audit-pillars.sh --with-composer [<base-branch>]
 #   scripts/audit-pillars.sh --help
 #
 # Defaults:
 #   <base-branch> = main  (auditing main..HEAD)
 #
 # Flags:
-#   --ci         Exit 1 if any claimed pillar has count==0 (opt-in CI gate).
-#                Without --ci, the script is advisory (always exit 0).
-#   --help, -h   Print this usage and exit 0.
+#   --ci             Exit 1 if any claimed pillar has count==0 (opt-in CI gate).
+#                    Without --ci, the script is advisory (always exit 0).
+#   --with-composer  Append a "Composer activity" section (SPEC_V02E AC-6):
+#                    parses every .mmd/local/*/<*>.composer.json sidecar
+#                    and reports total runs, auto-injected runs, average
+#                    per run, and the top lessons by injection count.
+#   --help, -h       Print this usage and exit 0.
 #
 # Output: a table on stdout:
 #   PILLAR    | INVOKED (count) | LAST_COMMIT | NOTES
@@ -43,16 +48,21 @@ PATTERNS_FILE="${MMD_AUDIT_PATTERNS:-${SCRIPT_DIR}/audit-pillars.patterns.json}"
 
 # --- Argument parsing -------------------------------------------------------
 CI_MODE=false
+WITH_COMPOSER=false
 BASE_ARG="main"
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --help|-h)
-            sed -n '2,38p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+            sed -n '2,42p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         --ci)
             CI_MODE=true
+            shift
+            ;;
+        --with-composer)
+            WITH_COMPOSER=true
             shift
             ;;
         --)
@@ -294,6 +304,38 @@ while IFS="${RS}" read -r NAME PATS_JOIN NEG_JOIN SKILLS_JOIN; do
 done <<< "${PILLARS_TSV}"
 
 echo ""
+
+# --- --with-composer section (SPEC_V02E AC-6) ------------------------------
+if [ "${WITH_COMPOSER}" = "true" ]; then
+    REPO_ROOT_FOR_COMPOSER=$(git rev-parse --show-toplevel 2>/dev/null || true)
+    if [ -z "${REPO_ROOT_FOR_COMPOSER}" ]; then
+        REPO_ROOT_FOR_COMPOSER="$(pwd)"
+    fi
+    # Locate the MMD repo containing lib/composer/usage-stats.js. Default to
+    # the script's own repo root (works in self-host); fall back to the audit
+    # target's root when MMD_LIB_DIR is set (cross-repo install).
+    MMD_LIB_DIR_DEFAULT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    LIB_DIR="${MMD_LIB_DIR:-${MMD_LIB_DIR_DEFAULT}}"
+    if [ -f "${LIB_DIR}/lib/composer/usage-stats.js" ]; then
+        # The MMD package is ESM (type: module). Use the file URL import form
+        # so `node -e` can load lib/composer/usage-stats.js without a CommonJS
+        # bridge.
+        node --input-type=module -e "
+import { aggregateComposerUsageSync } from 'file://${LIB_DIR}/lib/composer/usage-stats.js';
+const root = process.argv[1];
+const stats = aggregateComposerUsageSync(root);
+const top = stats.top.slice(0, 5);
+const topStr = top.length > 0
+    ? top.map((t) => t.id + ' (' + t.count + ')').join(', ')
+    : '(none yet)';
+const avg = stats.avgInjectedPerRun.toFixed(2);
+process.stdout.write('Composer: ' + stats.totalRuns + ' run(s) audited, ' + stats.autoInjectedRuns + ' auto-injected lessons (avg ' + avg + ' per run, top: ' + topStr + ')\n');
+" "${REPO_ROOT_FOR_COMPOSER}" 2>/dev/null || echo "Composer: (audit unavailable — see lib/composer/usage-stats.js)"
+    else
+        echo "Composer: (lib/composer/usage-stats.js not found at ${LIB_DIR} — install-mmd.sh has not run v0.2e?)"
+    fi
+    echo ""
+fi
 
 # --- CI gate ---------------------------------------------------------------
 if [ "${CI_MODE}" = "true" ] && [ "${ZERO_COUNT}" -gt 0 ]; then

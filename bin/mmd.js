@@ -49,6 +49,7 @@ Usage:
   mmd bench [--dry-run]                Run the dream-bench v0 harness (v0.2b)
   mmd ship [<branch>] [--dry-run]      Invoke gStack ship skill on the current slice (v0.2.f)
   mmd qa [<branch>] [--dry-run]        Invoke gStack qa skill — test stratification + adversarial pass (v0.2.g)
+  mmd cso [<branch>] [--dry-run]       Invoke gStack cso skill — security review per Bundle A (v0.2.g)
   mmd discover [<path>]                Project Onboarder for brownfield repos (v0.2c)
   mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
@@ -397,6 +398,11 @@ async function main() {
     // so AC-5 gate-bypass holds structurally for read-only/advisory commands.
     const { runQa } = await import('./skills/qa.js');
     return runQa(rawArgs.slice(1));
+  }
+  if (rawArgs[0] === 'cso') {
+    // v0.2.g AC-3: `mmd cso` subcommand. Same dispatch contract as qa.
+    const { runCso } = await import('./skills/cso.js');
+    return runCso(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'discover') {
     // v0.2c AC-1: `mmd discover` subcommand. Dispatched here for the same

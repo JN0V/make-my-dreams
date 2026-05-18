@@ -52,6 +52,7 @@ Usage:
   mmd cso [<branch>] [--dry-run]       Invoke gStack cso skill — security review per Bundle A (v0.2.g)
   mmd document-release [<from>] [<to>] Invoke gStack document-release skill — release-notes draft (v0.2.g)
   mmd discover [<path>]                Project Onboarder for brownfield repos (v0.2c)
+  mmd lessons                          Introspect docs/lessons-learned.md + composer audits (v0.2e)
   mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
   mmd --help, -h                       Print this usage and exit
@@ -76,6 +77,7 @@ POSIX:
 Environment variables:
   MMD_AUTODEV_CMD                      Override the auto-dev subprocess (testing only)
   MMD_AUTODEV_MODE                     'cli' | 'test' — explicit mode (replaces v0.1 heuristic)
+  MMD_COMPOSER_DISABLED=1              Bypass v0.2e lessons composer (escape hatch)
   MMD_QUIET=1                          Suppress terminal tee of subprocess output (log file preserved)
   MMD_FAST_MAX_MINUTES                 Soft FAST budget (default 12; warning only — no kill)
   MMD_TIMEOUT_MS                       Subprocess timeout in ms (default 1800000, 0 to disable)
@@ -415,6 +417,13 @@ async function main() {
     // reason as `ship`/`bench` (must not parse as a dream string).
     const { runDiscover } = await import('./discover.js');
     return runDiscover(rawArgs.slice(1));
+  }
+  if (rawArgs[0] === 'lessons') {
+    // v0.2e AC-7: `mmd lessons` introspection subcommand. Dispatched here
+    // (before checkGate / argv parsing) — read-only, gate-bypassing like
+    // qa/cso/document-release.
+    const { runLessons } = await import('./lessons.js');
+    return runLessons(rawArgs.slice(1));
   }
   if (rawArgs.includes('--version')) {
     stdout.write(`${VERSION}\n`);

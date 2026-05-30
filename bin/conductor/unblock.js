@@ -31,7 +31,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 
 import { parseUnblockArgs } from '../../lib/argv-parser.js';
 import { runGit } from '../../lib/skills/_common/git.js';
-import { detectStall } from '../../lib/conductor/stall-detector.js';
+import { detectStall, readRecentRunLogs } from '../../lib/conductor/stall-detector.js';
 import { runFiveWhys } from '../../lib/conductor/five-whys.js';
 import { STALL_SIGNALS } from '../../lib/conductor/stall-signals.js';
 
@@ -164,6 +164,15 @@ function readDream(statusJsonPath) {
   }
 }
 
+/** Bounded head+tail of recent run logs for the 5-Whys context (best-effort). */
+function safeReadLogTail(root) {
+  try {
+    return readRecentRunLogs(root) || '';
+  } catch {
+    return '';
+  }
+}
+
 /** Render the markdown session file written to .mmd/shared/5-whys/<ts>.md. */
 function renderSessionMarkdown({ branch, signals, evidence, parsed, parseOk, sessionLog, composer }) {
   const injected =
@@ -233,9 +242,17 @@ export async function runUnblock(rawArgs) {
 
   const statusJsonPath = path.join(root, '.mmd', 'shared', 'status.json');
 
-  // ── Detector (skipped only when --force) ────────────────────────────────
+  // ── Detector ─────────────────────────────────────────────────────────────
+  // Run the detector whenever its result is SHOWN or USED to gate:
+  //   - normal run (no --force): gates whether we launch a session
+  //   - any --dry-run: the detector output IS the result, so run it even under
+  //     --force. F2 (Phase-4 review): skipping it for `--force --dry-run` printed
+  //     "stalled: false / evidence: {}" — plausible-but-fake output that violates
+  //     failure honesty (universal.md §VI, ai-coding.md §I). --dry-run never spawns.
+  // We only skip the detector for a real `--force` run (the user deliberately
+  // bypasses detection to force a session).
   let detection = { stalled: false, signals: [], evidence: {} };
-  if (!parsed.force) {
+  if (!parsed.force || parsed.dryRun) {
     detection = detectStall({ statusJsonPath, sliceBranch: branch, repoRoot: root, env });
   }
 
@@ -272,7 +289,11 @@ export async function runUnblock(rawArgs) {
     signals: detection.signals,
     evidence: detection.evidence,
     lastCommits: await recentCommits(root, branch),
-    logTail: '',
+    // F3 (Phase-4 review): AC-2 lists "latest run log tail" as part of the
+    // StallContext, and five-whys-prompt.js has a dedicated slot for it — but
+    // it was hardcoded ''. Surface the bounded head+tail of recent run logs so
+    // the 5-Whys session sees the actual error output. Best-effort.
+    logTail: safeReadLogTail(root),
     dream: readDream(statusJsonPath),
   };
 

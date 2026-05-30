@@ -110,6 +110,50 @@ test('@integration unblock --dry-run on a stalled fixture exits 8 + prints signa
   }
 });
 
+test('@integration unblock --dry-run on the retry-loop fixture exits 8 + retry-count-exceeded', () => {
+  // F5 (Phase-4 review): the spec-mandated retry-loop fixture (4 failed task
+  // attempts) was previously unreferenced by any test. It surfaces the
+  // retry-count-exceeded signal purely from status.json (no stale commit).
+  const dir = makeSliceRepo('retry-loop');
+  try {
+    const r = runMmd(['unblock', '--dry-run'], { cwd: dir });
+    assert.equal(r.status, 8, `expected 8; stdout=${r.stdout}\nstderr=${r.stderr}`);
+    assert.match(r.stdout, /stalled: true/);
+    assert.match(r.stdout, /retry-count-exceeded/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('@integration unblock --dry-run on the no-commit-30min fixture exits 8 + no-commit signal', () => {
+  // F5 (Phase-4 review): the spec-mandated no-commit-30min fixture was
+  // previously unreferenced. With a stale last commit it surfaces the pure
+  // no-commit-since-N-min signal.
+  const dir = makeSliceRepo('no-commit-30min', { stale: true });
+  try {
+    const r = runMmd(['unblock', '--dry-run'], { cwd: dir });
+    assert.equal(r.status, 8, `expected 8; stdout=${r.stdout}\nstderr=${r.stderr}`);
+    assert.match(r.stdout, /stalled: true/);
+    assert.match(r.stdout, /no-commit-since-N-min/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('@integration unblock --force --dry-run runs the detector (honest output, F2)', () => {
+  // F2 (Phase-4 review): --force --dry-run must still run the detector — it
+  // never spawns claude, so reporting empty/"not stalled" would be dishonest.
+  const dir = makeSliceRepo('timeout-stall', { stale: true });
+  try {
+    const r = runMmd(['unblock', '--force', '--dry-run'], { cwd: dir });
+    assert.equal(r.status, 8, `expected 8; stdout=${r.stdout}\nstderr=${r.stderr}`);
+    assert.match(r.stdout, /stalled: true/);
+    assert.match(r.stdout, /state-failed-explicit/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('@integration unblock --dry-run on a fresh fixture exits 0 (not stalled)', () => {
   const dir = makeSliceRepo('fresh-not-stalled');
   try {

@@ -12,6 +12,7 @@ import { existsSync } from 'node:fs';
 
 import { runFiveWhys } from '../../lib/conductor/five-whys.js';
 import { composeLessons } from '../../lib/composer/match.js';
+import { composerJsonPathFor } from '../../lib/composer/audit.js';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const FAKE = path.join(REPO_ROOT, 'test', 'fixtures', 'fake-claude-five-whys.sh');
@@ -65,6 +66,11 @@ test('@integration runFiveWhys injects L-016 into the session prompt (AC-4)', as
   assert.ok(ids.includes('L-016'), `expected L-016 injected into session; got ${ids.join(',')}`);
   // The session still parsed the fake-claude action.
   assert.equal(result.parsed.recommended_action, 'continue-with-hint');
+  // F7 (Phase-4 review): AC-4 wants the matched lessons recorded in a
+  // composer.json sibling file — the canonical audit format, co-located with
+  // the run log so audit-pillars --with-composer can glob it.
+  const sidecar = composerJsonPathFor(result.logPath);
+  assert.ok(existsSync(sidecar), `expected composer.json sidecar at ${sidecar}`);
 });
 
 test('@integration MMD_COMPOSER_DISABLED=1 yields no injected lessons (escape hatch)', async () => {

@@ -1306,10 +1306,15 @@ OPENSPEC_STATUS="NOT_INSTALLED"
 OPENSPEC_VER=""
 
 # Functional probe: prefer --version, fall back to `help` for older builds.
+# Normalize OPENSPEC_VER to its first line so every consumer (the ok lines AND
+# the summary banner) can use it without re-truncating — keeps the banner's
+# "reads ${VAR:-default}" promise honest.
 openspec_probe() {
-    if OPENSPEC_VER="$(openspec --version 2>&1)"; then
+    if OPENSPEC_VER="$(openspec --version 2>&1)" && [ -n "${OPENSPEC_VER//[[:space:]]/}" ]; then
+        OPENSPEC_VER="${OPENSPEC_VER%%$'\n'*}"
         return 0
     elif OPENSPEC_VER="$(openspec help 2>&1)"; then
+        OPENSPEC_VER="${OPENSPEC_VER%%$'\n'*}"
         return 0
     fi
     return 1
@@ -1317,7 +1322,7 @@ openspec_probe() {
 
 if command -v openspec >/dev/null 2>&1; then
     if openspec_probe; then
-        ok "OpenSpec: present + functional (openspec responded: ${OPENSPEC_VER%%$'\n'*})"
+        ok "OpenSpec: present + functional (openspec responded: ${OPENSPEC_VER})"
         OPENSPEC_STATUS="PRESENT_FUNCTIONAL"
     else
         fail "OpenSpec: PRESENT BUT BROKEN — openspec on PATH but neither --version nor help responded"
@@ -1350,7 +1355,7 @@ else
     if [ "$INSTALL_OPENSPEC" = true ]; then
         if npm install -g openspec; then
             if command -v openspec >/dev/null 2>&1 && openspec_probe; then
-                ok "OpenSpec installed and verified: ${OPENSPEC_VER%%$'\n'*}"
+                ok "OpenSpec installed and verified: ${OPENSPEC_VER}"
                 OPENSPEC_STATUS="PRESENT_FUNCTIONAL"
             else
                 fail "OpenSpec install completed but the openspec command did not respond."
@@ -1578,7 +1583,8 @@ case "${GSTACK_STATUS:-NOT_INSTALLED}" in
     *)                  pillar_line "gStack" "NOT_INSTALLED" "NOT installed (re-run with MMD_AUTO_INSTALL_GSTACK=1)" ;;
 esac
 
-# BMAD
+# BMAD — invariant by construction: Phase 1 exits non-zero on any BMAD failure,
+# so reaching the banner means BMAD installed. The row is always green.
 pillar_line "BMAD" "${BMAD_STATUS:-PRESENT_FUNCTIONAL}" "present + functional (adv module loaded)"
 
 # Spec Kit
@@ -1590,7 +1596,7 @@ esac
 
 # OpenSpec
 case "${OPENSPEC_STATUS:-NOT_INSTALLED}" in
-    PRESENT_FUNCTIONAL) pillar_line "OpenSpec" "PRESENT_FUNCTIONAL" "present + functional (${OPENSPEC_VER%%$'\n'*})" ;;
+    PRESENT_FUNCTIONAL) pillar_line "OpenSpec" "PRESENT_FUNCTIONAL" "present + functional (${OPENSPEC_VER:-openspec})" ;;
     PRESENT_BROKEN)     pillar_line "OpenSpec" "PRESENT_BROKEN" "PRESENT BUT BROKEN — see Phase 6 above" ;;
     *)                  pillar_line "OpenSpec" "NOT_INSTALLED" "NOT installed (re-run with MMD_AUTO_INSTALL_OPENSPEC=1)" ;;
 esac

@@ -117,6 +117,40 @@ test('@unit install-mmd phase 5: specify present + functional reports present + 
   }
 });
 
+/**
+ * Bin dir with a fake `uv` whose `tool install specify-cli` materializes a
+ * working `specify` (—help only) right beside it, so the post-install re-probe
+ * (command -v specify + spec_kit_probe) succeeds on the same PATH entry.
+ */
+function fakeUvThatInstallsSpecify() {
+  const dir = mkdtempSync(path.join(tmpdir(), 'mmd-fake-uv-'));
+  const uv = path.join(dir, 'uv');
+  const specify = path.join(dir, 'specify');
+  writeFileSync(
+    uv,
+    `#!/usr/bin/env bash\nif [ "$1" = "tool" ] && [ "$2" = "install" ]; then\n  cat > "${specify}" <<'EOF'\n#!/usr/bin/env bash\nif [ "$1" = "--help" ]; then echo "GitHub Spec Kit"; exit 0; fi\nexit 2\nEOF\n  chmod +x "${specify}"; exit 0\nfi\nexit 0\n`,
+  );
+  chmodSync(uv, 0o755);
+  return dir;
+}
+
+test('@unit install-mmd phase 5: absent + MMD_AUTO_INSTALL_SPEC_KIT=1 installs via uv and verifies', () => {
+  const phase5 = extractPhase5();
+  const fakeDir = fakeUvThatInstallsSpecify();
+  try {
+    const r = spawnSync('bash', [phase5], {
+      encoding: 'utf8',
+      timeout: 15000,
+      env: { PATH: `${fakeDir}:/usr/bin:/bin`, MMD_AUTO_INSTALL_SPEC_KIT: '1' },
+    });
+    assert.equal(r.status, 0, `expected exit 0; stdout=${r.stdout}\nstderr=${r.stderr}`);
+    assert.match(r.stdout, /installed and verified/i);
+  } finally {
+    rmSync(path.dirname(phase5), { recursive: true, force: true });
+    rmSync(fakeDir, { recursive: true, force: true });
+  }
+});
+
 test('@unit install-mmd phase 5: real-Spec-Kit specify (no --version, --help only) verifies via fallback', () => {
   const phase5 = extractPhase5();
   const fakeDir = fakeSpecifyHelpOnly();

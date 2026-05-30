@@ -53,6 +53,64 @@ function fakeOpenspec(versionLine) {
   return dir;
 }
 
+/** Bin dir with a fake `npm` whose `install -g openspec` drops a working
+ *  `openspec` beside it, so the post-install re-probe succeeds. */
+function fakeNpmThatInstallsOpenspec() {
+  const dir = mkdtempSync(path.join(tmpdir(), 'mmd-fake-npm-'));
+  const npm = path.join(dir, 'npm');
+  const openspec = path.join(dir, 'openspec');
+  writeFileSync(
+    npm,
+    `#!/usr/bin/env bash\nif [ "$1" = "install" ]; then\n  cat > "${openspec}" <<'EOF'\n#!/usr/bin/env bash\nif [ "$1" = "--version" ]; then echo "openspec 1.0.0-fake"; exit 0; fi\nexit 0\nEOF\n  chmod +x "${openspec}"; exit 0\nfi\nexit 0\n`,
+  );
+  chmodSync(npm, 0o755);
+  return dir;
+}
+
+/** Bin dir with a broken `openspec` that fails both --version and help. */
+function fakeBrokenOpenspec() {
+  const dir = mkdtempSync(path.join(tmpdir(), 'mmd-fake-openspec-broken-'));
+  const bin = path.join(dir, 'openspec');
+  writeFileSync(bin, '#!/usr/bin/env bash\necho "boom" >&2\nexit 1\n');
+  chmodSync(bin, 0o755);
+  return dir;
+}
+
+test('@unit install-mmd phase 6: absent + MMD_AUTO_INSTALL_OPENSPEC=1 installs via npm and verifies', () => {
+  const phase6 = extractPhase6();
+  const fakeDir = fakeNpmThatInstallsOpenspec();
+  try {
+    const r = spawnSync('bash', [phase6], {
+      encoding: 'utf8',
+      timeout: 15000,
+      env: { PATH: `${fakeDir}:/usr/bin:/bin`, MMD_AUTO_INSTALL_OPENSPEC: '1' },
+    });
+    assert.equal(r.status, 0, `expected exit 0; stdout=${r.stdout}\nstderr=${r.stderr}`);
+    assert.match(r.stdout, /installed and verified/i);
+    assert.match(r.stdout, /1\.0\.0-fake/);
+  } finally {
+    rmSync(path.dirname(phase6), { recursive: true, force: true });
+    rmSync(fakeDir, { recursive: true, force: true });
+  }
+});
+
+test('@unit install-mmd phase 6: openspec on PATH but broken reports PRESENT BUT BROKEN', () => {
+  const phase6 = extractPhase6();
+  const fakeDir = fakeBrokenOpenspec();
+  try {
+    const r = spawnSync('bash', [phase6], {
+      encoding: 'utf8',
+      timeout: 15000,
+      env: { PATH: `${fakeDir}:/usr/bin:/bin` },
+    });
+    assert.equal(r.status, 0, `expected exit 0 (no REQUIRE); stdout=${r.stdout}\nstderr=${r.stderr}`);
+    assert.match(r.stdout, /PRESENT BUT BROKEN/i);
+  } finally {
+    rmSync(path.dirname(phase6), { recursive: true, force: true });
+    rmSync(fakeDir, { recursive: true, force: true });
+  }
+});
+
 test('@unit install-mmd phase 6: openspec absent + non-interactive warns and continues (exit 0)', () => {
   const phase6 = extractPhase6();
   try {

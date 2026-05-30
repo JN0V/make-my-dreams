@@ -16,6 +16,8 @@
 **Context**: I launched `nohup bash -c "claude -p '/bmad-adv-auto-dev ...'" > /tmp/log 2>&1 &` from the Cowork shell sandbox. `nohup` alone does not detach the process from the controlling terminal's session group; when the spawning bash exits, the SIGHUP still propagates in some configurations. Result: the wrapper died, and the underlying `claude` ran orphan but with no stdout target (its file descriptor was the wrapper's pipe, now closed).
 **Rule**: when launching long-running background subprocesses from the Cowork shell sandbox (or any shell that may exit before the child completes), use **`setsid bash -c "... &"`** instead of `nohup bash -c "..." &`. `setsid` creates a new session, fully detaching the process from the terminal session group. Alternatively, wrap in `tmux new-session -d -s <name>` which has the additional benefit of being attachable later (cf MAKE_MY_DREAMS.md §4.5.4bis Layer 5 — Remote Control via tmux).
 **To promote if**: 5 reuses validated (counter: 1)
+**Category**: subprocess-control, observability
+**Applies to**: mmd --here, mmd ship, mmd qa, mmd cso, mmd document-release, mmd unblock
 **Keywords for matching**: nohup, background subprocess, setsid, tmux, long-running, orphan process
 
 ---
@@ -32,6 +34,8 @@
   3. `_bmad-output/implementation-artifacts/` for techspec + deferred-work files
   4. Process liveness: `pgrep -f "claude -p"` to confirm it's still running
 **To promote if**: 5 reuses validated (counter: 1)
+**Category**: subprocess-control, observability
+**Applies to**: mmd --here, mmd ship, mmd qa, mmd cso, mmd document-release, mmd unblock
 **Keywords for matching**: claude -p, stdout buffer, redirect, tail, log file empty, monitor auto-dev, progress visibility
 
 ---
@@ -45,6 +49,8 @@
   1. Wait for the agent to finish before doing other git work in this worktree.
   2. Use `git worktree add ../<repo>-<sidetask>` to create a parallel worktree for the side task. This is the same mechanism v0.9 will use natively for parallel slices (MAKE_MY_DREAMS.md §4.3) — there's no reason not to use it manually beforehand.
 **To promote if**: 5 reuses validated (counter: 1) — likely to become a key rule when v0.9 parallel slices ship
+**Category**: git, concurrency
+**Applies to**: mmd --here, mmd ship
 **Keywords for matching**: git checkout, git worktree, parallel branches, concurrent git, auto-dev running, HEAD moved, wrong-branch commit
 
 ---
@@ -60,6 +66,8 @@
   3. The release tag was created.
 If any item is missing, either (a) relaunch with a precise "RESUME — here's what's missing" prompt naming each missing artifact, or (b) finish the residual items manually if they're small. A second auto-dev pass with a focused resume prompt is typically faster than a from-scratch run, but doesn't always complete either — be ready to take over the final 10%.
 **To promote if**: 5 reuses validated (counter: 1) — likely to inform the dream-bench design in v0.2b (the bench should assert that auto-dev's Definition of Done was respected)
+**Category**: subprocess-control, definition-of-done
+**Applies to**: mmd --here
 **Keywords for matching**: auto-dev stopped, incomplete pipeline, resume prompt, partial run, Phase 4, missing tests, definition of done
 
 ---
@@ -76,6 +84,8 @@ assert.equal(r.stdout.trim(), pkg.version);
 ```
 The same rule generalizes: configuration values, file paths, port numbers — whenever the production code reads from a source, the test must read from the SAME source. Hardcoding in tests creates fragility that surfaces only at release time, when stress is highest. This rule already exists implicitly in `testing.md` III ("every failure deserves a red-green pass") but the version-hardcode case is common enough to deserve explicit mention.
 **To promote if**: 5 reuses validated (counter: 1) — strong candidate for promotion into `testing.md` as an explicit rule "Tests must read constants from the same source as production code"
+**Category**: testing, version-management
+**Applies to**: mmd --here
 **Keywords for matching**: version hardcoded, package.json version, version bump, test fragility, single source of truth, test/integration
 
 ---
@@ -97,6 +107,8 @@ pgrep -f "claude -p" | xargs -r kill -KILL
 ```
 Better: wrap every `claude -p` launch with a **session ID env var** (`MMD_RUN_ID=v0.2-fast-engine-$(date +%s)`) recorded in `status.json`, so any orchestrator (Conductor in v0.5+) can `pgrep -af "MMD_RUN_ID=<previous>" | xargs kill` to enforce single-active-run-per-worktree as a constitutional invariant.
 **To promote if**: 5 reuses validated (counter: 1) — likely to inform the Conductor's lifecycle management in v0.5
+**Category**: subprocess-control, observability
+**Applies to**: mmd --here, mmd ship, mmd qa, mmd cso, mmd document-release, mmd unblock
 **Keywords for matching**: claude -p zombie, sleeping process, previous auto-dev, single active run, MMD_RUN_ID, process cleanup, SIGTERM SIGKILL
 
 ---
@@ -108,6 +120,8 @@ Better: wrap every `claude -p` launch with a **session ID env var** (`MMD_RUN_ID
 **Origin**: slice v0.2, `test/integration/deferred-v01.test.js` initial draft expected `demo/literally-a-dream` for the input `mmd -- --literally-a-dream`. The slugifier drops the `--`, then drops the stopword "a" (`STOPWORDS` in `lib/parse-dream.js`), then rejoins, producing `literally-dream`. The test asserted on the wrong directory name and failed RED. Trivial fix (pick a stopword-free dream like `--literally-my-dream` → `literally-my-dream`), but worth noting.
 **Rule**: when an integration test asserts on a slugifier-derived path, choose dream strings whose tokens are NONE of the `STOPWORDS` list (current: `a, an, the, that, on, of, for, to, in, with, and, or`). A safer pattern is to ask the slugifier itself for the expected output: `import { slugify } from '../../lib/parse-dream.js'; const expectedSlug = slugify(dream);` and assert on `demo/${expectedSlug}`. This generalizes L-005: tests must read the SAME source as production code. Hardcoding a path string here is the same antipattern as hardcoding a version string.
 **To promote if**: 3 reuses validated (counter: 1) — strong candidate to fold into L-005 as a generalization rather than a separate lesson.
+**Category**: testing
+**Applies to**: mmd --here
 **Keywords for matching**: slug, slugifier, stopwords, demo dir, integration test, hardcoded path, parse-dream
 
 ---
@@ -129,6 +143,8 @@ I ignored the warning. The branch was deleted locally AND on the remote (`git pu
   3. NEVER chain `git branch -d X && git push origin --delete X` based on a warning — confirm the merge succeeded first.
 The systemic fix: always run the merge BEFORE the cleanup, and ONLY run the cleanup if the merge produced "Fast-forward" output (or a clean merge commit). Make this a script: `git merge --ff-only X && git branch -d X && git push origin --delete X` (`&&` chain ensures cleanup runs only on merge success).
 **To promote if**: 5 reuses validated (counter: 1) — strong candidate for promotion to `commit-git.md` as an explicit rule "Cleanup branches only after merge success".
+**Category**: git
+**Applies to**: mmd --here, mmd ship
 **Keywords for matching**: git branch -d, merge ff-only failed, not yet merged to HEAD, branch deleted, recovery from SHA, reflog
 
 ---
@@ -144,6 +160,8 @@ The systemic fix: always run the merge BEFORE the cleanup, and ONLY run the clea
   3. The **gap** between (1) and (2), and which planned slice closes it
 Never present an implementation limitation as a design choice — it hides debt and erodes the design's integrity. A concrete check before any architectural statement: "is this true of the *design*, of the *current code*, or both?" If only the code, name the gap and the planned closure (e.g., "currently greenfield-only — `--here` mode planned in v0.2a"). This generalizes beyond MMD: in any spec-driven workflow, walking-skeleton scope must be communicated as deliberately partial, not as the system's true boundary.
 **To promote if**: 3 reuses validated (counter: 1) — strong candidate for promotion to `documentation.md` as an explicit rule "Always distinguish design scope from current-implementation scope".
+**Category**: design-vs-implementation, documentation
+**Applies to**: *
 **Keywords for matching**: walking skeleton, design scope, implementation gap, reflexive bootstrap, brownfield, self-modification, --here, scope confusion, premature constraint
 
 ---
@@ -166,6 +184,8 @@ Never present an implementation limitation as a design choice — it hides debt 
   2. The slice has a known dependency on a feature that's not yet on `main` (e.g. v0.2b being developed before its dependencies are merged).
 Using `mmd --here` instead of raw `claude -p` is the difference between "MMD's reflexive bootstrap is documented" and "MMD's reflexive bootstrap is the supported workflow." This is the change that justifies removing the asterisk on §7.4's roadmap statement ("v0.2+: MMD is used to develop MMD").
 **To promote if**: this is a marker, not a counter-tracked lesson. Keep here as a historical anchor; do not promote to a constitution module — it belongs in the project narrative (the History section of README.md gains a paragraph noting v0.2a is the version that made §7 real).
+**Category**: reflexive-bootstrap, milestone
+**Applies to**: *
 **Keywords for matching**: reflexive bootstrap, §7, AC-7, dogfood, --here, symbolic gate, milestone, MMD develops MMD, v0.2a
 
 ---
@@ -183,6 +203,8 @@ Using `mmd --here` instead of raw `claude -p` is the difference between "MMD's r
 **The pattern**: this is L-009 in another domain. The design (README "MMD stands on the shoulders of Spec Kit, OpenSpec, BMAD, gStack, Ralph Loop"; MAKE_MY_DREAMS.md scoping mentioning gStack throughout) claims gStack as a foundational pillar. The current implementation never calls it. L-009's rule ("distinguish design scope from current implementation scope, name the gap") was not applied to gStack — so the gap accumulated for 11 slices without being named.
 **Rule**: extend L-009's rule with an explicit check at every release: before tagging vN, audit "what frameworks does the README claim we stand on, and which of them have actually been invoked in vN's slices?" If the answer is "none" for any claimed framework, the README and scoping MUST either (a) remove the framework from the pillar list, or (b) name it explicitly in the release notes as "still deferred — planned for vN+k." Silent deferral indefinitely is a documentation defect. Practically, add a `scripts/audit-pillars.sh` (v0.2c+) that greps for invocation patterns of each claimed framework across the slice's commits and reports the audit at PR/merge time.
 **To promote if**: 3 reuses validated (counter: 1) — strong candidate to promote to `documentation.md` as "Pillar-claim audit: README claims must be testable against actual invocations." Until promoted, it's the second occurrence of the L-009 pattern, which itself suggests the underlying meta-rule (design-vs-implementation discipline) deserves promotion sooner rather than later.
+**Category**: pillar-audit, design-vs-implementation
+**Applies to**: *
 **Closure options to consider** (the user picked option 1 as the next slice after v0.2b lands):
   1. **Light**: `mmd ship` wrapper invoking `/ship` + `/document-release` automatically at merge time — would have replaced the manual `git merge --ff-only && git tag && git push --tags` sequence used for v0.2.1.
   2. **Medium**: a Conductor stub orchestrating `auto-dev → /qa → /cso → /ship` as a real sequence (each step commited separately, allows measuring which steps add value).
@@ -218,6 +240,8 @@ Using `mmd --here` instead of raw `claude -p` is the difference between "MMD's r
 After L-011, raw `claude -p` for a regular feature slice is a **constitution violation** (commit-git.md §IV preference for "the supported path"), not just a stylistic regression. The next slice that uses raw `claude -p` without falling into a carve-out triggers a red-green pass to either widen the carve-out list with a documented reason OR fix the wrapper limitation that motivated the bypass.
 
 **To promote if**: this is a marker, not a counter-tracked lesson. Keep here as a historical anchor; promote to the History section of README.md when v0.3 ships (the version that demonstrates dream-bench actually gates a release).
+**Category**: reflexive-bootstrap, milestone
+**Applies to**: *
 **Keywords for matching**: reflexive bootstrap, §7, v0.2b, dream-bench, --here, symbolic gate, milestone, MMD develops MMD, L-010 strengthened
 
 ---
@@ -245,6 +269,8 @@ After L-011, raw `claude -p` for a regular feature slice is a **constitution vio
 The reflexive bootstrap §7 now has three distinct validations (trivial / feature / infrastructure-touching) — sufficient to retire any remaining language about §7 being aspirational. The next test for §7 is whether `mmd ship` itself can ship v0.2.f to main (the SPEC_V02F DoD §9 acid test — "ship uses ship") — captured separately by Sébastien post-merge.
 
 **To promote if**: marker, not a counter-tracked lesson. Keep as a historical anchor. Promote to README History when v0.3 ships and the full reflexive loop (slice → ship → release-notes → tag → next slice) is demonstrated end-to-end with `mmd ship` at the helm.
+**Category**: reflexive-bootstrap, milestone
+**Applies to**: *
 **Keywords for matching**: reflexive bootstrap, §7, v0.2.f, mmd ship, gStack effective, --here, symbolic gate, milestone, MMD develops MMD, L-011 strengthened, wrapper-modifying slice, L-010 carve-out #1
 
 ---
@@ -267,6 +293,8 @@ The reflexive bootstrap §7 now has three distinct validations (trivial / featur
 **Rule** (operative implication — extends L-011 + L-013): after v0.2e, the `mmd --here` workflow's promise is no longer just "MMD develops MMD" but "MMD develops MMD with cumulative learning". Concretely, the L-016 lesson captured during v0.2.g development (MMD_TIMEOUT_MS=0 + spec-frozen directive) is now AUTOMATICALLY injected into the prompt of any future `mmd --here` whose dream mentions timeout / MMD_TIMEOUT_MS / Phase 1 — without the human Documentalist remembering to do so. Each new failure → new lesson → next run automatically benefits. The autolearning loop §6.5 is no longer aspirational — it's the supported pathway.
 
 **To promote if**: marker, not a counter-tracked lesson. Keep as a historical anchor. Promote to README History when v0.5b ships the Documentalist Worker that closes the reuse-counter loop (composer feeds the data; Documentalist makes the promote/archive decisions; constitution modules absorb promoted lessons).
+**Category**: reflexive-bootstrap, milestone
+**Applies to**: *
 **Keywords for matching**: reflexive bootstrap, §7, v0.2e, composer, lessons-learned auto-injection, --here, symbolic gate, milestone, MMD develops MMD, autolearning loop, §6.5, sixth reflexive use, L-013 strengthened
 
 ---
@@ -284,6 +312,8 @@ The reflexive bootstrap §7 now has three distinct validations (trivial / featur
 This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanliness check was insufficient. Implementation is a slice of its own (~v0.2.h, see Future tasks) because it touches `here-mode.js` core paths and needs careful test coverage to not break existing flows.
 **To promote if**: 3 reuses validated (counter: 1) — once exercised twice more, strong candidate to promote to `ai-coding.md` as "Prompt-grounding pre-condition: every file path cited in a dream/prompt MUST be verified to exist on the launch base before subprocess spawn." Until promoted, sits here as a flagrant L-009-pattern instance.
 **Operational mitigation while the gap exists**: I (the manual Conductor) MUST run `git show <base>:<each-spec-file> > /dev/null` before launching any `mmd --here` whose dream references a spec file. The check takes <1 s and saves 30-90 min of wasted auto-dev time.
+**Category**: conductor, pre-conditions
+**Applies to**: mmd --here
 **Keywords for matching**: prompt-grounding, conductor, pre-conditions, SPEC_*.md, ff-only no-op, dream file reference, here-mode validation, L-009 pattern third occurrence
 
 ---
@@ -306,6 +336,8 @@ This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanline
      - The previous slice's WIP (if any) is salvaged or discarded explicitly
 **To promote if**: 3 reuses validated (counter: 1) — strong candidate to promote to `ai-coding.md` as "Standard engine pre-conditions: MMD_TIMEOUT_MS=0 + spec-frozen directive in prompt." A future v0.2.h (Conductor preconditions hardening, see L-015) should also bake in: (a) auto-set `MMD_TIMEOUT_MS=0` for the Standard engine path unless user overrides, (b) detect WIP in the working tree after subprocess exit and surface it rather than letting `here-mode` exit silently.
 **Operational note**: this lesson surfaced when Sébastien asked "il faut vraiment qu'on arrive à comprendre pourquoi il s'arrête tout seul" — the answer was sitting in plain sight in `.mmd/shared/status.json` (`engine_metrics.duration_seconds: 1800.6` = pile 30 min). Reading the structured state files BEFORE hypothesizing saves cycles. Add to the operational checklist: when an auto-dev appears to have stopped, FIRST `cat .mmd/shared/status.json` and `tail .mmd/local/runs/*.log` before speculating.
+**Category**: subprocess-control, prompt-engineering
+**Applies to**: mmd --here
 **Keywords for matching**: MMD_TIMEOUT_MS, timeout, 1800, 30 min, subprocess timed out, spec polishing, adversarial review loop, party mode, Phase 1 stuck, auto-dev killed, salvage WIP, status.json failed state
 
 ---
@@ -330,6 +362,8 @@ This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanline
   - **`mmd qa` High-3**: `safeReadLogTail` feeds the prompt but no test inspects the prompt/`.md` content for it — `logTail` could silently regress to `''`.
   - **e2e secondary**: `test/e2e/self-dogfood.test.js:67` uses `assert.fail()` in a path that should be `t.skip()` (when `git worktree add … main` is rejected because the e2e is itself running on `main`).
   All scheduled for closure in v0.2.k.
+**Category**: discover, scanner, testing
+**Applies to**: mmd discover
 **Keywords for matching**: discover, SCAN, scanner, test runner detection, package.json scripts, recursive glob, fixture realism, dogfood, .test.js, node --test, jest, vitest, false negative, spec literal vs reality
 
 ---
@@ -349,4 +383,6 @@ This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanline
   6. Mechanical migration of the 17 existing lessons (1-line `Category` + `Applies to` each).
 **To promote if**: 3 reuses validated (counter: 0) — BUT the meta-pattern has now been observed 5 times: L-009 (wrapper) / L-012 (gStack) / L-015 (Conductor) / L-017 (discover) / L-018 (composer). **Strong candidate to promote a META-rule to `ai-coding.md`**: "Walking-skeleton specs must enumerate explicit **scale assumptions** in their Out-of-scope section (e.g., 'works up to N items, beyond N consider categorization/filtering/sharding'). Unstated assumptions become silent L-009 echoes." Promote when v0.5b Documentalist exists.
 **Operational mitigation while v0.2.l ships**: nothing needed today (17 lessons is safe). Re-check the load profile (`mmd lessons` + composer.json metrics) when the lessons count crosses 30; bump priority of v0.2.l if injection looks noisy before then.
+**Category**: composer, design-vs-implementation, scale
+**Applies to**: *
 **Keywords for matching**: composer, autolearning, scale, context bloat, modularization, categorization, lessons-bindings, walking-skeleton scope, L-009 pattern fifth occurrence, scale assumption, Applies to, Category, predictive capture, prevention before pain

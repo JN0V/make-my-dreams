@@ -98,6 +98,17 @@ export function parseLessonsArgs(rawArgs) {
     args.splice(ctxIdx, 2);
   }
 
+  // F1 (Phase-4 review): --context is only meaningful for `match`. Reject it
+  // up-front (BEFORE the --show / list branches) rather than silently
+  // ignoring it — e.g. `mmd lessons --show L-001 --context mmd-qa` must error,
+  // not print the lesson as if no context was given (failure-honesty).
+  if (context && args[0] !== 'match') {
+    return {
+      action: 'match',
+      error: { message: '--context is only valid with the `match` subaction', exitCode: 2 },
+    };
+  }
+
   // `--show <id>` — id may follow as the next positional.
   const showIdx = args.indexOf('--show');
   if (showIdx >= 0) {
@@ -128,13 +139,7 @@ export function parseLessonsArgs(rawArgs) {
     return context ? { action: 'match', prompt, context } : { action: 'match', prompt };
   }
 
-  // --context is only meaningful for `match`.
-  if (context) {
-    return {
-      action: 'match',
-      error: { message: '--context is only valid with the `match` subaction', exitCode: 2 },
-    };
-  }
+  // (--context misuse is rejected up-front, above the --show branch.)
 
   if (args.length === 0) return { action: 'list' };
 

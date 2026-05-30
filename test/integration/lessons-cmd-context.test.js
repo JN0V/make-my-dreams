@@ -58,6 +58,12 @@ test('@unit parseLessonsArgs: --context outside match is rejected', () => {
   assert.equal(parsed.error.exitCode, 2);
 });
 
+test('@unit parseLessonsArgs: --context with --show is rejected, not ignored (F1)', () => {
+  const parsed = parseLessonsArgs(['--show', 'L-001', '--context', 'mmd-qa']);
+  assert.ok(parsed.error, '--context + --show must error, not silently ignore the context');
+  assert.equal(parsed.error.exitCode, 2);
+});
+
 // ── Integration: live CLI ─────────────────────────────────────────────────
 
 test('@integration mmd lessons match --context: strict subset of un-contextual match', () => {

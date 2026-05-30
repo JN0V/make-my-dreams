@@ -59,18 +59,25 @@ echo $ANTHROPIC_API_KEY | wc -c   # > 1
 
 ## Trust assumptions
 
-`install-mmd.sh` provisions two third-party tools by piping a remote script
-straight into a shell — the standard install path each project documents:
+`install-mmd.sh` provisions third-party tools through each project's own
+documented install path. Two pipe a remote script straight into a shell; the
+v0.2.m pillar phases (5–7) use each tool's native package manager instead:
 
-- **bun** — `curl -fsSL https://bun.sh/install | bash` (`install-mmd.sh` ~line 161)
-- **gStack** — `curl -fsSL https://gstack.dev/install.sh | bash` (`install-mmd.sh` ~line 1214)
+- **bun** — `curl -fsSL https://bun.sh/install | bash` (Phase 0)
+- **gStack** — `curl -fsSL https://gstack.dev/install.sh | bash` (Phase 4)
+- **Spec Kit** ([github.com/github/spec-kit](https://github.com/github/spec-kit)) — `uv tool install specify-cli` (pip fallback) (Phase 5)
+- **OpenSpec** ([github.com/Fission-AI/OpenSpec](https://github.com/Fission-AI/OpenSpec)) — `npm install -g openspec` (Phase 6)
+- **Ralph Loop** (Claude Code plugin) — `claude plugin install ralph-loop` (Phase 7)
 
 What this means, and how to opt out:
 
-1. **Both invocations are gated by an interactive prompt.** They run
-   non-interactively only when you explicitly export `MMD_AUTO_INSTALL_BUN=1`
-   (bun) or `MMD_AUTO_INSTALL_GSTACK=1` (gStack). In a normal run you are asked
-   first.
+1. **Every pillar install is gated by an interactive prompt** (default `N`).
+   Each runs non-interactively only when you explicitly export its
+   `MMD_AUTO_INSTALL_*=1` toggle: `MMD_AUTO_INSTALL_BUN` (bun),
+   `MMD_AUTO_INSTALL_GSTACK` (gStack), `MMD_AUTO_INSTALL_SPEC_KIT` (Spec Kit),
+   `MMD_AUTO_INSTALL_OPENSPEC` (OpenSpec), `MMD_AUTO_INSTALL_RALPH_LOOP` (Ralph
+   Loop). The matching `MMD_REQUIRE_*=1` vars make a pillar mandatory (absent +
+   declined → non-zero exit). In a normal run you are asked first.
 2. **The trust roots are the `bun.sh` and `gstack.dev` HTTPS endpoints** (and
    their TLS certificate chain). `curl … | bash` executes whatever those servers
    return at install time — there is no pinned checksum in v0.2.k.

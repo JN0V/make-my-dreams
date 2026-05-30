@@ -38,6 +38,8 @@ bash install-mmd.sh .
 
 > **v0.2.f install hardening** (2026-05-17): `install-mmd.sh` now installs `bun` + `gStack` *functionally* (verifies they respond, not just present), and writes `bin/mmd` — a shell shim that prepends `~/.bun/bin` to `PATH` before delegating to `node bin/mmd.js`. This closes the L-012 gap (`docs/lessons-learned.md`) where gStack-dependent subprocesses could not find `bun` in non-interactive `PATH`. Toggles: `MMD_AUTO_INSTALL_BUN=1` (skip the y/N prompt), `MMD_AUTO_INSTALL_GSTACK=1` (same for gStack), `MMD_REQUIRE_GSTACK=1` (make bun + gStack mandatory: declining or broken exits non-zero). See [`install-mmd.sh`](./install-mmd.sh) for the full phase layout.
 
+> **v0.2.m all-five-pillars install** (2026-05-30): `install-mmd.sh` now detects, offers to install, and functionally verifies **all five** "stands on the shoulders of" pillars — not just bun + gStack. Three new phases follow the v0.2.f detect→offer→verify shape: **Phase 5 — Spec Kit** (`specify --version`, installed via `uv tool install specify-cli`), **Phase 6 — OpenSpec** (`openspec --version`, via `npm install -g openspec`), **Phase 7 — Ralph Loop** (Claude Code plugin `ralph-loop`, via `claude plugin install`; pre-check skips cleanly on pre-2.1 Claude Code). Each honors `MMD_AUTO_INSTALL_<PILLAR>=1` and `MMD_REQUIRE_<PILLAR>=1`. The run ends with an **`═══ Install summary ═══`** banner showing each pillar's status at a glance. This is the install-side closure of L-012 (every claimed pillar is now installable + verifiable on a fresh machine). See [ADR-017](./docs/adr/017-three-pillars-install-hardening.md) for the design rationale.
+
 ## Usage
 
 ### CLI mode (terminal)

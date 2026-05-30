@@ -331,3 +331,22 @@ This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanline
   - **e2e secondary**: `test/e2e/self-dogfood.test.js:67` uses `assert.fail()` in a path that should be `t.skip()` (when `git worktree add … main` is rejected because the e2e is itself running on `main`).
   All scheduled for closure in v0.2.k.
 **Keywords for matching**: discover, SCAN, scanner, test runner detection, package.json scripts, recursive glob, fixture realism, dogfood, .test.js, node --test, jest, vitest, false negative, spec literal vs reality
+
+---
+
+## L-018 — Composer's walking-skeleton scope omitted scale concerns (5th L-009-pattern echo)
+
+**Status**: active (0 occurrences yet — *anticipated* by Sébastien before it became painful; predictive capture)
+**Date**: 2026-05-30
+**Origin**: After v0.2.7 (composer) + v0.2.j (5-Whys consuming composer) + v0.2.k draft (closure of dogfood findings), Sébastien observed: "à un moment donné on va avoir le même problème que celui qu'on avait identifié dans la Constitution. On va se retrouver à charger un contexte énorme tout le temps dans des situations où ce qui est indiqué dans le learning n'est pas nécessaire. Il faudrait que les learning soient classifiés aussi par catégorie et déclenchés en fonction de ce qu'on fait." Verified by reading `lib/composer/match.js`: keyword matching is global over the whole lessons file with no context awareness; the only ceiling is `topN=5`. With 17 active lessons today and topN=5, the composer averages 2-4 relevant injections — fine. At 50+ lessons, the keyword "git" alone collides across L-003/L-008/L-017 + everything new, and topN starts excluding genuinely-relevant lessons in favor of lexical-coincidence ones. The recent v0.2.k launch matched L-009/L-017/L-016/L-004 — relevant by luck, not by structural design.
+**The pattern (5th iteration)**: every MMD walking-skeleton component touching data-volume-sensitive logic has had this conversation. Constitution v1.3→v2.0 was modularized into 13 modules + `constitution-bindings.yaml` because loading the monolith always wasted context. SPEC_V02E §4 explicitly deferred "semantic matching" and "scoring sophistication" but never said "no categorization either" — leaving the future-scale gap unnamed. Sébastien named it, again, before it bit.
+**Rule**: the composer must adopt the same architecture as the constitution did — light per-item categorization + a context-aware filter that runs BEFORE keyword matching:
+  1. Every lesson gets two new optional fields (authored or migrated): `**Category**: <comma-list>` (e.g. "git, subprocess-control, observability") and `**Applies to**: <comma-list>` (e.g. "mmd --here, mmd ship, any-claude-spawn", or `*` for universal).
+  2. The parser tolerates missing fields (legacy lessons treated as `Category: uncategorized`, `Applies to: *` for back-compat).
+  3. `composeLessons(prompt, lessonsPath, { context })` where `context = { subcommand, phase?, engine? }`. The composer first filters lessons by `Applies to` (must include `subcommand` or be `*`), then runs keyword matching on the filtered subset, then applies `topN` cap as before.
+  4. Backward-compat: if `context` is undefined (legacy callers), no filtering happens — current v0.2.7 behavior.
+  5. Optional `lessons-bindings.yaml` (mirroring `constitution-bindings.yaml`) for explicit per-subcommand prefer-lists on top of `Applies to`.
+  6. Mechanical migration of the 17 existing lessons (1-line `Category` + `Applies to` each).
+**To promote if**: 3 reuses validated (counter: 0) — BUT the meta-pattern has now been observed 5 times: L-009 (wrapper) / L-012 (gStack) / L-015 (Conductor) / L-017 (discover) / L-018 (composer). **Strong candidate to promote a META-rule to `ai-coding.md`**: "Walking-skeleton specs must enumerate explicit **scale assumptions** in their Out-of-scope section (e.g., 'works up to N items, beyond N consider categorization/filtering/sharding'). Unstated assumptions become silent L-009 echoes." Promote when v0.5b Documentalist exists.
+**Operational mitigation while v0.2.l ships**: nothing needed today (17 lessons is safe). Re-check the load profile (`mmd lessons` + composer.json metrics) when the lessons count crosses 30; bump priority of v0.2.l if injection looks noisy before then.
+**Keywords for matching**: composer, autolearning, scale, context bloat, modularization, categorization, lessons-bindings, walking-skeleton scope, L-009 pattern fifth occurrence, scale assumption, Applies to, Category, predictive capture, prevention before pain

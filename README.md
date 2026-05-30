@@ -277,12 +277,15 @@ Every `mmd` subprocess invocation (autodev, ship, qa, cso, document-release) now
 ```bash
 mmd lessons                        # list every active lesson + injection count
 mmd lessons match "git checkout"   # preview which lessons would inject for an input
+mmd lessons match "git checkout" --context mmd-qa   # same, pre-filtered by context (v0.2.l)
 mmd lessons --show L-008           # print one lesson's title + status + rule
 mmd lessons --help
 ```
 
+**Category + Applies to + context filtering** (*new in v0.2.l*). Each lesson now carries two optional annotations — `**Category**:` (a comma-list folksonomy, e.g. `git, subprocess-control`) and `**Applies to**:` (a comma-list of subcommands like `mmd --here, mmd ship`, or `*` for universal). Before keyword matching, the composer **filters by context**: a `mmd qa` invocation only considers lessons whose `Applies to` includes `mmd qa` or `*`, so a brownfield-only lesson never pollutes a qa prompt and vice-versa. Each spawn site passes its own context (`mmd --here`, `mmd <skill>`, `mmd unblock`); legacy callers that pass no context get the pre-v0.2.l full-file behavior unchanged. The fields are parser-tolerant (absent → `uncategorized` / `*`). Use `mmd lessons match "<prompt>" --context <subcommand>` to introspect the filtered result — it prints `Filtered N of M (context: …)` and returns a strict subset of the un-contextual match. This mirrors the constitution's per-context `constitution-bindings.yaml` model and keeps the composer scale-resilient as the lessons count grows — see [ADR-012](./docs/adr/012-composer-categorization.md).
+
 Each composed run drops two sidecar files next to its `.mmd/local/<*>-runs/<ts>.log`:
-- `<ts>.composer.json` — audit trail: which lessons matched, which keywords hit, file SHA, elapsed_ms
+- `<ts>.composer.json` — audit trail: which lessons matched, which keywords hit, file SHA, elapsed_ms, plus the v0.2.l context metrics (`context`, `filtered_out_by_context`, `matched_by_keyword`, `injected`)
 - `[composer] injected …` line at the top of the run log itself
 
 To roll up adoption across a slice: `scripts/audit-pillars.sh --with-composer main..HEAD` reports total runs, auto-injected runs, average lessons per run, and the top-5 lessons by injection count.

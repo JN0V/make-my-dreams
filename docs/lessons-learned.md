@@ -67,7 +67,7 @@
 If any item is missing, either (a) relaunch with a precise "RESUME — here's what's missing" prompt naming each missing artifact, or (b) finish the residual items manually if they're small. A second auto-dev pass with a focused resume prompt is typically faster than a from-scratch run, but doesn't always complete either — be ready to take over the final 10%.
 **To promote if**: 5 reuses validated (counter: 1) — likely to inform the dream-bench design in v0.2b (the bench should assert that auto-dev's Definition of Done was respected)
 **Category**: subprocess-control, definition-of-done
-**Applies to**: mmd --here
+**Applies to**: mmd --here, mmd unblock
 **Keywords for matching**: auto-dev stopped, incomplete pipeline, resume prompt, partial run, Phase 4, missing tests, definition of done
 
 ---
@@ -337,7 +337,7 @@ This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanline
 **To promote if**: 3 reuses validated (counter: 1) — strong candidate to promote to `ai-coding.md` as "Standard engine pre-conditions: MMD_TIMEOUT_MS=0 + spec-frozen directive in prompt." A future v0.2.h (Conductor preconditions hardening, see L-015) should also bake in: (a) auto-set `MMD_TIMEOUT_MS=0` for the Standard engine path unless user overrides, (b) detect WIP in the working tree after subprocess exit and surface it rather than letting `here-mode` exit silently.
 **Operational note**: this lesson surfaced when Sébastien asked "il faut vraiment qu'on arrive à comprendre pourquoi il s'arrête tout seul" — the answer was sitting in plain sight in `.mmd/shared/status.json` (`engine_metrics.duration_seconds: 1800.6` = pile 30 min). Reading the structured state files BEFORE hypothesizing saves cycles. Add to the operational checklist: when an auto-dev appears to have stopped, FIRST `cat .mmd/shared/status.json` and `tail .mmd/local/runs/*.log` before speculating.
 **Category**: subprocess-control, prompt-engineering
-**Applies to**: mmd --here
+**Applies to**: mmd --here, mmd unblock
 **Keywords for matching**: MMD_TIMEOUT_MS, timeout, 1800, 30 min, subprocess timed out, spec polishing, adversarial review loop, party mode, Phase 1 stuck, auto-dev killed, salvage WIP, status.json failed state
 
 ---

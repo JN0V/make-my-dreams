@@ -112,8 +112,11 @@ Engine flags compose with `--here` (`mmd --here --fast "<change>"` is valid). Re
 
 **Operate on any project (`--here`).** This is the implementation step that fulfills the reflexive bootstrap [MAKE_MY_DREAMS.md §7](./MAKE_MY_DREAMS.md): from v0.2a onward, the same CLI works on greenfield (`demo/<slug>/`) and on any existing repo (in-place). Self-development of MMD now flows through the supported path rather than bypassing it (cf [`docs/lessons-learned.md`](./docs/lessons-learned.md) L-009).
 
+**Prompt-grounding check — *new in v0.2.h*.** Before creating the slice branch, `--here` parses your dream for documented file references (`SPEC_*.md`, `docs/*.md`, `.specify/memory/*.md`, and root files like `MAKE_MY_DREAMS.md`, `README.md`, `package.json`) and verifies each one exists on the slice's base via `git cat-file -e`. If any cited file is missing, `mmd` exits with **code 6** and lists the missing paths plus how to fix it (commit the files to the base first, or remove the references from the dream) — instead of spending 30+ minutes of auto-dev on a prompt that references a file that isn't there (the failure captured in [`docs/lessons-learned.md`](./docs/lessons-learned.md) L-015). The check is deterministic, closed-pattern (no LLM), and runs in well under 100 ms. To bypass it — e.g. when a path lives somewhere the patterns don't recognize — set `MMD_SKIP_GROUNDING=1`; the slice then proceeds with a warning, at your own risk. See [ADR-013](./docs/adr/013-prompt-grounding-check.md).
+
 `--here`-specific env vars:
 - `MMD_HERE_PROTECTED_BRANCHES` — comma-separated list (default `main,master`). `--here` from a protected branch is NOT an error — the slice branch is still created from HEAD. This env var documents the protected names for future Conductor enforcement.
+- `MMD_SKIP_GROUNDING` — set to `1` to bypass the prompt-grounding check (above). Not recommended; emits a warning and proceeds.
 
 ### Bench mode (`mmd bench`) — *new in v0.2b*
 

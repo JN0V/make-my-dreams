@@ -56,6 +56,8 @@ When an agent run shows any stall signal (no commit > N min, retry count > M, re
 
 The 5-Whys session (BMAD Party Mode: Mary leads, Winston/Quinn/Amelia/Christie augment) returns one of five closed actions: `continue-with-hint`, `abandon-approach`, `escalate-to-user`, `task-actually-complete`, `false-positive-stall`. On unparseable session output the action is always `escalate-to-user` (the sacred fallback — never fabricate a confident verdict). See [ADR-011](../../../docs/adr/011-five-whys-escalation.md).
 
+**Prompt-grounding** (extends §VI from v0.2.j): every file path cited in a dream MUST exist on the launch base. The `lib/here-mode` precheck enforces this automatically since v0.2.h; the rule remains in case someone bypasses via `MMD_SKIP_GROUNDING`. Honor the spirit even when the check is bypassed — pasting a SPEC file path that doesn't exist is a 30-min-of-auto-dev mistake. See [ADR-013](../../../docs/adr/013-prompt-grounding-check.md).
+
 ---
 
-*Version: 1.1.0 | Loaded by every LLM-driven skill/worker (essentially everything). See bindings.*
+*Version: 1.2.0 | Loaded by every LLM-driven skill/worker (essentially everything). See bindings.*

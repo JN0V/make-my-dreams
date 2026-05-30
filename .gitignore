@@ -57,3 +57,6 @@ Thumbs.db
 !test/fixtures/discover-repos/**/_bmad/
 !test/fixtures/discover-repos/**/_bmad/**
 !test/fixtures/discover-repos/**/mmd-discovery-report.md
+
+# gStack skill outputs (cso, qa, etc. write here when run from MMD; not source)
+.gstack/

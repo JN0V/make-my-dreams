@@ -55,6 +55,19 @@ function fakeSpecify(versionLine) {
   return dir;
 }
 
+/**
+ * Create a fake `specify` that mimics the REAL GitHub Spec Kit: `--version`
+ * exits non-zero (no such flag), `--help` exits 0. Verifies the probe's
+ * --help fallback so a working install is not flagged BROKEN.
+ */
+function fakeSpecifyHelpOnly() {
+  const dir = mkdtempSync(path.join(tmpdir(), 'mmd-fake-specify-help-'));
+  const bin = path.join(dir, 'specify');
+  writeFileSync(bin, `#!/usr/bin/env bash\nif [ "$1" = "--help" ]; then echo "GitHub Spec Kit"; exit 0; fi\necho "Usage: specify [OPTIONS]" >&2; exit 2\n`);
+  chmodSync(bin, 0o755);
+  return dir;
+}
+
 test('@unit install-mmd phase 5: specify absent + non-interactive warns and continues (exit 0)', () => {
   const phase5 = extractPhase5();
   try {
@@ -98,6 +111,24 @@ test('@unit install-mmd phase 5: specify present + functional reports present + 
     assert.equal(r.status, 0, `expected exit 0; stdout=${r.stdout}\nstderr=${r.stderr}`);
     assert.match(r.stdout, /present \+ functional/i);
     assert.match(r.stdout, /1\.42\.0-fake/);
+  } finally {
+    rmSync(path.dirname(phase5), { recursive: true, force: true });
+    rmSync(fakeDir, { recursive: true, force: true });
+  }
+});
+
+test('@unit install-mmd phase 5: real-Spec-Kit specify (no --version, --help only) verifies via fallback', () => {
+  const phase5 = extractPhase5();
+  const fakeDir = fakeSpecifyHelpOnly();
+  try {
+    const r = spawnSync('bash', [phase5], {
+      encoding: 'utf8',
+      timeout: 15000,
+      env: { PATH: `${fakeDir}:/usr/bin:/bin` },
+    });
+    assert.equal(r.status, 0, `expected exit 0; stdout=${r.stdout}\nstderr=${r.stderr}`);
+    assert.match(r.stdout, /present \+ functional/i);
+    assert.doesNotMatch(r.stdout, /PRESENT BUT BROKEN/);
   } finally {
     rmSync(path.dirname(phase5), { recursive: true, force: true });
     rmSync(fakeDir, { recursive: true, force: true });

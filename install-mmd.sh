@@ -1213,12 +1213,27 @@ header "Phase 5 — Spec Kit (https://github.com/github/spec-kit)"
 SPEC_KIT_STATUS="NOT_INSTALLED"
 SPEC_KIT_VER=""
 
+# Functional probe: prefer `specify --version`, but GitHub Spec Kit's `specify`
+# has no --version flag (it exits non-zero) — fall back to `specify --help`,
+# which a working install always answers. (SPEC §5 anticipates this: prefer the
+# tool's real documented behavior over the literal --version assumption.)
+spec_kit_probe() {
+    if SPEC_KIT_VER="$(specify --version 2>&1)" && [ -n "${SPEC_KIT_VER//[[:space:]]/}" ]; then
+        SPEC_KIT_VER="${SPEC_KIT_VER%%$'\n'*}"
+        return 0
+    elif specify --help >/dev/null 2>&1; then
+        SPEC_KIT_VER="responsive (specify --help)"
+        return 0
+    fi
+    return 1
+}
+
 if command -v specify >/dev/null 2>&1; then
-    if SPEC_KIT_VER="$(specify --version 2>&1)"; then
-        ok "Spec Kit: present + functional (specify --version responded: ${SPEC_KIT_VER})"
+    if spec_kit_probe; then
+        ok "Spec Kit: present + functional (${SPEC_KIT_VER})"
         SPEC_KIT_STATUS="PRESENT_FUNCTIONAL"
     else
-        fail "Spec Kit: PRESENT BUT BROKEN — specify on PATH but --version did not respond"
+        fail "Spec Kit: PRESENT BUT BROKEN — specify on PATH but neither --version nor --help responded"
         info "  Remediation: reinstall via 'uv tool install specify-cli' (or 'pip install specify-cli')"
         SPEC_KIT_STATUS="PRESENT_BROKEN"
     fi
@@ -1256,7 +1271,7 @@ else
             fi
         fi
         if [ "$SPEC_KIT_INSTALLED" = true ] && command -v specify >/dev/null 2>&1 \
-           && SPEC_KIT_VER="$(specify --version 2>&1)"; then
+           && spec_kit_probe; then
             ok "Spec Kit installed and verified: ${SPEC_KIT_VER}"
             SPEC_KIT_STATUS="PRESENT_FUNCTIONAL"
         else

@@ -54,6 +54,7 @@ Usage:
   mmd document-release [<from>] [<to>] Invoke gStack document-release skill — release-notes draft (v0.2.g)
   mmd discover [<path>]                Project Onboarder for brownfield repos (v0.2c)
   mmd lessons                          Introspect docs/lessons-learned.md + composer audits (v0.2e)
+  mmd document-lessons [--dry-run]     Increment lesson counters + auto-promote at threshold (v0.2.i)
   mmd unblock [<branch>] [--dry-run]   Run a 5-Whys stuck-recovery session on a slice (v0.2.j)
   mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
@@ -446,6 +447,13 @@ async function main() {
     // qa/cso/document-release.
     const { runLessons } = await import('./lessons.js');
     return runLessons(rawArgs.slice(1));
+  }
+  if (rawArgs[0] === 'document-lessons') {
+    // v0.2.i AC-1: `mmd document-lessons` — Documentalist lite. Dispatched here
+    // (before checkGate / argv parsing) for the same reason as the others: it
+    // must not parse as a dream string. Increments lesson counters + auto-promotes.
+    const { runDocumentLessons } = await import('./documentalist/document-lessons.js');
+    return runDocumentLessons(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'unblock') {
     // v0.2.j AC-3: `mmd unblock` subcommand. Dispatched here (before checkGate

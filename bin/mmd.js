@@ -53,6 +53,7 @@ Usage:
   mmd document-release [<from>] [<to>] Invoke gStack document-release skill — release-notes draft (v0.2.g)
   mmd discover [<path>]                Project Onboarder for brownfield repos (v0.2c)
   mmd lessons                          Introspect docs/lessons-learned.md + composer audits (v0.2e)
+  mmd unblock [<branch>] [--dry-run]   Run a 5-Whys stuck-recovery session on a slice (v0.2.j)
   mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
   mmd --help, -h                       Print this usage and exit
@@ -424,6 +425,13 @@ async function main() {
     // qa/cso/document-release.
     const { runLessons } = await import('./lessons.js');
     return runLessons(rawArgs.slice(1));
+  }
+  if (rawArgs[0] === 'unblock') {
+    // v0.2.j AC-3: `mmd unblock` subcommand. Dispatched here (before checkGate
+    // / argv parsing) for the same reason as ship/qa — must not parse as a
+    // dream string equal to "unblock". Runs the 5-Whys stuck-recovery session.
+    const { runUnblock } = await import('./conductor/unblock.js');
+    return runUnblock(rawArgs.slice(1));
   }
   if (rawArgs.includes('--version')) {
     stdout.write(`${VERSION}\n`);

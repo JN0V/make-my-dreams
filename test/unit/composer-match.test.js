@@ -170,12 +170,16 @@ test('@unit composeLessons: live file — every realistic dream string matches a
   // returns zero matches, the lesson keywords have drifted away from how
   // humans actually phrase those topics (the silent-miss failure mode
   // named in ADR-010's "Negative" §1).
+  // NOTE: two prompts originally targeted L-002 (claude -p stdout/monitoring),
+  // which was PROMOTED into ai-coding.md and removed from the live file. They
+  // are replaced here with prompts landing on still-active lessons (L-004,
+  // L-017) so the canary tracks the current vocabulary, not a promoted one.
   const realisticDreams = [
     'launch auto-dev in the background with nohup',
-    'tail -f the claude -p log to monitor progress',
+    'auto-dev stopped at 80% completion without an explicit failure',
     'careful with git branch -d after a partial merge',
     'fix the test fragility around package.json version drift',
-    'check pgrep for previous claude -p before launching',
+    'mmd discover under-detects the test runner in package.json scripts',
   ];
   const misses = [];
   for (const dream of realisticDreams) {

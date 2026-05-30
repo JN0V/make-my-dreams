@@ -1,6 +1,11 @@
 // @integration test for SPEC_V02J AC-4 — the 5-Whys session prompt benefits
-// from the composer: a timeout-themed stall context auto-injects L-016's rule
-// (keywords "MMD_TIMEOUT_MS", "timeout", "30 min") from the LIVE lessons file.
+// from the composer: a stall-themed context auto-injects a relevant LIVE lesson.
+//
+// NOTE (v0.2.m): this test originally targeted L-016 (timeout/spec-polish), but
+// L-016 was PROMOTED into ai-coding.md and removed from the live lessons file —
+// the composer can no longer inject it. The test now targets L-004 ("auto-dev
+// can stop at ~80% completion without explicit failure"), which is still active
+// and is a textbook 5-Whys stall scenario.
 //
 // We exercise lib/conductor/five-whys.js directly (no CLI) so we can inspect
 // the composer result it returns. The fake-claude fixture stands in for claude.
@@ -18,34 +23,34 @@ const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const FAKE = path.join(REPO_ROOT, 'test', 'fixtures', 'fake-claude-five-whys.sh');
 const LIVE_LESSONS = path.join(REPO_ROOT, 'docs', 'lessons-learned.md');
 
-// A stall context heavy with L-016 keywords.
+// A stall context heavy with L-004 keywords (auto-dev stopped mid-pipeline).
 const TIMEOUT_CONTEXT = {
-  sliceBranch: 'slice/timeout-victim',
-  signals: ['duration-exceeded-budget', 'state-failed-explicit'],
+  sliceBranch: 'slice/stall-victim',
+  signals: ['no-commit-timeout', 'state-failed-explicit'],
   evidence: {
     durationSeconds: 1800.6,
     state: 'failed',
-    note: 'MMD_TIMEOUT_MS default of 30 min killed the run; subprocess timed out',
+    note: 'auto-dev stopped before Phase 4; tests missing, incomplete pipeline (partial run)',
   },
   lastCommits: 'a08ed04 docs(spec): adversarial review pass 2',
-  logTail: '[mmd] subprocess timed out',
-  dream: 'implement the slice; the claude -p subprocess timed out at 30 min (MMD_TIMEOUT_MS)',
+  logTail: '[mmd] auto-dev stopped — no resume prompt issued',
+  dream: 'implement the slice; the auto-dev run stopped at ~80%, Phase 4 + missing tests, incomplete pipeline',
 };
 
-test('@integration composeLessons matches L-016 on a timeout-themed prompt', async () => {
-  // Sanity-check the live lessons file carries L-016 (skip gracefully if not).
+test('@integration composeLessons matches L-004 on a stall-themed prompt', async () => {
+  // Sanity-check the live lessons file carries L-004 (skip gracefully if not).
   if (!existsSync(LIVE_LESSONS)) {
     assert.ok(true, 'lessons file absent — brownfield no-op, nothing to assert');
     return;
   }
   const prompt =
-    'diagnose: MMD_TIMEOUT_MS default 30 min, subprocess timed out, status.json failed state';
+    'diagnose: auto-dev stopped before Phase 4, missing tests, incomplete pipeline, partial run';
   const result = await composeLessons(prompt, LIVE_LESSONS, { env: {} });
   const ids = result.injectedLessons.map((l) => l.id);
-  assert.ok(ids.includes('L-016'), `expected L-016 injected; got ${ids.join(',')}`);
+  assert.ok(ids.includes('L-004'), `expected L-004 injected; got ${ids.join(',')}`);
 });
 
-test('@integration runFiveWhys injects L-016 into the session prompt (AC-4)', async () => {
+test('@integration runFiveWhys injects L-004 into the session prompt (AC-4)', async () => {
   if (!existsSync(LIVE_LESSONS)) {
     assert.ok(true, 'lessons file absent — brownfield no-op');
     return;
@@ -63,7 +68,7 @@ test('@integration runFiveWhys injects L-016 into the session prompt (AC-4)', as
   });
   assert.ok(result.composer, 'composer result should be present');
   const ids = result.composer.injectedLessons.map((l) => l.id);
-  assert.ok(ids.includes('L-016'), `expected L-016 injected into session; got ${ids.join(',')}`);
+  assert.ok(ids.includes('L-004'), `expected L-004 injected into session; got ${ids.join(',')}`);
   // The session still parsed the fake-claude action.
   assert.equal(result.parsed.recommended_action, 'continue-with-hint');
   // F7 (Phase-4 review): AC-4 wants the matched lessons recorded in a

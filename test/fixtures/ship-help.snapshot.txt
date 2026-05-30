@@ -26,4 +26,4 @@ Env vars:
   MMD_SHIP_CMD           override 'claude' command (testing fixture)
   MMD_QUIET=1            suppress live tee to stdout (log file preserved)
 
-mmd 0.2.11
+mmd 0.2.12

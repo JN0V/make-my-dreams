@@ -55,14 +55,16 @@ exit 0
   return scriptPath;
 }
 
+// gStack moved from Phase 6 to Phase 4 in v0.2.m (pillar block grouped ahead of
+// the housekeeping phases). Extract it via its current markers.
 function extractPhase6() {
   const src = readFileSync(INSTALLER, 'utf8');
-  const startMarker = '# PHASE 6:';
-  const endMarker = '# PHASE 7:';
+  const startMarker = '# PHASE 4: gStack';
+  const endMarker = '# PHASE 5:';
   const startIdx = src.indexOf(startMarker);
   const endIdx = src.indexOf(endMarker);
   if (startIdx < 0 || endIdx < 0) {
-    throw new Error('install-mmd.sh: PHASE 6 markers not found');
+    throw new Error('install-mmd.sh: gStack (Phase 4) markers not found');
   }
   const phase = src.slice(startIdx, endIdx);
   const helpers = `#!/usr/bin/env bash

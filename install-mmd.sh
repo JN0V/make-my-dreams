@@ -248,6 +248,9 @@ if [ "$BMAD_EXIT" -ne 0 ]; then
 fi
 
 ok "BMAD installation completed"
+# Pillar status for the v0.2.m summary banner (reaching here means BMAD is OK —
+# Phase 1 exits non-zero above on any BMAD failure).
+BMAD_STATUS="PRESENT_FUNCTIONAL"
 
 # Ensure _bmad/ is in .gitignore with a dedicated section
 GITIGNORE="$TARGET/.gitignore"
@@ -1112,69 +1115,8 @@ COMMAND_EOF
 ok "Generated: .claude/commands/bmad-${ADV_CODE}-auto-dev.md"
 
 # ============================================================================
-# PHASE 4: Update skill manifest
-# ============================================================================
-header "Phase 4 — Updating skill manifest"
-
-# Determine which manifest file exists
-MANIFEST=$(resolve_dep \
-    "_bmad/_config/skill-manifest.csv" \
-    "_bmad/_config/workflow-manifest.csv")
-MANIFEST="$TARGET/$MANIFEST"
-
-MANIFEST_ENTRY="\"auto-dev\",\"auto-dev\",\"Automated end-to-end pipeline: quick-dev spec + party mode → adversarial spec review loop → quick-dev implementation → adversarial code review loop.\",\"${ADV_CODE}\",\"_bmad/${ADV_CODE}/workflows/auto-dev/workflow.md\",\"false\""
-
-# Remove any existing auto-dev entry (handles updates cleanly)
-if grep -q '"auto-dev"' "$MANIFEST" 2>/dev/null; then
-    grep -v '"auto-dev"' "$MANIFEST" > "$MANIFEST.tmp"
-    mv "$MANIFEST.tmp" "$MANIFEST"
-    info "Removed old manifest entry"
-fi
-
-# Add fresh entry
-echo "$MANIFEST_ENTRY" >> "$MANIFEST"
-
-# Sort manifest (keep header, sort rest)
-{
-    head -1 "$MANIFEST"
-    tail -n +2 "$MANIFEST" | sort
-} > "$MANIFEST.tmp"
-mv "$MANIFEST.tmp" "$MANIFEST"
-
-ok "Manifest entry written and sorted"
-
-# ============================================================================
-# PHASE 5: Cleanup old installation artifacts
-# ============================================================================
-header "Phase 5 — Cleanup"
-
-# v2.x layout: workflow lived under bmm-quick-flow
-OLD_WORKFLOW_DIR_V2="$TARGET/_bmad/bmm/workflows/bmad-quick-flow/auto-dev"
-if [ -d "$OLD_WORKFLOW_DIR_V2" ]; then
-    rm -rf "$OLD_WORKFLOW_DIR_V2"
-    ok "Removed v2 workflow directory: _bmad/bmm/workflows/bmad-quick-flow/auto-dev/"
-fi
-
-# v3.x layout: workflow side-loaded into bmm/4-implementation
-OLD_WORKFLOW_DIR_V3="$TARGET/_bmad/bmm/4-implementation/auto-dev"
-if [ -d "$OLD_WORKFLOW_DIR_V3" ]; then
-    rm -rf "$OLD_WORKFLOW_DIR_V3"
-    ok "Removed v3 workflow directory: _bmad/bmm/4-implementation/auto-dev/ (migrated to adv module)"
-fi
-
-# v3.x slash command name
-OLD_COMMAND_FILE="$TARGET/.claude/commands/bmad-bmm-auto-dev.md"
-if [ -f "$OLD_COMMAND_FILE" ]; then
-    rm -f "$OLD_COMMAND_FILE"
-    ok "Removed v3 slash command: .claude/commands/bmad-bmm-auto-dev.md (replaced by bmad-${ADV_CODE}-auto-dev)"
-fi
-
-if [ ! -d "$OLD_WORKFLOW_DIR_V2" ] && [ ! -d "$OLD_WORKFLOW_DIR_V3" ] && [ ! -f "$OLD_COMMAND_FILE" ]; then
-    ok "No legacy artifacts to clean up"
-fi
-
-# ============================================================================
-# PHASE 6: gStack functional verify (v0.2.f — AC-2)
+# PHASE 4: gStack functional verify (v0.2.f — AC-2; moved ahead of the pillar
+#          block in v0.2.m so all five pillars are detected contiguously)
 # ============================================================================
 # Per docs/lessons-learned.md L-012: claiming gStack as a pillar without ever
 # invoking it is a documentation defect. AC-2 makes the installer functional:
@@ -1185,7 +1127,7 @@ fi
 # Env vars:
 #   MMD_AUTO_INSTALL_GSTACK=1 -> skip y/N prompt and install gStack if absent
 #   MMD_REQUIRE_GSTACK=1      -> a broken gStack install fails the run (exit 2)
-header "Phase 6 — gStack functional verify"
+header "Phase 4 — gStack functional verify"
 
 GSTACK_DIR="$HOME/.claude/skills/gstack"
 GSTACK_CONFIG_BIN="$GSTACK_DIR/bin/gstack-config"
@@ -1255,9 +1197,309 @@ if [ "$GSTACK_STATUS" = "NOT_INSTALLED" ] && [ "${MMD_REQUIRE_GSTACK:-0}" = "1" 
 fi
 
 # ============================================================================
-# PHASE 7: Validation
+# PHASE 5: Spec Kit (v0.2.m — AC-1)
 # ============================================================================
-header "Phase 7 — Validation"
+# Pillar #4 of 5. https://github.com/github/spec-kit — versioned constitution +
+# spec-driven workflow. Detect `specify` on PATH; if absent offer the documented
+# install (`uv tool install specify-cli`, pip fallback); functional-verify via
+# `specify --version`. Same detect→offer→verify shape as Phase 0 (bun) and
+# Phase 4 (gStack).
+#
+# Env vars:
+#   MMD_AUTO_INSTALL_SPEC_KIT=1 -> skip the y/N prompt and install if absent
+#   MMD_REQUIRE_SPEC_KIT=1      -> absent + declined → exit 1
+header "Phase 5 — Spec Kit (https://github.com/github/spec-kit)"
+
+SPEC_KIT_STATUS="NOT_INSTALLED"
+SPEC_KIT_VER=""
+
+if command -v specify >/dev/null 2>&1; then
+    if SPEC_KIT_VER="$(specify --version 2>&1)"; then
+        ok "Spec Kit: present + functional (specify --version responded: ${SPEC_KIT_VER})"
+        SPEC_KIT_STATUS="PRESENT_FUNCTIONAL"
+    else
+        fail "Spec Kit: PRESENT BUT BROKEN — specify on PATH but --version did not respond"
+        info "  Remediation: reinstall via 'uv tool install specify-cli' (or 'pip install specify-cli')"
+        SPEC_KIT_STATUS="PRESENT_BROKEN"
+    fi
+else
+    info "Spec Kit is NOT installed (specify not on PATH)."
+    info "  - Spec Kit provides a versioned constitution + spec-driven workflow."
+    info "  - Install command: uv tool install specify-cli  (fallback: pip install specify-cli)"
+    info "  - Without Spec Kit, 'mmd discover' won't import Spec Kit constitutions from this machine."
+    INSTALL_SPEC_KIT=false
+    if [ "${MMD_AUTO_INSTALL_SPEC_KIT:-0}" = "1" ]; then
+        info "MMD_AUTO_INSTALL_SPEC_KIT=1 detected — proceeding without prompt."
+        INSTALL_SPEC_KIT=true
+    elif [ -t 0 ]; then
+        printf "%s" "  Install Spec Kit via 'uv tool install specify-cli'? [y/N] "
+        read -r reply
+        case "$reply" in
+            y|Y|yes|YES) INSTALL_SPEC_KIT=true ;;
+            *) INSTALL_SPEC_KIT=false ;;
+        esac
+    else
+        info "Non-interactive stdin — skipping prompt. Set MMD_AUTO_INSTALL_SPEC_KIT=1 to auto-install."
+    fi
+    if [ "$INSTALL_SPEC_KIT" = true ]; then
+        SPEC_KIT_INSTALLED=false
+        if command -v uv >/dev/null 2>&1; then
+            if uv tool install specify-cli; then SPEC_KIT_INSTALLED=true; fi
+        else
+            warn "uv not found — falling back to 'pip install specify-cli'."
+            if command -v pip >/dev/null 2>&1 && pip install specify-cli; then
+                SPEC_KIT_INSTALLED=true
+            elif command -v pip3 >/dev/null 2>&1 && pip3 install specify-cli; then
+                SPEC_KIT_INSTALLED=true
+            else
+                warn "Neither uv nor pip available — cannot install Spec Kit automatically."
+            fi
+        fi
+        if [ "$SPEC_KIT_INSTALLED" = true ] && command -v specify >/dev/null 2>&1 \
+           && SPEC_KIT_VER="$(specify --version 2>&1)"; then
+            ok "Spec Kit installed and verified: ${SPEC_KIT_VER}"
+            SPEC_KIT_STATUS="PRESENT_FUNCTIONAL"
+        else
+            fail "Spec Kit install attempted but 'specify --version' did not respond."
+            info "  Remediation: install manually — see https://github.com/github/spec-kit"
+        fi
+    else
+        warn "Spec Kit: NOT installed (user declined). MMD continues; \`mmd discover\` won't import Spec Kit constitutions from this machine."
+    fi
+fi
+
+# AC-1 gate: Spec Kit mandatory when MMD_REQUIRE_SPEC_KIT=1 and still absent.
+if [ "$SPEC_KIT_STATUS" != "PRESENT_FUNCTIONAL" ] && [ "${MMD_REQUIRE_SPEC_KIT:-0}" = "1" ]; then
+    fail "Spec Kit is required (MMD_REQUIRE_SPEC_KIT=1). Re-run with --yes or install manually."
+    exit 1
+fi
+
+# ============================================================================
+# PHASE 6: OpenSpec (v0.2.m — AC-2)
+# ============================================================================
+# Pillar #5 detection. https://github.com/Fission-AI/OpenSpec — lightweight
+# spec-first alternative. Detect `openspec`; if absent offer `npm install -g
+# openspec`; functional-verify via `openspec --version` (fallback `openspec
+# help`). Identical shape to Phase 5.
+#
+# Env vars:
+#   MMD_AUTO_INSTALL_OPENSPEC=1 -> skip the y/N prompt and install if absent
+#   MMD_REQUIRE_OPENSPEC=1      -> absent + declined → exit 1
+header "Phase 6 — OpenSpec (https://github.com/Fission-AI/OpenSpec)"
+
+OPENSPEC_STATUS="NOT_INSTALLED"
+OPENSPEC_VER=""
+
+# Functional probe: prefer --version, fall back to `help` for older builds.
+openspec_probe() {
+    if OPENSPEC_VER="$(openspec --version 2>&1)"; then
+        return 0
+    elif OPENSPEC_VER="$(openspec help 2>&1)"; then
+        return 0
+    fi
+    return 1
+}
+
+if command -v openspec >/dev/null 2>&1; then
+    if openspec_probe; then
+        ok "OpenSpec: present + functional (openspec responded: ${OPENSPEC_VER%%$'\n'*})"
+        OPENSPEC_STATUS="PRESENT_FUNCTIONAL"
+    else
+        fail "OpenSpec: PRESENT BUT BROKEN — openspec on PATH but neither --version nor help responded"
+        info "  Remediation: reinstall via 'npm install -g openspec'"
+        OPENSPEC_STATUS="PRESENT_BROKEN"
+    fi
+else
+    info "OpenSpec is NOT installed (openspec not on PATH)."
+    info "  - OpenSpec provides a lightweight, spec-first workflow."
+    info "  - Install command: npm install -g openspec"
+    info "  - Without OpenSpec, 'mmd discover' won't import OpenSpec change proposals from this machine."
+    if [ "$(id -u)" != "0" ]; then
+        info "  - Note: 'npm install -g' may require sudo on this machine. MMD will NOT sudo for you;"
+        info "    if the install fails with EACCES, re-run the npm command manually with the right privileges."
+    fi
+    INSTALL_OPENSPEC=false
+    if [ "${MMD_AUTO_INSTALL_OPENSPEC:-0}" = "1" ]; then
+        info "MMD_AUTO_INSTALL_OPENSPEC=1 detected — proceeding without prompt."
+        INSTALL_OPENSPEC=true
+    elif [ -t 0 ]; then
+        printf "%s" "  Install OpenSpec via 'npm install -g openspec'? [y/N] "
+        read -r reply
+        case "$reply" in
+            y|Y|yes|YES) INSTALL_OPENSPEC=true ;;
+            *) INSTALL_OPENSPEC=false ;;
+        esac
+    else
+        info "Non-interactive stdin — skipping prompt. Set MMD_AUTO_INSTALL_OPENSPEC=1 to auto-install."
+    fi
+    if [ "$INSTALL_OPENSPEC" = true ]; then
+        if npm install -g openspec; then
+            if command -v openspec >/dev/null 2>&1 && openspec_probe; then
+                ok "OpenSpec installed and verified: ${OPENSPEC_VER%%$'\n'*}"
+                OPENSPEC_STATUS="PRESENT_FUNCTIONAL"
+            else
+                fail "OpenSpec install completed but the openspec command did not respond."
+                info "  Remediation: ensure your npm global bin is on PATH — see https://github.com/Fission-AI/OpenSpec"
+            fi
+        else
+            fail "OpenSpec install via 'npm install -g openspec' failed (permissions? network?)."
+            info "  Remediation: run 'npm install -g openspec' manually (may need sudo), then re-run this script."
+        fi
+    else
+        warn "OpenSpec: NOT installed (user declined). MMD continues; 'mmd discover' won't import OpenSpec proposals from this machine."
+    fi
+fi
+
+# AC-2 gate: OpenSpec mandatory when MMD_REQUIRE_OPENSPEC=1 and still absent.
+if [ "$OPENSPEC_STATUS" != "PRESENT_FUNCTIONAL" ] && [ "${MMD_REQUIRE_OPENSPEC:-0}" = "1" ]; then
+    fail "OpenSpec is required (MMD_REQUIRE_OPENSPEC=1). Re-run with --yes or install manually."
+    exit 1
+fi
+
+# ============================================================================
+# PHASE 7: Ralph Loop (v0.2.m — AC-3)
+# ============================================================================
+# Pillar detection via the Claude Code plugin system. Ralph Loop ships as a
+# plugin in the `claude-plugins-official` marketplace. Detect with
+# `claude plugin list | grep -q ralph-loop`; if absent offer
+# `claude plugin install ralph-loop`; verify by re-running the detection.
+#
+# Pre-check (AC-3): if `claude plugin list` itself errors (Claude Code too old
+# to support plugins, or claude absent) we SKIP Phase 7 cleanly — never block.
+#
+# Env vars:
+#   MMD_AUTO_INSTALL_RALPH_LOOP=1 -> skip the y/N prompt and install if absent
+#   MMD_REQUIRE_RALPH_LOOP=1      -> absent + declined → exit 1
+header "Phase 7 — Ralph Loop (Claude Code plugin: ralph-loop)"
+
+RALPH_STATUS="NOT_INSTALLED"
+
+ralph_present() {
+    claude plugin list 2>/dev/null | grep -q ralph-loop
+}
+
+if ! command -v claude >/dev/null 2>&1; then
+    warn "Ralph Loop: claude CLI not found — skipping plugin check."
+    info "  Install Claude Code first, then re-run this script to wire Ralph Loop."
+    RALPH_STATUS="SKIPPED_NO_CLAUDE"
+elif ! claude plugin list >/dev/null 2>&1; then
+    warn "Ralph Loop needs Claude Code 2.1+ for plugin support. Skipping."
+    RALPH_STATUS="SKIPPED_OLD_CLAUDE"
+elif ralph_present; then
+    ok "Ralph Loop: present + functional (claude plugin list shows ralph-loop)"
+    RALPH_STATUS="PRESENT_FUNCTIONAL"
+else
+    info "Ralph Loop plugin is NOT installed (not in 'claude plugin list')."
+    info "  - Ralph Loop is a minimalist bounded-loop pattern (Claude Code plugin)."
+    info "  - Install command: claude plugin install ralph-loop"
+    INSTALL_RALPH=false
+    if [ "${MMD_AUTO_INSTALL_RALPH_LOOP:-0}" = "1" ]; then
+        info "MMD_AUTO_INSTALL_RALPH_LOOP=1 detected — proceeding without prompt."
+        INSTALL_RALPH=true
+    elif [ -t 0 ]; then
+        printf "%s" "  Install Ralph Loop plugin via 'claude plugin install ralph-loop'? [y/N] "
+        read -r reply
+        case "$reply" in
+            y|Y|yes|YES) INSTALL_RALPH=true ;;
+            *) INSTALL_RALPH=false ;;
+        esac
+    else
+        info "Non-interactive stdin — skipping prompt. Set MMD_AUTO_INSTALL_RALPH_LOOP=1 to auto-install."
+    fi
+    if [ "$INSTALL_RALPH" = true ]; then
+        if claude plugin install ralph-loop && ralph_present; then
+            ok "Ralph Loop installed and verified (claude plugin list shows ralph-loop)"
+            RALPH_STATUS="PRESENT_FUNCTIONAL"
+        else
+            fail "Ralph Loop install attempted but the plugin is still not listed."
+            info "  Remediation: run 'claude plugin install ralph-loop' manually, then re-run this script."
+        fi
+    else
+        warn "Ralph Loop: NOT installed (user declined). MMD continues; the FAST engine's bounded-loop pattern is unaffected."
+    fi
+fi
+
+# AC-3 gate: Ralph Loop mandatory when MMD_REQUIRE_RALPH_LOOP=1 and absent. The
+# pre-check SKIPPED states do NOT exit (AC-3: "no error" when plugins
+# unsupported) — they only warn.
+if [ "${MMD_REQUIRE_RALPH_LOOP:-0}" = "1" ]; then
+    case "$RALPH_STATUS" in
+        NOT_INSTALLED)
+            fail "Ralph Loop is required (MMD_REQUIRE_RALPH_LOOP=1). Re-run with --yes or install manually."
+            exit 1
+            ;;
+        SKIPPED_*)
+            warn "MMD_REQUIRE_RALPH_LOOP=1 set but the plugin system is unavailable — cannot verify. Continuing (pre-check skip is not an error per AC-3)."
+            ;;
+    esac
+fi
+
+# ============================================================================
+# PHASE 8: Update skill manifest
+# ============================================================================
+header "Phase 8 — Updating skill manifest"
+
+# Determine which manifest file exists
+MANIFEST=$(resolve_dep \
+    "_bmad/_config/skill-manifest.csv" \
+    "_bmad/_config/workflow-manifest.csv")
+MANIFEST="$TARGET/$MANIFEST"
+
+MANIFEST_ENTRY="\"auto-dev\",\"auto-dev\",\"Automated end-to-end pipeline: quick-dev spec + party mode → adversarial spec review loop → quick-dev implementation → adversarial code review loop.\",\"${ADV_CODE}\",\"_bmad/${ADV_CODE}/workflows/auto-dev/workflow.md\",\"false\""
+
+# Remove any existing auto-dev entry (handles updates cleanly)
+if grep -q '"auto-dev"' "$MANIFEST" 2>/dev/null; then
+    grep -v '"auto-dev"' "$MANIFEST" > "$MANIFEST.tmp"
+    mv "$MANIFEST.tmp" "$MANIFEST"
+    info "Removed old manifest entry"
+fi
+
+# Add fresh entry
+echo "$MANIFEST_ENTRY" >> "$MANIFEST"
+
+# Sort manifest (keep header, sort rest)
+{
+    head -1 "$MANIFEST"
+    tail -n +2 "$MANIFEST" | sort
+} > "$MANIFEST.tmp"
+mv "$MANIFEST.tmp" "$MANIFEST"
+
+ok "Manifest entry written and sorted"
+
+# ============================================================================
+# PHASE 9: Cleanup old installation artifacts
+# ============================================================================
+header "Phase 9 — Cleanup"
+
+# v2.x layout: workflow lived under bmm-quick-flow
+OLD_WORKFLOW_DIR_V2="$TARGET/_bmad/bmm/workflows/bmad-quick-flow/auto-dev"
+if [ -d "$OLD_WORKFLOW_DIR_V2" ]; then
+    rm -rf "$OLD_WORKFLOW_DIR_V2"
+    ok "Removed v2 workflow directory: _bmad/bmm/workflows/bmad-quick-flow/auto-dev/"
+fi
+
+# v3.x layout: workflow side-loaded into bmm/4-implementation
+OLD_WORKFLOW_DIR_V3="$TARGET/_bmad/bmm/4-implementation/auto-dev"
+if [ -d "$OLD_WORKFLOW_DIR_V3" ]; then
+    rm -rf "$OLD_WORKFLOW_DIR_V3"
+    ok "Removed v3 workflow directory: _bmad/bmm/4-implementation/auto-dev/ (migrated to adv module)"
+fi
+
+# v3.x slash command name
+OLD_COMMAND_FILE="$TARGET/.claude/commands/bmad-bmm-auto-dev.md"
+if [ -f "$OLD_COMMAND_FILE" ]; then
+    rm -f "$OLD_COMMAND_FILE"
+    ok "Removed v3 slash command: .claude/commands/bmad-bmm-auto-dev.md (replaced by bmad-${ADV_CODE}-auto-dev)"
+fi
+
+if [ ! -d "$OLD_WORKFLOW_DIR_V2" ] && [ ! -d "$OLD_WORKFLOW_DIR_V3" ] && [ ! -f "$OLD_COMMAND_FILE" ]; then
+    ok "No legacy artifacts to clean up"
+fi
+
+# ============================================================================
+# PHASE 10: Validation
+# ============================================================================
+header "Phase 10 — Validation"
 
 ALL_OK=true
 
@@ -1286,6 +1528,67 @@ HAS_CONSTITUTION=false
 if [ -f "$TARGET/$CONSTITUTION_PATH" ]; then
     HAS_CONSTITUTION=true
 fi
+
+# ============================================================================
+# FINAL SUMMARY BANNER: all 5 pillars (v0.2.m — AC-4)
+# ============================================================================
+# Single at-a-glance block of every pillar's detection result. Rendered
+# regardless of which pillars are present — a mix of present/absent is normal.
+# Reads ${VAR:-default} so the block can be exercised in isolation by tests.
+pillar_line() {
+    # $1 = label, $2 = status keyword, $3 = detail text
+    local label="$1" status="$2" detail="$3" marker
+    case "$status" in
+        PRESENT_FUNCTIONAL) marker="${GREEN}✓${NC}" ;;
+        NOT_INSTALLED|SKIPPED_*) marker="${YELLOW}⚠${NC}" ;;
+        *) marker="${RED}✗${NC}" ;;
+    esac
+    printf "  %-11s%b %s\n" "$label" "$marker" "$detail"
+}
+
+echo ""
+echo "═══ Install summary ═══"
+
+# bun
+if [ "${BUN_OK:-false}" = true ]; then
+    pillar_line "bun" "PRESENT_FUNCTIONAL" "present + functional (${BUN_VER:-unknown})"
+else
+    pillar_line "bun" "NOT_INSTALLED" "NOT installed (re-run with MMD_AUTO_INSTALL_BUN=1)"
+fi
+
+# gStack
+case "${GSTACK_STATUS:-NOT_INSTALLED}" in
+    PRESENT_FUNCTIONAL) pillar_line "gStack" "PRESENT_FUNCTIONAL" "present + functional (gstack-config responded)" ;;
+    PRESENT_BROKEN)     pillar_line "gStack" "PRESENT_BROKEN" "PRESENT BUT BROKEN — see Phase 4 above" ;;
+    *)                  pillar_line "gStack" "NOT_INSTALLED" "NOT installed (re-run with MMD_AUTO_INSTALL_GSTACK=1)" ;;
+esac
+
+# BMAD
+pillar_line "BMAD" "${BMAD_STATUS:-PRESENT_FUNCTIONAL}" "present + functional (adv module loaded)"
+
+# Spec Kit
+case "${SPEC_KIT_STATUS:-NOT_INSTALLED}" in
+    PRESENT_FUNCTIONAL) pillar_line "Spec Kit" "PRESENT_FUNCTIONAL" "present + functional (${SPEC_KIT_VER:-specify})" ;;
+    PRESENT_BROKEN)     pillar_line "Spec Kit" "PRESENT_BROKEN" "PRESENT BUT BROKEN — see Phase 5 above" ;;
+    *)                  pillar_line "Spec Kit" "NOT_INSTALLED" "NOT installed (re-run with MMD_AUTO_INSTALL_SPEC_KIT=1)" ;;
+esac
+
+# OpenSpec
+case "${OPENSPEC_STATUS:-NOT_INSTALLED}" in
+    PRESENT_FUNCTIONAL) pillar_line "OpenSpec" "PRESENT_FUNCTIONAL" "present + functional (${OPENSPEC_VER%%$'\n'*})" ;;
+    PRESENT_BROKEN)     pillar_line "OpenSpec" "PRESENT_BROKEN" "PRESENT BUT BROKEN — see Phase 6 above" ;;
+    *)                  pillar_line "OpenSpec" "NOT_INSTALLED" "NOT installed (re-run with MMD_AUTO_INSTALL_OPENSPEC=1)" ;;
+esac
+
+# Ralph Loop
+case "${RALPH_STATUS:-NOT_INSTALLED}" in
+    PRESENT_FUNCTIONAL) pillar_line "Ralph Loop" "PRESENT_FUNCTIONAL" "present + functional (claude plugin list shows ralph-loop)" ;;
+    SKIPPED_NO_CLAUDE)  pillar_line "Ralph Loop" "SKIPPED_NO_CLAUDE" "SKIPPED (claude CLI not found)" ;;
+    SKIPPED_OLD_CLAUDE) pillar_line "Ralph Loop" "SKIPPED_OLD_CLAUDE" "SKIPPED (needs Claude Code 2.1+ plugin support)" ;;
+    *)                  pillar_line "Ralph Loop" "NOT_INSTALLED" "NOT installed (re-run with MMD_AUTO_INSTALL_RALPH_LOOP=1)" ;;
+esac
+
+echo "═════════════════════"
 
 # ============================================================================
 # Summary

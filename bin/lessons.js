@@ -24,6 +24,7 @@ import {
   matchLessons,
 } from '../lib/composer/match.js';
 import { parseLessons } from '../lib/composer/parse-lessons.js';
+import { filterLessonsByContext } from '../lib/composer/filter-by-context.js';
 import { aggregateComposerUsageSync } from '../lib/composer/usage-stats.js';
 
 const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
@@ -34,6 +35,10 @@ const LESSONS_USAGE = `mmd lessons — introspect docs/lessons-learned.md + comp
 Usage:
   mmd lessons                       List every active lesson (id, title, keyword count, injection count)
   mmd lessons match "<prompt>"      Show which lessons would be injected for that prompt
+  mmd lessons match "<prompt>" --context <subcommand>
+                                    Same, but pre-filter by the lesson 'Applies to' field
+                                    (SPEC_V02L AC-5). <subcommand> accepts the hyphen form
+                                    (mmd-qa, mmd---here) or a quoted spaced form ("mmd qa").
   mmd lessons --show <L-NNN>        Print one lesson (title, status, keywords, rule)
   mmd lessons --help, -h            Print this usage and exit 0
 
@@ -68,12 +73,30 @@ mmd ${VERSION}
  *   action: 'list' | 'match' | 'show' | 'help',
  *   prompt?: string,
  *   id?: string,
+ *   context?: string,
  *   error?: { message: string, exitCode: number },
  * }}
  */
 export function parseLessonsArgs(rawArgs) {
   const args = Array.isArray(rawArgs) ? rawArgs.slice() : [];
   if (args.includes('--help') || args.includes('-h')) return { action: 'help' };
+
+  // SPEC_V02L AC-5: extract `--context <subcommand>` BEFORE the positional
+  // prompt is joined, so it never leaks into the match prompt. Normalize the
+  // shell-friendly hyphen form to the spaced `Applies to` form.
+  let context;
+  const ctxIdx = args.indexOf('--context');
+  if (ctxIdx >= 0) {
+    const rawCtx = args[ctxIdx + 1];
+    if (!rawCtx || rawCtx.startsWith('-')) {
+      return {
+        action: 'match',
+        error: { message: '--context requires a subcommand (e.g. mmd-qa or "mmd qa")', exitCode: 2 },
+      };
+    }
+    context = normalizeContextSubcommand(rawCtx);
+    args.splice(ctxIdx, 2);
+  }
 
   // `--show <id>` — id may follow as the next positional.
   const showIdx = args.indexOf('--show');
@@ -102,7 +125,15 @@ export function parseLessonsArgs(rawArgs) {
         error: { message: 'match: prompt argument is required', exitCode: 2 },
       };
     }
-    return { action: 'match', prompt };
+    return context ? { action: 'match', prompt, context } : { action: 'match', prompt };
+  }
+
+  // --context is only meaningful for `match`.
+  if (context) {
+    return {
+      action: 'match',
+      error: { message: '--context is only valid with the `match` subaction', exitCode: 2 },
+    };
   }
 
   if (args.length === 0) return { action: 'list' };
@@ -112,6 +143,30 @@ export function parseLessonsArgs(rawArgs) {
     action: 'list',
     error: { message: `unknown subaction '${args[0]}' — try: list (default), match, --show`, exitCode: 2 },
   };
+}
+
+/**
+ * Normalize a `--context` value to the spaced `Applies to` form. The CLI
+ * accepts a shell-friendly hyphen form (no quoting needed); the lessons file
+ * uses spaces. Rule: an already-spaced value (quoted by the user) is used
+ * verbatim; otherwise the FIRST hyphen after a leading `mmd` is turned into a
+ * space, leaving the remainder intact.
+ *
+ *   mmd-qa               → 'mmd qa'
+ *   mmd-document-release → 'mmd document-release'
+ *   mmd---here           → 'mmd --here'
+ *   "mmd qa"             → 'mmd qa' (verbatim)
+ *
+ * Exported for unit tests.
+ *
+ * @param {string} raw
+ * @returns {string}
+ */
+export function normalizeContextSubcommand(raw) {
+  const v = String(raw).trim();
+  if (v.includes(' ')) return v;
+  if (v.startsWith('mmd-')) return `mmd ${v.slice(4)}`;
+  return v;
 }
 
 function resolveLessonsPath(env) {
@@ -175,6 +230,21 @@ export async function runLessons(rawArgs) {
   }
 
   if (parsed.action === 'match') {
+    if (parsed.context) {
+      // SPEC_V02L AC-5: filter active lessons by `Applies to` BEFORE keyword
+      // matching. The result is therefore a strict subset of the un-contextual
+      // match, and every shown lesson's `Applies to` includes the subcommand
+      // or `*`.
+      const candidates = filterLessonsByContext(active, { subcommand: parsed.context });
+      const matched = matchLessons(parsed.prompt, candidates);
+      stdout.write(
+        formatMatchList(parsed.prompt, matched, active.length, {
+          context: parsed.context,
+          filteredOut: active.length - candidates.length,
+        }),
+      );
+      return 0;
+    }
     const matched = matchLessons(parsed.prompt, allLessons);
     stdout.write(formatMatchList(parsed.prompt, matched, active.length));
     return 0;
@@ -232,12 +302,20 @@ function formatLessonShow(lesson) {
   return lines.join('\n');
 }
 
-function formatMatchList(prompt, matched, totalActive) {
+function formatMatchList(prompt, matched, totalActive, ctxInfo = null) {
   const lines = [];
   const preview = prompt.length > 80 ? prompt.slice(0, 77) + '...' : prompt;
   lines.push(`mmd lessons match — input: "${preview}"`);
   lines.push(`Active lessons considered: ${totalActive}`);
   lines.push(`Matched: ${matched.length}`);
+  // SPEC_V02L AC-5: when a context filter was applied, surface how many were
+  // filtered out and how many survived to keyword matching.
+  if (ctxInfo) {
+    lines.push(
+      `Filtered ${ctxInfo.filteredOut} of ${totalActive} (context: ${ctxInfo.context}). ` +
+        `Showing top ${matched.length} matched by keyword.`,
+    );
+  }
   lines.push('');
   if (matched.length === 0) {
     lines.push('(no lessons matched — composer would prepend nothing)');

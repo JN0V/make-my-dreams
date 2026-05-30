@@ -50,6 +50,12 @@ Before declaring "done":
 
 "I think it works" is not "it works".
 
+## VI. Stuck-recovery (v0.2.j)
+
+When an agent run shows any stall signal (no commit > N min, retry count > M, recurring error pattern), do NOT retry blindly. Invoke `mmd unblock <slice>` to run a 5-Whys session. Apply the recommended action.
+
+The 5-Whys session (BMAD Party Mode: Mary leads, Winston/Quinn/Amelia/Christie augment) returns one of five closed actions: `continue-with-hint`, `abandon-approach`, `escalate-to-user`, `task-actually-complete`, `false-positive-stall`. On unparseable session output the action is always `escalate-to-user` (the sacred fallback — never fabricate a confident verdict). See [ADR-011](../../../docs/adr/011-five-whys-escalation.md).
+
 ---
 
-*Version: 1.0.0 | Loaded by every LLM-driven skill/worker (essentially everything). See bindings.*
+*Version: 1.1.0 | Loaded by every LLM-driven skill/worker (essentially everything). See bindings.*

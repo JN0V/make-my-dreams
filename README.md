@@ -294,6 +294,32 @@ Knobs:
 
 Matching is deterministic, sub-100ms on the live `docs/lessons-learned.md` regardless of size, capped at 5 injections per prompt by score with ties broken by id ascending. No LLM call, no embedding model — see [ADR-010](./docs/adr/010-composer-minimal-keyword-overlap.md) for why keyword-overlap over semantic matching.
 
+### Unblock mode (`mmd unblock`) — *new in v0.2.j*
+
+When a slice looks stuck — no commit for a while, the same operation retried over and over, a recurring error in the logs, or a `claude -p` run killed by a timeout — do **not** retry blindly. Run a structured **5-Whys** stuck-recovery session instead:
+
+```bash
+mmd unblock                      # detector + 5-Whys on the current slice/* branch
+mmd unblock slice/foo            # diagnose a named slice branch
+mmd unblock --dry-run            # detector only: print signals + evidence, never call claude
+mmd unblock --force              # skip the detector, run the session unconditionally
+mmd unblock --help
+```
+
+`mmd unblock` first runs a deterministic, sub-100ms **stall detector** over `.mmd/shared/status.json`, the slice's last-commit age, and recent run-log error patterns. It emits signals from a closed enum (`no-commit-since-N-min`, `retry-count-exceeded`, `error-pattern-matched`, `duration-exceeded-budget`, `state-failed-explicit`, `heartbeat-stale`). If stalled (or `--force`), it spawns a **BMAD Party Mode** session: Mary (analyst) leads the 5-why chain while Winston (architect), Quinn (QA), Amelia (PO), and Christie (CSO) add their lens at each "why". Past lessons are auto-injected via the composer, so each session is smarter than the last.
+
+The session writes `.mmd/shared/5-whys/<ts>.md` (full why-chain + evidence + parsed result) and prints one of five recommended actions:
+
+| action | exit | what to do |
+| --- | --- | --- |
+| `continue-with-hint` | 8 | apply the hint, resume the slice |
+| `abandon-approach` | 7 | pivot to a different approach |
+| `escalate-to-user` | 6 | a human decision is needed (also the safe fallback on unparseable output) |
+| `task-actually-complete` | 8 | the work is done — verify DoD and ship |
+| `false-positive-stall` | 8 | no real stall — keep running |
+
+`mmd unblock` does **not** auto-execute the action — you read the summary and act. Auto-trigger and auto-execution are a Conductor concern (see [MAKE_MY_DREAMS.md §4](./MAKE_MY_DREAMS.md)). Knobs: `MMD_STALL_MIN_NOCOMMIT` (default 10 min), `MMD_STALL_MAX_RETRIES` (3), `MMD_STALL_DURATION_BUDGET_FACTOR` (2.0), `MMD_STALL_ERROR_PATTERN_REGEX`, `MMD_FIVEWHYS_TIMEOUT_MS` (default 30 min). See [ADR-011](./docs/adr/011-five-whys-escalation.md) for the design rationale.
+
 ### Web mode (no terminal — for non-technical users)  — *new in v0.2.5*
 
 ```bash

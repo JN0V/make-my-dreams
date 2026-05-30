@@ -58,6 +58,27 @@ The 5-Whys session (BMAD Party Mode: Mary leads, Winston/Quinn/Amelia/Christie a
 
 **Prompt-grounding** (extends §VI from v0.2.j): every file path cited in a dream MUST exist on the launch base. The `lib/here-mode` precheck enforces this automatically since v0.2.h; the rule remains in case someone bypasses via `MMD_SKIP_GROUNDING`. Honor the spirit even when the check is bypassed — pasting a SPEC file path that doesn't exist is a 30-min-of-auto-dev mistake. See [ADR-013](../../../docs/adr/013-prompt-grounding-check.md).
 
+## Promoted from lessons-learned
+
+### L-002 — `claude -p` does not flush stdout in real-time when redirected to a file
+
+**Rule**: do NOT rely on `tail -f` of a `claude -p` stdout redirect to monitor an auto-dev run in progress. Instead, monitor via:
+  1. `git log <slice-branch> --oneline` — auto-dev commits atomically as it completes logical steps
+  2. `find <repo> -type f -mmin -N -not -path "*/.git/*"` — file modification activity
+  3. `_bmad-output/implementation-artifacts/` for techspec + deferred-work files
+  4. Process liveness: `pgrep -f "claude -p"` to confirm it's still running
+
+### L-016 — `MMD_TIMEOUT_MS=1800000` (30 min) default kills Standard auto-dev mid-pipeline + spec-polish trap
+
+**Rule**: 1. **Always** set `MMD_TIMEOUT_MS=0` when launching `mmd --here` for a real implementation slice (Standard engine). The 30-min default is only safe for trivial changes (AC-7 dogfood) or `--fast` engine slices.
+  2. The prompt to auto-dev MUST explicitly forbid further spec editing when the spec is considered final: include the line `The spec at SPEC_V02X.md is AUTHORITATIVE and FROZEN. Do NOT modify SPEC_V02X.md. Go directly to implementation (Phase 3 / coding).` This is the explicit way to short-circuit the spec-polishing trap.
+  3. Operational checklist before `mmd --here` for a real implementation:
+     - `MMD_TIMEOUT_MS=0` exported
+     - The spec file's path verified to exist on base (L-015 mitigation)
+     - The dream prompt explicitly says "spec is frozen, implement"
+     - The previous slice's WIP (if any) is salvaged or discarded explicitly
+
+
 ---
 
 *Version: 1.2.0 | Loaded by every LLM-driven skill/worker (essentially everything). See bindings.*

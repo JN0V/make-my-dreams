@@ -22,23 +22,6 @@
 
 ---
 
-## L-002 — `claude -p` does not flush stdout in real-time when redirected to a file
-
-**Status**: active (1 occurrence in v0.2.5 session)
-**Date**: 2026-05-17
-**Origin**: slice v0.2.5, `/tmp/v025-autodev.log` stayed at 0 bytes for the entire 30+ min run even though commits were happening
-**Context**: I redirected `claude -p ... > /tmp/v025-autodev.log 2>&1`. Throughout the run I checked the log and found it empty, which I initially interpreted as "auto-dev hasn't started yet". In reality, `claude -p` buffers its stdout in memory until process exit (or until a flush trigger), so when redirected to a file there is no live trace. The actual progress was visible via `git log <branch>` (auto-dev commits as it works) and via `find ... -mmin -N` (file activity).
-**Rule**: do NOT rely on `tail -f` of a `claude -p` stdout redirect to monitor an auto-dev run in progress. Instead, monitor via:
-  1. `git log <slice-branch> --oneline` — auto-dev commits atomically as it completes logical steps
-  2. `find <repo> -type f -mmin -N -not -path "*/.git/*"` — file modification activity
-  3. `_bmad-output/implementation-artifacts/` for techspec + deferred-work files
-  4. Process liveness: `pgrep -f "claude -p"` to confirm it's still running
-**To promote if**: 5 reuses validated (counter: 1)
-**Category**: subprocess-control, observability
-**Applies to**: mmd --here, mmd ship, mmd qa, mmd cso, mmd document-release, mmd unblock
-**Keywords for matching**: claude -p, stdout buffer, redirect, tail, log file empty, monitor auto-dev, progress visibility
-
----
 
 ## L-003 — Concurrent git operations on the same worktree conflict between auto-dev and human
 
@@ -65,7 +48,7 @@
   2. The expected output file list (per the spec's Definition of Done) is fully committed.
   3. The release tag was created.
 If any item is missing, either (a) relaunch with a precise "RESUME — here's what's missing" prompt naming each missing artifact, or (b) finish the residual items manually if they're small. A second auto-dev pass with a focused resume prompt is typically faster than a from-scratch run, but doesn't always complete either — be ready to take over the final 10%.
-**To promote if**: 5 reuses validated (counter: 1) — likely to inform the dream-bench design in v0.2b (the bench should assert that auto-dev's Definition of Done was respected)
+**To promote if**: 5 reuses validated (counter: 2) — likely to inform the dream-bench design in v0.2b (the bench should assert that auto-dev's Definition of Done was respected)
 **Category**: subprocess-control, definition-of-done
 **Applies to**: mmd --here, mmd unblock
 **Keywords for matching**: auto-dev stopped, incomplete pipeline, resume prompt, partial run, Phase 4, missing tests, definition of done
@@ -159,7 +142,7 @@ The systemic fix: always run the merge BEFORE the cleanup, and ONLY run the clea
   2. What the **current implementation** (latest spec + code) actually does
   3. The **gap** between (1) and (2), and which planned slice closes it
 Never present an implementation limitation as a design choice — it hides debt and erodes the design's integrity. A concrete check before any architectural statement: "is this true of the *design*, of the *current code*, or both?" If only the code, name the gap and the planned closure (e.g., "currently greenfield-only — `--here` mode planned in v0.2a"). This generalizes beyond MMD: in any spec-driven workflow, walking-skeleton scope must be communicated as deliberately partial, not as the system's true boundary.
-**To promote if**: 3 reuses validated (counter: 1) — strong candidate for promotion to `documentation.md` as an explicit rule "Always distinguish design scope from current-implementation scope".
+**To promote if**: 3 reuses validated (counter: 2) — strong candidate for promotion to `documentation.md` as an explicit rule "Always distinguish design scope from current-implementation scope".
 **Category**: design-vs-implementation, documentation
 **Applies to**: *
 **Keywords for matching**: walking skeleton, design scope, implementation gap, reflexive bootstrap, brownfield, self-modification, --here, scope confusion, premature constraint
@@ -318,29 +301,6 @@ This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanline
 
 ---
 
-## L-016 — `MMD_TIMEOUT_MS=1800000` (30 min) default kills Standard auto-dev mid-pipeline + spec-polish trap
-
-**Status**: active (1 occurrence on v0.2.g first launch; same mechanism likely caused v0.2c's premature stop)
-**Date**: 2026-05-18
-**Origin**: v0.2.g auto-dev was killed at exactly 1800.6 seconds with `state: "failed"` in `.mmd/shared/status.json` and `[mmd] subprocess timed out` in the run log. Tracked the timeout in `bin/mmd.js:291` (and `:594` for the dream path): `timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000`. The default 30-minute budget is the symptom; the deeper cause is that auto-dev had spent ALL of those 30 min on adversarial review passes against `SPEC_V02G.md` (2 commits: `2839292 docs(spec-v0.2.g): adversarial review pass 1 — F1-F20 addressed` + `a08ed04 docs(spec-v0.2.g): adversarial review pass 2 — G1-G5 addressed`) — never reaching the implementation phase. Comparison with v0.2c (same 30-min wall-clock, same kill): v0.2c's auto-dev produced 2 commits totaling **3970 lines of real implementation** (52 files in `feat(discover): walking skeleton`, then 476 lines of integration tests), while v0.2.g's 2 commits totaled **273 lines edited inside SPEC_V02G.md** — zero implementation. The salvageable WIP refactor (lib/ship/* → lib/skills/_common/*) was sitting unstaged in the working tree when the kill happened; I almost lost it with a `git checkout` before noticing — recovered via `git stash push -u` (separate L-017 candidate if this happens twice).
-**The pattern**: two distinct but coupled defects:
-  1. **Timeout default too short for Standard engine**: the BMAD adversarial pipeline (3× Party Mode + Phase 2 review + Phase 3 + Phase 4) is ~45-90 min wall-clock on realistic slices. The 30-min default kills it consistently. Either bump the default to 7200000 (2h) or 0 (disabled), or document loudly that Standard runs MUST set `MMD_TIMEOUT_MS=0`.
-  2. **Spec-polishing trap**: when the spec already exists and auto-dev is asked to "implement SPEC_V02X.md (authoritative)", it sometimes interprets "authoritative" as "this is the authoritative specification, my first task is to perfect it" → spends entire budget on adversarial review passes against the spec instead of implementing it. v0.2c got lucky (skipped/short-circuited Party Mode, went direct to implementation); v0.2.g did not.
-**Rule**:
-  1. **Always** set `MMD_TIMEOUT_MS=0` when launching `mmd --here` for a real implementation slice (Standard engine). The 30-min default is only safe for trivial changes (AC-7 dogfood) or `--fast` engine slices.
-  2. The prompt to auto-dev MUST explicitly forbid further spec editing when the spec is considered final: include the line `The spec at SPEC_V02X.md is AUTHORITATIVE and FROZEN. Do NOT modify SPEC_V02X.md. Go directly to implementation (Phase 3 / coding).` This is the explicit way to short-circuit the spec-polishing trap.
-  3. Operational checklist before `mmd --here` for a real implementation:
-     - `MMD_TIMEOUT_MS=0` exported
-     - The spec file's path verified to exist on base (L-015 mitigation)
-     - The dream prompt explicitly says "spec is frozen, implement"
-     - The previous slice's WIP (if any) is salvaged or discarded explicitly
-**To promote if**: 3 reuses validated (counter: 1) — strong candidate to promote to `ai-coding.md` as "Standard engine pre-conditions: MMD_TIMEOUT_MS=0 + spec-frozen directive in prompt." A future v0.2.h (Conductor preconditions hardening, see L-015) should also bake in: (a) auto-set `MMD_TIMEOUT_MS=0` for the Standard engine path unless user overrides, (b) detect WIP in the working tree after subprocess exit and surface it rather than letting `here-mode` exit silently.
-**Operational note**: this lesson surfaced when Sébastien asked "il faut vraiment qu'on arrive à comprendre pourquoi il s'arrête tout seul" — the answer was sitting in plain sight in `.mmd/shared/status.json` (`engine_metrics.duration_seconds: 1800.6` = pile 30 min). Reading the structured state files BEFORE hypothesizing saves cycles. Add to the operational checklist: when an auto-dev appears to have stopped, FIRST `cat .mmd/shared/status.json` and `tail .mmd/local/runs/*.log` before speculating.
-**Category**: subprocess-control, prompt-engineering
-**Applies to**: mmd --here, mmd unblock
-**Keywords for matching**: MMD_TIMEOUT_MS, timeout, 1800, 30 min, subprocess timed out, spec polishing, adversarial review loop, party mode, Phase 1 stuck, auto-dev killed, salvage WIP, status.json failed state
-
----
 
 ## L-017 — `mmd discover` SCAN under-detects tests, runners, frameworks (no recursion, no package.json.scripts read)
 

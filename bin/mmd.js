@@ -30,6 +30,7 @@ import {
   validateHereTarget,
   generateSliceBranchName,
   createSliceBranch,
+  checkPromptGrounding,
   buildHerePrompt,
   parseProtectedBranches,
 } from '../lib/here-mode.js';
@@ -176,6 +177,26 @@ async function runHereMode({ cwd: targetDir, dream, slug, engine, skipOnboarding
     return validation.exitCode;
   }
   const { baseBranch, baseSha } = validation;
+
+  // SPEC_V02H AC-3/AC-4 — prompt-grounding precheck (closes L-015). Runs AFTER
+  // the clean-tree check (cheap, fail-fast) and BEFORE slice-branch creation
+  // (no point creating a branch we are about to error out of). Verifies every
+  // documented file path cited in the dream exists on the slice base; exits 6
+  // with a remediation message if any are missing. Escape hatch:
+  // MMD_SKIP_GROUNDING=1 bypasses the check with a warning.
+  const grounding = await checkPromptGrounding({
+    dream,
+    baseSha,
+    baseBranch,
+    repoRoot: absTargetDir,
+    env,
+  });
+  if (grounding.skipped) {
+    stderr.write(`${grounding.warning}\n`);
+  } else if (!grounding.ok) {
+    stderr.write(`error: ${grounding.message}\n`);
+    return grounding.exitCode;
+  }
 
   // AC-3 — slice branch creation (exit 5).
   const sliceBranch = generateSliceBranchName(slug);

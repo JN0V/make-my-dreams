@@ -109,6 +109,12 @@ test('@integration v0.2a AC-1+3+5+6: --here on clean repo creates slice branch, 
   const tmp = makeTmp();
   try {
     initCleanRepo(tmp);
+    // v0.2.h: the dream references README.md, and the prompt-grounding precheck
+    // (SPEC_V02H AC-3) now verifies cited files exist on the base. Commit a
+    // README.md so the dream is grounded — the precheck would otherwise exit 6.
+    writeFileSync(path.join(tmp, 'README.md'), '# tmp repo\n');
+    git(['add', 'README.md'], tmp);
+    git(['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-m', 'add readme', '-q'], tmp);
     const baseSha = git(['rev-parse', 'HEAD'], tmp).trim();
     const dream = 'add a comment line at the top of README.md';
     const r = runMmd(['--here', dream], { cwd: tmp });

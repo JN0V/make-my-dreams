@@ -55,6 +55,35 @@ test('@unit buildComposerAudit: schema matches AC-4 contract', () => {
   });
 });
 
+test('@unit buildComposerAudit: SPEC_V02L AC-7 context metrics mapped', () => {
+  const audit = buildComposerAudit({
+    composerVersion: 'v0.2e',
+    injectedLessons: [{ id: 'L-001', score: 1, keywords_hit: ['x'], title: 't', rule: 'r' }],
+    totalActiveLessons: 10,
+    context: { subcommand: 'mmd qa' },
+    filteredOutByContext: 4,
+    matchedByKeyword: 3,
+    injected: 1,
+  });
+  assert.deepEqual(audit.context, { subcommand: 'mmd qa' });
+  assert.equal(audit.filtered_out_by_context, 4);
+  assert.equal(audit.matched_by_keyword, 3);
+  assert.equal(audit.injected, 1);
+  // Invariant: injected ≤ matched_by_keyword ≤ active − filtered.
+  assert.ok(audit.injected <= audit.matched_by_keyword);
+  assert.ok(audit.matched_by_keyword <= audit.total_active_lessons - audit.filtered_out_by_context);
+});
+
+test('@unit buildComposerAudit: AC-7 fields default sanely with no context', () => {
+  const audit = buildComposerAudit({
+    injectedLessons: [{ id: 'L-001', score: 1, keywords_hit: ['x'], title: 't', rule: 'r' }],
+  });
+  assert.equal(audit.context, null);
+  assert.equal(audit.filtered_out_by_context, 0);
+  assert.equal(audit.matched_by_keyword, 1);
+  assert.equal(audit.injected, 1);
+});
+
 test('@unit buildComposerAudit: disabled flag is preserved', () => {
   const audit = buildComposerAudit({ disabled: true });
   assert.equal(audit.disabled, true);

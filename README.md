@@ -300,6 +300,34 @@ Knobs:
 
 Matching is deterministic, sub-100ms on the live `docs/lessons-learned.md` regardless of size, capped at 5 injections per prompt by score with ties broken by id ascending. No LLM call, no embedding model — see [ADR-010](./docs/adr/010-composer-minimal-keyword-overlap.md) for why keyword-overlap over semantic matching.
 
+### Document lessons (`mmd document-lessons`) — *new in v0.2.i*
+
+The composer (above) injects lessons; `mmd document-lessons` closes the *other*
+half of the autolearning loop — **promotion**. It is the "Documentalist lite": a
+deterministic, no-LLM subcommand that scans every `.mmd/local/**/*.composer.json`
+audit, deduplicates by run, increments each matched lesson's reuse counter in
+`docs/lessons-learned.md`, and **auto-promotes** any lesson that reaches its own
+`**To promote if**: N` threshold — appending its Rule to the right constitution
+module, removing it from `docs/lessons-learned.md`, and writing a promotion ADR.
+
+```bash
+mmd document-lessons --dry-run            # preview: counters + promotions, no writes
+mmd document-lessons                      # apply increments + promotions
+mmd document-lessons --since 2026-05-01   # only audits newer than <ts>
+mmd document-lessons --help
+```
+
+The destination module is taken from the lesson's own `**To promote if**` line
+(e.g. "promote to testing.md"), defaulting to `ai-coding.md`. Milestone lessons
+(`Status: milestone` — L-010/011/013/014) are never touched. Promotion is
+best-effort across its three file ops; a partial failure exits `6` and reports
+on stderr rather than pretending success. Exit codes: `0` ok / `2` user-argv
+error / `5` no composer.json found at all / `6` partial failure. Pure-function
+library (`lib/documentalist/{aggregate-injections,mutate-counters,promote-lesson,serialize-lessons}.js`),
+with a byte-identity round-trip guarantee on `docs/lessons-learned.md`. See
+[ADR-014](./docs/adr/014-documentalist-lite-counter-incrementer.md); the full
+Documentalist Worker (cron trigger + LLM judgment) lands in v0.5b.
+
 ### Unblock mode (`mmd unblock`) — *new in v0.2.j*
 
 When a slice looks stuck — no commit for a while, the same operation retried over and over, a recurring error in the logs, or a `claude -p` run killed by a timeout — do **not** retry blindly. Run a structured **5-Whys** stuck-recovery session instead:

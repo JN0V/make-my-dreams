@@ -57,6 +57,33 @@ echo $ANTHROPIC_API_KEY | wc -c   # > 1
 
 ---
 
+## Trust assumptions
+
+`install-mmd.sh` provisions two third-party tools by piping a remote script
+straight into a shell — the standard install path each project documents:
+
+- **bun** — `curl -fsSL https://bun.sh/install | bash` (`install-mmd.sh` ~line 161)
+- **gStack** — `curl -fsSL https://gstack.dev/install.sh | bash` (`install-mmd.sh` ~line 1214)
+
+What this means, and how to opt out:
+
+1. **Both invocations are gated by an interactive prompt.** They run
+   non-interactively only when you explicitly export `MMD_AUTO_INSTALL_BUN=1`
+   (bun) or `MMD_AUTO_INSTALL_GSTACK=1` (gStack). In a normal run you are asked
+   first.
+2. **The trust roots are the `bun.sh` and `gstack.dev` HTTPS endpoints** (and
+   their TLS certificate chain). `curl … | bash` executes whatever those servers
+   return at install time — there is no pinned checksum in v0.2.k.
+3. **High-assurance environments can skip both steps entirely** by
+   pre-installing bun and gStack manually (e.g. from a vendored tarball or your
+   own mirror) *before* running `install-mmd.sh`. When both tools are already on
+   `PATH`, the installer detects them and never reaches the `curl … | bash` lines.
+
+Pinning known-good SHA-256 digests for the two scripts is tracked as a follow-up
+(deliberately out of scope for v0.2.k — see `SPEC_V02K.md` §4).
+
+---
+
 ## Phase v0.0 — Repo setup + gStack install + audit (~1 day, blocking)
 
 ### Step 1 — Update the README

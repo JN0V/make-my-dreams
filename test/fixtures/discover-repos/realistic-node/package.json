@@ -1,0 +1,11 @@
+{
+  "name": "realistic-node-fixture",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "L-017 realism fixture — a real Node shape (scripts.test + nested test dirs) mirroring MMD minus the size. No test-runner devDependency, so SCAN must read scripts.",
+  "scripts": {
+    "test": "node --test test/unit/*.test.js test/integration/*.test.js",
+    "lint": "eslint .",
+    "build": "node scripts/build.js"
+  }
+}

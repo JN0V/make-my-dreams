@@ -53,7 +53,7 @@ test('@e2e @slow AC-7: self-dogfood — mmd --here modifies a worktree of MMD it
         : false,
   // Real auto-dev runs can take minutes; allow up to 25 min for the smoke.
   timeout: 25 * 60 * 1000,
-}, () => {
+}, (t) => {
   // Set up a worktree of the MMD repo so we never mutate the live checkout
   // (L-003: don't run concurrent git ops in the same worktree).
   const worktreeBase = mkdtempSync(path.join(tmpdir(), 'mmd-e2e-'));
@@ -64,8 +64,12 @@ test('@e2e @slow AC-7: self-dogfood — mmd --here modifies a worktree of MMD it
       encoding: 'utf8',
     });
     if (wt.status !== 0) {
-      // Pre-condition failure: skip rather than fail (per ai-coding.md §I).
-      assert.fail(`git worktree add failed (pre-condition): ${wt.stderr}`);
+      // Pre-condition failure (AC-8): `git worktree add … main` is rejected when
+      // the e2e itself runs on `main` (a worktree can't check out a branch that's
+      // already checked out elsewhere). That's an environment incompatibility, not
+      // a code defect — SKIP rather than FAIL (ai-coding.md §I, universal.md §VI).
+      t.skip('git worktree add main rejected — pre-condition not met '
+        + `(running on main itself): ${wt.stderr}`);
       return;
     }
 

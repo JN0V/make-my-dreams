@@ -20,7 +20,16 @@
 #     emit prose-only output (no JSON) so tests can exercise the sacred
 #     escalate-to-user fallback, or 'malformed' for an unparseable JSON block.
 #   - Echoes PATH so tests can confirm env.PATH contained ~/.bun/bin.
-#   - Exits MMD_FAKE_5WHYS_EXIT (default 0).
+#
+# v0.2.k test hooks (qa High-1/2/3):
+#   - MMD_FAKE_5WHYS_DUMP_PROMPT=1  dump the full received prompt (AC-7: prove
+#                                   the run-log tail reached the prompt).
+#   - MMD_FAKE_5WHYS_SLEEP=<sec>    sleep before output (AC-6: let the runner's
+#                                   timeout fire and kill us mid-run).
+#   - MMD_FAKE_5WHYS_EXIT=<n>       when non-zero, simulate a mid-run crash:
+#                                   emit a stderr error and exit WITHOUT a JSON
+#                                   block (AC-5: parser falls back to
+#                                   escalate-to-user, L-016). Default 0.
 set -e
 
 if [ "${1-}" != "-p" ]; then
@@ -41,6 +50,28 @@ ACTION="${MMD_FAKE_5WHYS_ACTION:-continue-with-hint}"
 
 echo "fake-claude-five-whys: received prompt of ${#PROMPT} chars"
 echo "fake-claude-five-whys: PATH=${PATH}"
+
+# v0.2.k AC-7 (logTail wiring): dump the full received prompt on request so the
+# integration test can assert the run-log tail reached the prompt.
+if [ -n "${MMD_FAKE_5WHYS_DUMP_PROMPT:-}" ]; then
+    echo "PROMPT_DUMP_START"
+    printf '%s\n' "$PROMPT"
+    echo "PROMPT_DUMP_END"
+fi
+
+# v0.2.k AC-6 (timeout e2e): sleep on request so the runner's hang-protection
+# timeout (MMD_FIVEWHYS_TIMEOUT_MS) fires and kills this child mid-run.
+if [ -n "${MMD_FAKE_5WHYS_SLEEP:-}" ]; then
+    sleep "${MMD_FAKE_5WHYS_SLEEP}"
+fi
+
+# v0.2.k AC-5 (spawn-failure escalate): on a non-zero exit, simulate a mid-run
+# crash — emit a stderr error and exit WITHOUT a structured JSON block so the
+# runner's parser falls back to the sacred escalate-to-user verdict (L-016).
+if [ "${MMD_FAKE_5WHYS_EXIT:-0}" != "0" ]; then
+    echo "fake-claude-five-whys: simulated non-zero exit ${MMD_FAKE_5WHYS_EXIT} (no JSON emitted)" >&2
+    exit "${MMD_FAKE_5WHYS_EXIT}"
+fi
 
 cat <<'EOF'
 # 5-Whys Stuck-Recovery Session

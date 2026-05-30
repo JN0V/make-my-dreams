@@ -214,10 +214,12 @@ export async function runDocumentLessons(rawArgs) {
   const incrementCount = updatedLessons.filter((l) => l.counterDelta > 0).length;
   const promoteIds = new Set(toPromote.map((l) => l.id));
 
-  // 5. Summary line (AC-5 wording).
+  // 5. Summary line (AC-5 wording). totalInjections = sum of per-lesson run
+  // counts (injection events); byLesson.size = distinct lessons touched.
+  const totalInjections = [...byLesson.values()].reduce((s, r) => s + r.count, 0);
   const willWord = parsed.dryRun ? 'would' : 'will';
   stdout.write(
-    `Processed ${totalRuns} run(s), ${byLesson.size} unique injection(s) across ` +
+    `Processed ${totalRuns} run(s), ${totalInjections} injection(s) across ` +
       `${byLesson.size} lesson(s). ${willWord} increment ${incrementCount} counter(s), ` +
       `${willWord} promote ${toPromote.length} lesson(s).\n`,
   );

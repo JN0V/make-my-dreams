@@ -12,6 +12,7 @@
     <h1>Make My Dreams</h1>
     <p class="tagline">Décris ton rêve, on le construit. / Describe your dream, we build it.</p>
 
+    <!-- Step 1 — the dream -->
     <form id="dream-form" autocomplete="off">
       <label for="dream-input" class="visually-hidden">Décris ton rêve / Describe your dream</label>
       <textarea
@@ -25,6 +26,35 @@
       <button id="submit-btn" type="submit">Vas-y / Go</button>
     </form>
 
+    <!-- Step 2 — the profile (one question) -->
+    <section id="step-profile" hidden>
+      <h2>C'est pour qui ? / Who is it for?</h2>
+      <p class="step-hint">On adapte le résultat. / We tailor the result.</p>
+      <div class="profile-buttons">
+        <button type="button" class="profile-btn" data-profile="Enfant">Enfant / Kid</button>
+        <button type="button" class="profile-btn" data-profile="Curieux">Curieux / Curious</button>
+        <button type="button" class="profile-btn" data-profile="Pro">Pro</button>
+      </div>
+    </section>
+
+    <!-- Step 2b — synthesizing -->
+    <section id="step-synth" role="status" aria-live="polite" hidden>
+      <h2>On réfléchit à ton rêve… / Thinking about your dream…</h2>
+      <progress></progress>
+    </section>
+
+    <!-- Step 3 — the scope card -->
+    <section id="step-scope" hidden>
+      <h2>Voilà ce qu'on va construire / Here's what we'll build</h2>
+      <p id="scope-note" class="heartbeat" hidden></p>
+      <pre id="scope-text" class="scope-card"></pre>
+      <div class="result-actions">
+        <button id="scope-restart" type="button" class="secondary">Recommencer / Start over</button>
+        <button id="scope-go" type="button">C'est parti ! / Let's go!</button>
+      </div>
+    </section>
+
+    <!-- Progress (existing SSE view) -->
     <section id="progress" role="log" aria-live="polite" aria-atomic="false" hidden>
       <h2>En cours… / Working…</h2>
       <progress id="progress-bar" max="100"></progress>
@@ -33,6 +63,7 @@
       <pre id="log-output" class="log"></pre>
     </section>
 
+    <!-- Result (existing) -->
     <section id="result" role="status" aria-live="polite" hidden>
       <h2 id="result-title"></h2>
       <p id="result-message"></p>

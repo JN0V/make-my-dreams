@@ -129,12 +129,55 @@ button:disabled {
   align-self: flex-start;
 }
 
-#progress, #result {
+#progress, #result, #step-profile, #step-synth, #step-scope {
   margin-top: 24px;
   padding: 16px;
   border: 2px solid var(--border);
   border-radius: 6px;
   background: var(--bg);
+}
+
+.step-hint {
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+
+/* Profile chooser — 3 large tap targets (>= 48px, safe-by-default §V). */
+.profile-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.profile-btn {
+  flex: 1 1 30%;
+  min-width: 120px;
+}
+
+/* Scope card — read-only synthesized scope (textContent only; never innerHTML). */
+.scope-card {
+  margin: 8px 0 16px;
+  padding: 16px;
+  background: #f5f5f5;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+button.secondary {
+  color: var(--accent);
+  background: var(--bg);
+  border-color: var(--accent);
+}
+
+button.secondary:hover {
+  color: var(--accent-fg);
+  background: var(--accent);
 }
 
 progress {

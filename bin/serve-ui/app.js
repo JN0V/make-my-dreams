@@ -1,14 +1,29 @@
-// MMD serve UI — v0.2.5
-// Vanilla JS, no framework, no inline script. CSP `script-src 'self'`.
-// Implements AC-2b (keyboard nav, Ctrl+Enter), AC-4 (live SSE + heartbeat),
-// AC-5 (result rendering), AC-6 (status polling + heartbeat staleness).
+// MMD serve UI — v0.3.a-1 Dream Catcher multi-step flow.
+// Vanilla JS, no framework, no inline script (CSP `script-src 'self'`).
+//
+// Flow: dream textarea → 3 profile buttons (Enfant / Curieux / Pro) → autonomous
+// BMAD synthesize → scope card (Recommencer / C'est parti !) → existing SSE
+// progress view. No involvement-level chooser and no scope editor in this slice
+// (SPEC_V03A1 AC-5). The SSE/progress/result engine below is unchanged from
+// v0.2.5 — only the front of the flow is new.
 
 (function () {
   'use strict';
 
+  // Step elements
   var form = document.getElementById('dream-form');
   var input = document.getElementById('dream-input');
   var submitBtn = document.getElementById('submit-btn');
+  var stepProfile = document.getElementById('step-profile');
+  var profileButtons = document.querySelectorAll('.profile-btn');
+  var stepSynth = document.getElementById('step-synth');
+  var stepScope = document.getElementById('step-scope');
+  var scopeNote = document.getElementById('scope-note');
+  var scopeText = document.getElementById('scope-text');
+  var scopeRestart = document.getElementById('scope-restart');
+  var scopeGo = document.getElementById('scope-go');
+
+  // Progress + result elements (existing)
   var progressSection = document.getElementById('progress');
   var progressBar = document.getElementById('progress-bar');
   var phaseLine = document.getElementById('phase-line');
@@ -22,17 +37,15 @@
   var newDreamBtn = document.getElementById('new-dream');
   var retryBtn = document.getElementById('retry');
 
-  /** Bounded ring of last 100 log lines for the failure-debug snippet (AC-5). */
+  // Dream Catcher session state (client side).
+  var sessionId = null;
+
+  // SSE / progress state
   var logBuffer = [];
-  /** Last percent set on the bar (monotonic clamp per F24). */
   var lastPercent = 0;
-  /** Last event timestamp (heartbeat staleness per AC-4). */
   var lastEventAt = 0;
-  /** Whether the user has scrolled the log up (preserve scroll position per AC-4). */
   var userScrolledLog = false;
-  /** Active EventSource. */
   var es = null;
-  /** Heartbeat staleness timer. */
   var heartbeatTimer = null;
 
   logOutput.addEventListener('scroll', function () {
@@ -40,7 +53,7 @@
     userScrolledLog = !atBottom;
   });
 
-  // AC-2b: Ctrl+Enter / Cmd+Enter submits.
+  // Ctrl+Enter / Cmd+Enter submits the dream.
   input.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -48,7 +61,7 @@
     }
   });
 
-  // AC-2b: Esc closes the SSE connection client-side; subprocess continues.
+  // Esc closes the SSE connection client-side; subprocess continues.
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && es) {
       es.close();
@@ -57,19 +70,122 @@
     }
   });
 
+  /* ─────────────── Step 1: dream → start session ─────────────── */
+
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     var dream = input.value.trim();
     if (dream.length === 0) return;
-    submitDream(dream);
+    startCatch(dream);
   });
 
-  newDreamBtn.addEventListener('click', resetUi);
-  retryBtn.addEventListener('click', resetUi);
-
-  function submitDream(dream) {
+  function startCatch(dream) {
     input.disabled = true;
     submitBtn.disabled = true;
+    fetch('/api/catch/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dream: dream }),
+    })
+      .then(readJson)
+      .then(function (r) {
+        if (!r.ok) { showSubmissionError(r); return; }
+        sessionId = r.body.sessionId;
+        showStep('profile');
+      })
+      .catch(function (err) {
+        showFailure('Quelque chose n\'a pas marché. / Something didn\'t work.', err.message || 'network error');
+      });
+  }
+
+  /* ─────────────── Step 2: profile → synthesize ─────────────── */
+
+  profileButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!sessionId) return;
+      answerProfile(btn.getAttribute('data-profile'));
+    });
+  });
+
+  function answerProfile(profile) {
+    showStep('synth');
+    fetch('/api/catch/answer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: sessionId, answer: profile }),
+    })
+      .then(readJson)
+      .then(function (r) {
+        if (!r.ok) { showSubmissionError(r); return; }
+        renderScope(r.body);
+      })
+      .catch(function (err) {
+        showFailure('Quelque chose n\'a pas marché. / Something didn\'t work.', err.message || 'network error');
+      });
+  }
+
+  /* ─────────────── Step 3: scope card → confirm ─────────────── */
+
+  function renderScope(body) {
+    scopeText.textContent = body.scope || '';
+    if (body.fallback) {
+      scopeNote.hidden = false;
+      scopeNote.textContent =
+        'On n\'a pas pu affiner — on lance ton rêve tel quel. / Couldn\'t refine — launching your dream as-is.';
+    } else {
+      scopeNote.hidden = true;
+      scopeNote.textContent = '';
+    }
+    showStep('scope');
+  }
+
+  scopeRestart.addEventListener('click', resetToStart);
+
+  scopeGo.addEventListener('click', function () {
+    if (!sessionId) return;
+    scopeGo.disabled = true;
+    scopeRestart.disabled = true;
+    fetch('/api/catch/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: sessionId }),
+    })
+      .then(readJson)
+      .then(function (r) {
+        if (!r.ok) {
+          scopeGo.disabled = false;
+          scopeRestart.disabled = false;
+          showSubmissionError(r);
+          return;
+        }
+        beginProgress();
+        openStream(r.body.streamUrl, r.body.jobId);
+      })
+      .catch(function (err) {
+        scopeGo.disabled = false;
+        scopeRestart.disabled = false;
+        showFailure('Quelque chose n\'a pas marché. / Something didn\'t work.', err.message || 'network error');
+      });
+  });
+
+  /* ─────────────── step visibility helper ─────────────── */
+
+  function showStep(name) {
+    form.hidden = name !== 'dream';
+    stepProfile.hidden = name !== 'profile';
+    stepSynth.hidden = name !== 'synth';
+    stepScope.hidden = name !== 'scope';
+    if (name !== 'dream' && name !== 'progress' && name !== 'result') {
+      progressSection.hidden = true;
+      resultSection.hidden = true;
+    }
+  }
+
+  function beginProgress() {
+    form.hidden = true;
+    stepProfile.hidden = true;
+    stepSynth.hidden = true;
+    stepScope.hidden = true;
     progressSection.hidden = false;
     resultSection.hidden = true;
     logOutput.textContent = '';
@@ -79,27 +195,14 @@
     phaseLine.textContent = '';
     heartbeat.hidden = true;
     heartbeat.classList.remove('stale');
+  }
 
-    fetch('/api/dream', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dream: dream }),
-    })
-      .then(function (resp) {
-        return resp.json().then(function (body) {
-          return { ok: resp.ok, status: resp.status, body: body, retryAfter: resp.headers.get('Retry-After') };
-        });
-      })
-      .then(function (r) {
-        if (!r.ok) {
-          showSubmissionError(r);
-          return;
-        }
-        openStream(r.body.streamUrl, r.body.jobId);
-      })
-      .catch(function (err) {
-        showFailure('Quelque chose n\'a pas marché. / Something didn\'t work.', err.message || 'network error');
-      });
+  /* ─────────────── SSE engine (unchanged from v0.2.5) ─────────────── */
+
+  function readJson(resp) {
+    return resp.json().then(function (body) {
+      return { ok: resp.ok, status: resp.status, body: body, retryAfter: resp.headers.get('Retry-After') };
+    });
   }
 
   function openStream(streamUrl, jobId) {
@@ -113,7 +216,7 @@
       handleEvent(data, jobId);
     };
     es.onerror = function () {
-      // Browser auto-reconnects; we only surface persistent failures via heartbeat staleness.
+      // Browser auto-reconnects; persistent failures surface via heartbeat staleness.
     };
   }
 
@@ -144,7 +247,7 @@
 
   function applyProgressPercent(p) {
     var clamped = Math.max(0, Math.min(100, p));
-    if (clamped < lastPercent) return; // monotonic clamp (F24)
+    if (clamped < lastPercent) return;
     lastPercent = clamped;
     progressBar.value = clamped;
   }
@@ -209,8 +312,6 @@
   function showResult(data) {
     progressSection.hidden = true;
     resultSection.hidden = false;
-    submitBtn.disabled = false;
-    input.disabled = false;
     if (data.exitCode === 0) {
       resultTitle.textContent = '✅ Ton rêve est prêt ! / Your dream is ready!';
       resultMessage.textContent = '';
@@ -238,19 +339,20 @@
   }
 
   function showSubmissionError(r) {
+    showStep('dream');
     progressSection.hidden = true;
     resultSection.hidden = false;
-    submitBtn.disabled = false;
     input.disabled = false;
+    submitBtn.disabled = false;
     var b = r.body || {};
     var msg;
     if (r.status === 429) {
       msg = 'Tu vas un peu vite ! Réessaie dans ' + (r.retryAfter || (b.retry_after_s || '?')) +
             ' s. / Slow down a bit! Try again in ' + (r.retryAfter || (b.retry_after_s || '?')) + ' s.';
-    } else if (b.error === 'duplicate_dream') {
-      msg = 'Un rêve avec des mots proches existe déjà. / A similar dream already exists.';
     } else if (b.error === 'another_dream_in_progress') {
       msg = 'Un autre rêve est en cours. / Another dream is already running.';
+    } else if (b.error === 'unknown_session' || b.error === 'bad_session_state') {
+      msg = 'La session a expiré. Recommence. / The session expired. Start over.';
     } else if (b.error === 'dream_empty' || b.error === 'dream_missing') {
       msg = 'Écris quelque chose dans la boîte. / Write something in the box.';
     } else if (b.error === 'dream_too_long') {
@@ -271,8 +373,8 @@
   function showFailure(title, detail) {
     progressSection.hidden = true;
     resultSection.hidden = false;
-    submitBtn.disabled = false;
     input.disabled = false;
+    submitBtn.disabled = false;
     resultTitle.textContent = '⚠️ ' + title;
     resultMessage.textContent = detail || '';
     resultDebug.hidden = true;
@@ -281,13 +383,23 @@
     retryBtn.hidden = false;
   }
 
-  function resetUi() {
+  newDreamBtn.addEventListener('click', resetToStart);
+  retryBtn.addEventListener('click', resetToStart);
+
+  function resetToStart() {
     if (es) { es.close(); es = null; }
     stopHeartbeatWatch();
+    sessionId = null;
     progressSection.hidden = true;
     resultSection.hidden = true;
+    stepProfile.hidden = true;
+    stepSynth.hidden = true;
+    stepScope.hidden = true;
+    form.hidden = false;
     input.disabled = false;
     submitBtn.disabled = false;
+    scopeGo.disabled = false;
+    scopeRestart.disabled = false;
     input.value = '';
     input.focus();
     logBuffer = [];

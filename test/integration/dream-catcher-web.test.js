@@ -156,6 +156,26 @@ test('@integration start rejects empty dream (400) and wrong Origin (403)', asyn
   assert.equal(badOrigin.status, 403);
 });
 
+test('@integration AC-5 served UI exposes the multi-step flow (dream → profile → scope)', async (t) => {
+  const ctx = await bootServer({ MMD_AUTODEV_CMD: FAKE_ELICIT });
+  t.after(async () => { await ctx.server.shutdown('test'); ctx.restoreEnv(); rmSync(ctx.tmp, { recursive: true, force: true }); });
+
+  const html = await (await fetch(ctx.baseUrl + '/')).text();
+  // 3 profile buttons + the scope card actions, no involvement chooser/editor.
+  assert.match(html, /data-profile="Enfant"/);
+  assert.match(html, /data-profile="Curieux"/);
+  assert.match(html, /data-profile="Pro"/);
+  assert.match(html, /id="step-scope"/);
+  assert.match(html, /id="scope-go"/);
+  assert.match(html, /id="scope-restart"/);
+
+  const appJs = await (await fetch(ctx.baseUrl + '/app.js')).text();
+  // The UI is wired to the catch endpoints (not the legacy one-shot from the form).
+  assert.match(appJs, /\/api\/catch\/start/);
+  assert.match(appJs, /\/api\/catch\/answer/);
+  assert.match(appJs, /\/api\/catch\/confirm/);
+});
+
 test('@integration legacy POST /api/dream still works untouched', async (t) => {
   const ctx = await bootServer({ MMD_AUTODEV_CMD: FAKE_STREAMING, MMD_SERVE_RATE_LIMIT_PER_HOUR: '1000' });
   t.after(async () => { await ctx.server.shutdown('test'); ctx.restoreEnv(); rmSync(ctx.tmp, { recursive: true, force: true }); });

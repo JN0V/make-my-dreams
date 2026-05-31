@@ -1,18 +1,19 @@
 # Session handover
 
 > **Read this first** when picking up the project across a context switch (Cowork ↔ Claude Code, Sonnet ↔ Opus, fresh session, new collaborator). It transfers the **intent** (what's next + why), not just the **state** (state is in git).
-> Updated: 2026-05-31 (Sunday), end of a multi-session arc that landed v0.2.4 → v0.2.14.
+> Updated: 2026-05-31 (Sunday), end of a multi-session arc that landed v0.2.4 → v0.2.15.
 
 ---
 
 ## State at handover
 
-- **Latest tag**: `v0.2.14` (L-019 closure — WIP-salvage stall signal + composer L-015 regression-lock)
+- **Latest tag**: `v0.2.15` (human-readable branch names for `mmd --here` — embodies constitution §VII)
 - **Branch**: `main` (clean working tree, fully pushed to `origin/main`)
-- **Tests**: 1043 passing, 0 fail, 0 skipped
-- **Global install**: `mmd --version` → `0.2.14`
-- **Active lessons**: 17 (in `docs/lessons-learned.md`; L-019 added this slice; L-002 + L-016 remain promoted to `ai-coding.md`)
-- **Reflexive uses of `mmd --here` to date**: 13 (every slice from v0.2.a onward)
+- **Tests**: 1055 passing, 0 fail, 0 skipped
+- **Global install**: `mmd --version` → `0.2.15`
+- **Constitution**: v2.1.0 — added universal.md §VII "Human-readable first" (NON-NEGOTIABLE: names/phases/branches/commits/specs comprehensible to a human first, AI second).
+- **Active lessons**: 17 (in `docs/lessons-learned.md`; L-019 added; L-002 + L-016 remain promoted to `ai-coding.md`)
+- **Reflexive uses of `mmd --here` to date**: 13 (v0.2.15 was implemented DIRECTLY, not via auto-dev — small/surgical, ai-coding §II tool-choice)
 
 ## What just shipped (chronological, this multi-session arc)
 
@@ -28,6 +29,7 @@
 | v0.2.12 | Documentalist lite (`mmd document-lessons`) | autolearning §6.5 promote-side |
 | v0.2.13 | 3 pillars install hardening (Spec Kit + OpenSpec + Ralph Loop) | L-012 fully closed |
 | v0.2.14 | WIP-salvage stall signal (`wip-uncommitted-since-N-min`) + composer L-015 regression-lock | L-019 closed |
+| v0.2.15 | Human-readable branch names (`--label` + boilerplate-stripped fallback) + constitution §VII | §VII written AND embodied |
 
 **Plus an auto-promotion event** (post-v0.2.12, pre-v0.2.13): `mmd document-lessons` auto-promoted L-002 (claude -p stdout buffering) and L-016 (MMD_TIMEOUT_MS + spec-polish) into `ai-coding.md`, generated ADR-015 + ADR-016. **First time MMD modified its own constitution autonomously based on accumulated runtime data.**
 
@@ -98,7 +100,7 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 - `MAKE_MY_DREAMS.md` — scoping doc, v19 iterations of design (~1000 lines, complete rationale)
 - `docs/lessons-learned.md` — 17 active lessons (L-001..L-019 minus L-002 + L-016 promoted)
 - `.specify/memory/constitution/*.md` — 13 modules + the 2 promoted lesson rules in `ai-coding.md`
-- `docs/adr/*.md` — 18 ADRs documenting major design decisions (001..018)
+- `docs/adr/*.md` — 19 ADRs documenting major design decisions (001..019)
 - `SPEC_V02*.md` at root — every slice's spec, with full DoD
 - `CLAUDE.md` — Layer A diffusion (this is what Claude Code auto-loads at session start; it points to all the above)
 

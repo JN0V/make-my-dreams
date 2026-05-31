@@ -10,6 +10,7 @@ import {
   ENGINE_FLAGS,
   SESSION_FLAGS,
   MODE_FLAGS,
+  VALUE_FLAGS,
   KNOWN_FLAGS,
 } from '../../lib/argv-parser.js';
 
@@ -20,6 +21,7 @@ test('@unit parseArgv: empty argv → all flags false, no positional, no error',
     resume: false, fresh: false, cancel: false,
     here: false,
     'skip-onboarding': false,
+    label: null,
   });
   assert.deepEqual(r.positional, []);
   assert.equal(r.error, null);
@@ -143,16 +145,61 @@ test('@unit resolveEngine: --deep alone (forward-compat) resolves to "standard" 
   assert.equal(resolveEngine({ fast: false, standard: false, deep: true }), 'standard');
 });
 
-test('@unit KNOWN_FLAGS is the union of ENGINE_FLAGS, SESSION_FLAGS, and MODE_FLAGS (v0.2a)', () => {
+test('@unit KNOWN_FLAGS is the union of ENGINE_FLAGS, SESSION_FLAGS, MODE_FLAGS, and VALUE_FLAGS (v0.2.o)', () => {
   assert.deepEqual(
     [...KNOWN_FLAGS].sort(),
-    [...ENGINE_FLAGS, ...SESSION_FLAGS, ...MODE_FLAGS].sort(),
+    [...ENGINE_FLAGS, ...SESSION_FLAGS, ...MODE_FLAGS, ...VALUE_FLAGS].sort(),
   );
   // Defensive: arrays are frozen (immutable contract).
   assert.ok(Object.isFrozen(ENGINE_FLAGS));
   assert.ok(Object.isFrozen(SESSION_FLAGS));
   assert.ok(Object.isFrozen(MODE_FLAGS));
+  assert.ok(Object.isFrozen(VALUE_FLAGS));
   assert.ok(Object.isFrozen(KNOWN_FLAGS));
+});
+
+// v0.2.o — `--label <value>` value-bearing flag (human-readable branch names,
+// universal.md §VII).
+
+test('@unit parseArgv: --label <value> captures the value into flags.label', () => {
+  const r = parseArgv(['--here', '--label', 'wip-salvage-stall-signal', 'a dream']);
+  assert.equal(r.error, null);
+  assert.equal(r.flags.label, 'wip-salvage-stall-signal');
+  assert.equal(r.flags.here, true);
+  assert.deepEqual(r.positional, ['a dream']);
+});
+
+test('@unit parseArgv: --label with a quoted multi-word value', () => {
+  const r = parseArgv(['--label', 'wip salvage stall signal', 'a dream']);
+  assert.equal(r.error, null);
+  assert.equal(r.flags.label, 'wip salvage stall signal');
+  assert.deepEqual(r.positional, ['a dream']);
+});
+
+test('@unit parseArgv: --label with no value → exit 2 error', () => {
+  const r = parseArgv(['a dream', '--label']);
+  assert.equal(r.flags.label, null);
+  assert.equal(r.error.exitCode, 2);
+  assert.match(r.error.message, /--label.*requires a value/);
+});
+
+test('@unit parseArgv: --label followed by another flag → exit 2 (value cannot look like a flag)', () => {
+  const r = parseArgv(['--label', '--fast', 'a dream']);
+  assert.equal(r.error.exitCode, 2);
+  assert.match(r.error.message, /--label.*requires a value/);
+});
+
+test('@unit parseArgv: dream text after -- is not consumed as a --label value', () => {
+  const r = parseArgv(['--label', 'my-label', '--', '--label-looking-dream']);
+  assert.equal(r.error, null);
+  assert.equal(r.flags.label, 'my-label');
+  assert.deepEqual(r.positional, ['--label-looking-dream']);
+});
+
+test('@unit VALUE_FLAGS exports a frozen array containing "label"', () => {
+  assert.ok(Array.isArray(VALUE_FLAGS));
+  assert.ok(VALUE_FLAGS.includes('label'));
+  assert.ok(Object.isFrozen(VALUE_FLAGS));
 });
 
 // v0.2a — AC-1 + AC-2 argv-level coverage for --here.

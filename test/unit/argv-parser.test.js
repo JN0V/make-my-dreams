@@ -11,6 +11,7 @@ import {
   SESSION_FLAGS,
   MODE_FLAGS,
   VALUE_FLAGS,
+  CATCH_FLAGS,
   KNOWN_FLAGS,
 } from '../../lib/argv-parser.js';
 
@@ -22,9 +23,49 @@ test('@unit parseArgv: empty argv → all flags false, no positional, no error',
     here: false,
     'skip-onboarding': false,
     label: null,
+    catch: false,
+    'no-catch': false,
   });
   assert.deepEqual(r.positional, []);
   assert.equal(r.error, null);
+});
+
+test('@unit parseArgv (AC-1): --catch / --no-catch are recognized boolean flags', () => {
+  const c = parseArgv(['--catch', 'dessine une appli']);
+  assert.equal(c.flags.catch, true);
+  assert.equal(c.flags['no-catch'], false);
+  assert.equal(c.error, null);
+  assert.deepEqual(c.positional, ['dessine une appli']);
+
+  const n = parseArgv(['--no-catch', 'dessine une appli']);
+  assert.equal(n.flags['no-catch'], true);
+  assert.equal(n.flags.catch, false);
+  assert.equal(n.error, null);
+});
+
+test('@unit parseArgv (AC-1): --catch defaults to false when absent', () => {
+  const r = parseArgv(['dessine une appli']);
+  assert.equal(r.flags.catch, false);
+  assert.equal(r.flags['no-catch'], false);
+});
+
+test('@unit parseArgv (AC-1): --catch + --no-catch are mutually exclusive (exit 2)', () => {
+  const r = parseArgv(['--catch', '--no-catch', 'dream']);
+  assert.notEqual(r.error, null);
+  assert.equal(r.error.exitCode, 2);
+  assert.match(r.error.message, /mutually exclusive/i);
+});
+
+test('@unit parseArgv (AC-1): --catch composes with engine + mode flags', () => {
+  const r = parseArgv(['--fast', '--catch', 'dream']);
+  assert.equal(r.error, null);
+  assert.equal(r.flags.fast, true);
+  assert.equal(r.flags.catch, true);
+});
+
+test('@unit KNOWN_FLAGS includes catch and no-catch', () => {
+  assert.ok(KNOWN_FLAGS.includes('catch'));
+  assert.ok(KNOWN_FLAGS.includes('no-catch'));
 });
 
 test('@unit parseArgv: lone dream → positional only', () => {
@@ -145,16 +186,17 @@ test('@unit resolveEngine: --deep alone (forward-compat) resolves to "standard" 
   assert.equal(resolveEngine({ fast: false, standard: false, deep: true }), 'standard');
 });
 
-test('@unit KNOWN_FLAGS is the union of ENGINE_FLAGS, SESSION_FLAGS, MODE_FLAGS, and VALUE_FLAGS (v0.2.o)', () => {
+test('@unit KNOWN_FLAGS is the union of ENGINE_FLAGS, SESSION_FLAGS, MODE_FLAGS, VALUE_FLAGS, and CATCH_FLAGS (v0.3.b)', () => {
   assert.deepEqual(
     [...KNOWN_FLAGS].sort(),
-    [...ENGINE_FLAGS, ...SESSION_FLAGS, ...MODE_FLAGS, ...VALUE_FLAGS].sort(),
+    [...ENGINE_FLAGS, ...SESSION_FLAGS, ...MODE_FLAGS, ...VALUE_FLAGS, ...CATCH_FLAGS].sort(),
   );
   // Defensive: arrays are frozen (immutable contract).
   assert.ok(Object.isFrozen(ENGINE_FLAGS));
   assert.ok(Object.isFrozen(SESSION_FLAGS));
   assert.ok(Object.isFrozen(MODE_FLAGS));
   assert.ok(Object.isFrozen(VALUE_FLAGS));
+  assert.ok(Object.isFrozen(CATCH_FLAGS));
   assert.ok(Object.isFrozen(KNOWN_FLAGS));
 });
 

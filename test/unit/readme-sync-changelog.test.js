@@ -51,6 +51,21 @@ test('@unit buildChangelog: an annotated tag with an empty subject → (no annot
   assert.match(block, /- \*\*v0\.1\.0\*\* — _\(no annotation\)_/);
 });
 
+test('@unit buildChangelog: a redundant leading tag prefix in the annotation is stripped', async () => {
+  // Tag annotations conventionally start with the tag itself; we already render
+  // **<tag>** —, so the duplicate must not appear twice.
+  const stdout = 'v0.3.3\ttag\tv0.3.3 — Layer C: profile→constitution-module composer\n';
+  const block = await buildChangelog({ runGit: fakeGit(stdout), repoRoot: '/repo' });
+  assert.equal(block, '- **v0.3.3** — Layer C: profile→constitution-module composer');
+  assert.ok(!/v0\.3\.3.*v0\.3\.3/.test(block), 'the tag must not be repeated on the line');
+});
+
+test('@unit buildChangelog: a subject that is EXACTLY the tag → (no annotation)', async () => {
+  const stdout = 'v0.2.0\ttag\tv0.2.0\n';
+  const block = await buildChangelog({ runGit: fakeGit(stdout), repoRoot: '/repo' });
+  assert.match(block, /- \*\*v0\.2\.0\*\* — _\(no annotation\)_/);
+});
+
 test('@unit buildChangelog: an empty tag list yields an explicit no-tags line', async () => {
   const block = await buildChangelog({ runGit: fakeGit(''), repoRoot: '/repo' });
   assert.match(block, /No tags yet/);

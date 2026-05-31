@@ -117,10 +117,12 @@ test('@integration document-readme --dry-run prints the rewrite but writes NOTHI
     assert.match(r.stdout, /\*\*Latest tag\*\*: `v1\.2\.3`/);
     assert.match(r.stdout, /\*\*Active lessons\*\*: 1 active/); // milestone excluded
     assert.match(r.stdout, /\*\*Tests\*\*: 1268 passing/);
-    // changelog newest-first from annotations
-    assert.match(r.stdout, /- \*\*v1\.2\.3\*\* — v1\.2\.3 — second release/);
-    assert.match(r.stdout, /- \*\*v1\.0\.0\*\* — v1\.0\.0 — first release/);
+    // changelog newest-first from annotations (the redundant leading tag prefix
+    // is stripped, so the line reads `**v1.2.3** — second release`).
+    assert.match(r.stdout, /- \*\*v1\.2\.3\*\* — second release/);
+    assert.match(r.stdout, /- \*\*v1\.0\.0\*\* — first release/);
     assert.match(r.stdout, /- \*\*v0\.9\.0\*\* — _\(no annotation\)_/);
+    assert.ok(!/v1\.2\.3.*v1\.2\.3/.test(r.stdout), 'tag must not be repeated on its changelog line');
     // disk is untouched (AC-6)
     const after = await readFile(path.join(dir, 'README.md'), 'utf8');
     assert.equal(after, before);

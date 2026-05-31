@@ -40,7 +40,7 @@ The constitution is propagated through three complementary layers:
 
 **Layer C — MMD CLI subprocess.** `lib/invoke-autodev.js` injects the constitution into the prompt passed to `claude -p` when MMD runs `auto-dev` headless (CI, cron, dream-bench). Required because subprocess `claude` sessions do not necessarily share the parent's CLAUDE.md.
 
-The composer (`lib/constitution-compose.js`, planned v0.2) will turn the bindings table into a function that returns the per-invocation module bundle as a string ready for prompt injection.
+The composer (`lib/constitution-compose.js`, **shipped v0.3.c**) turns the bindings table into a function that returns the per-invocation module bundle as a string ready for prompt injection. `parseBindings` (hand-rolled YAML-lite, no external dep) reads `constitution-bindings.yaml`; `resolveModules({profile}, bindings)` resolves `MMD_PROFILE` to `defaults.always ∪ profiles[profile]` (deduped, deterministic); `composeConstitution({profile})` reads each `.specify/memory/constitution/<name>.md` and concatenates them under per-module headers. `buildPrompt` injects that block when `MMD_PROFILE` is set — so a Kid build carries the real `safe-by-default.md` + `kid.md` text and a Pro build carries `pro.md` — and falls back to a minimal line if the bindings/modules are unreadable (graceful, never crashes). Currently composes by **profile** only; engine/context/skill dimensions are a future slice (the resolver is built to extend). See [ADR-024](./docs/adr/024-constitution-composer-layer-c.md).
 
 ## Working agreements in this repo
 

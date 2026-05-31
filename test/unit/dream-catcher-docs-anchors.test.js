@@ -97,7 +97,7 @@ test('@unit AC-6: README documents interactive mmd dream mode + --catch/--no-cat
   assert.match(md, /ADR-023/);
 });
 
-test('@unit AC-6: package.json is bumped to 0.3.2', () => {
+test('@unit AC-6: package.json is bumped to 0.3.3', () => {
   const pkg = JSON.parse(read('package.json'));
-  assert.equal(pkg.version, '0.3.2');
+  assert.equal(pkg.version, '0.3.3');
 });

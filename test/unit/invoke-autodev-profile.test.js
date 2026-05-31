@@ -1,14 +1,19 @@
-// @unit tests for the v0.3.b profile threading in lib/invoke-autodev.js —
-// SPEC_V03B AC-4 (MMD_PROFILE survives the env allowlist) and AC-5 (buildPrompt
-// consumes MMD_PROFILE: states the profile, injects Kid safe-by-default, and
-// leaves the prompt unchanged when unset). Pure: no spawn, no real claude.
+// @unit tests for profile threading in lib/invoke-autodev.js.
+//
+// AC-4 (SPEC_V03B): MMD_PROFILE survives the env allowlist.
+// AC-4 (SPEC_V03C): buildPrompt now injects the COMPOSED constitution modules
+//   bound to the profile (Layer C), superseding v0.3.b's single hardcoded Kid
+//   line, with a graceful null→fallback. These tests inject a fake `composeFn`
+//   so they stay pure (no fs, no real claude) and can exercise BOTH the
+//   inject-success path AND the null-fallback path. The real composer is wired
+//   end to end in test/integration/constitution-compose-real.test.js.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { buildPrompt, buildSubprocessEnv } from '../../lib/invoke-autodev.js';
 
-// ── AC-4: MMD_PROFILE reaches the subprocess via the MMD_ prefix allowlist ──
+// ── AC-4 (SPEC_V03B): MMD_PROFILE reaches the subprocess via the allowlist ──
 
 test('@unit AC-4: buildSubprocessEnv keeps MMD_PROFILE (MMD_ prefix allowlist)', () => {
   const out = buildSubprocessEnv({ MMD_PROFILE: 'Kid', PATH: '/usr/bin' });
@@ -28,58 +33,97 @@ test('@unit AC-4: MMD_PROFILE survives alongside stripped secrets', () => {
   assert.equal(out.HOME, '/home/x');
 });
 
-// ── AC-5: buildPrompt consumes MMD_PROFILE ──
+// ── AC-4 (SPEC_V03C): buildPrompt injects the composed constitution ──
 
 const base = { dream: 'une appli pour dessiner', slug: 'appli-dessiner', demoDir: '/tmp/demo/x' };
 
-test('@unit AC-5: unset MMD_PROFILE leaves the prompt unchanged (back-compat)', () => {
-  const without = buildPrompt({ ...base, env: {} });
+// A fake composer: returns a sentinel block for any profile, capturing the
+// profile it was called with so we can assert it was the NORMALIZED value.
+function fakeComposer() {
+  const calls = [];
+  const fn = ({ profile }) => {
+    calls.push(profile);
+    return `## Constitution — fake\n\nCOMPOSED-FOR-${profile}`;
+  };
+  fn.calls = calls;
+  return fn;
+}
+
+const nullComposer = () => null;
+const throwingComposer = () => { throw new Error('composer blew up'); };
+
+test('@unit AC-4: unset MMD_PROFILE leaves the prompt unchanged (back-compat)', () => {
+  const composeFn = fakeComposer();
+  const without = buildPrompt({ ...base, env: {}, composeFn });
   assert.doesNotMatch(without, /Audience profile/);
-  assert.doesNotMatch(without, /safe-by-default/i);
+  assert.doesNotMatch(without, /Constitution/);
+  assert.equal(composeFn.calls.length, 0, 'composer not even invoked when profile unset');
 });
 
-test('@unit AC-5: a set profile is stated in the prompt', () => {
-  const p = buildPrompt({ ...base, env: { MMD_PROFILE: 'Curious' } });
-  assert.match(p, /Audience profile: Curious\./);
-  // Non-Kid profiles do NOT carry the Kid constraints.
-  assert.doesNotMatch(p, /safe-by-default/i);
+test('@unit AC-4: empty/whitespace MMD_PROFILE is treated as unset', () => {
+  const p = buildPrompt({ ...base, env: { MMD_PROFILE: '   ' }, composeFn: fakeComposer() });
+  assert.doesNotMatch(p, /Audience profile/);
+  assert.doesNotMatch(p, /Constitution/);
 });
 
-test('@unit AC-5: Kid profile injects the safe-by-default directive', () => {
-  const p = buildPrompt({ ...base, env: { MMD_PROFILE: 'Kid' } });
+test('@unit AC-4: a custom prompt (--here) short-circuits, profile NOT injected', () => {
+  const p = buildPrompt({ ...base, prompt: 'CUSTOM HERE PROMPT', env: { MMD_PROFILE: 'Kid' }, composeFn: fakeComposer() });
+  assert.equal(p, 'CUSTOM HERE PROMPT');
+});
+
+test('@unit AC-4: a set profile is stated AND the composed block is injected', () => {
+  const composeFn = fakeComposer();
+  const p = buildPrompt({ ...base, env: { MMD_PROFILE: 'Pro' }, composeFn });
+  assert.match(p, /Audience profile: Pro\./);
+  assert.match(p, /Project constitution modules bound to this profile/);
+  assert.match(p, /COMPOSED-FOR-Pro/);
+  assert.deepEqual(composeFn.calls, ['Pro'], 'composer called with the normalized profile');
+});
+
+test('@unit AC-4: the composer receives the NORMALIZED profile (enfant → Kid)', () => {
+  const composeFn = fakeComposer();
+  const p = buildPrompt({ ...base, env: { MMD_PROFILE: 'enfant' }, composeFn });
   assert.match(p, /Audience profile: Kid\./);
-  assert.match(p, /safe-by-default/i);
+  assert.match(p, /COMPOSED-FOR-Kid/);
+  assert.deepEqual(composeFn.calls, ['Kid']);
+});
+
+test('@unit AC-4: NO double-inject — composed present means the hardcoded Kid line is absent', () => {
+  const p = buildPrompt({ ...base, env: { MMD_PROFILE: 'Kid' }, composeFn: fakeComposer() });
+  assert.match(p, /COMPOSED-FOR-Kid/);
+  // The v0.3.b fallback line must NOT also appear when the composer succeeded.
+  assert.doesNotMatch(p, /Kid safe-by-default \(NON-NEGOTIABLE\)/);
+});
+
+test('@unit AC-4: null composition + Kid → graceful fallback to the v0.3.b minimal line', () => {
+  const p = buildPrompt({ ...base, env: { MMD_PROFILE: 'Kid' }, composeFn: nullComposer });
+  assert.match(p, /Audience profile: Kid\./);
+  assert.match(p, /Kid safe-by-default \(NON-NEGOTIABLE\)/);
   assert.match(p, /offline/i);
   assert.match(p, /third-party/i);
-  assert.match(p, /accounts|sign-up|user-generated/i);
+  // No composed block when the composer returned null.
+  assert.doesNotMatch(p, /Project constitution modules bound to this profile/);
 });
 
-test('@unit AC-5: Pro profile states the profile without Kid constraints', () => {
-  const p = buildPrompt({ ...base, env: { MMD_PROFILE: 'Pro' } });
+test('@unit AC-4: null composition + non-Kid → no fallback constraints (Pro has none)', () => {
+  const p = buildPrompt({ ...base, env: { MMD_PROFILE: 'Pro' }, composeFn: nullComposer });
   assert.match(p, /Audience profile: Pro\./);
-  assert.doesNotMatch(p, /safe-by-default/i);
+  assert.doesNotMatch(p, /Kid safe-by-default/);
+  assert.doesNotMatch(p, /Project constitution modules bound to this profile/);
 });
 
-test('@unit AC-5: profile value is normalized (alias "enfant" → Kid framing)', () => {
-  const p = buildPrompt({ ...base, env: { MMD_PROFILE: 'enfant' } });
-  assert.match(p, /Audience profile: Kid\./);
-  assert.match(p, /safe-by-default/i);
+test('@unit AC-4: a throwing composer never breaks the build (treated as null)', () => {
+  let p;
+  assert.doesNotThrow(() => {
+    p = buildPrompt({ ...base, env: { MMD_PROFILE: 'Kid' }, composeFn: throwingComposer });
+  });
+  // Falls back to the minimal Kid line, build still produced.
+  assert.match(p, /Kid safe-by-default \(NON-NEGOTIABLE\)/);
 });
 
-test('@unit AC-5: empty/whitespace MMD_PROFILE is treated as unset', () => {
-  const p = buildPrompt({ ...base, env: { MMD_PROFILE: '   ' } });
-  assert.doesNotMatch(p, /Audience profile/);
-});
-
-test('@unit AC-5: a custom prompt (--here) short-circuits, profile NOT injected', () => {
-  const p = buildPrompt({ ...base, prompt: 'CUSTOM HERE PROMPT', env: { MMD_PROFILE: 'Kid' } });
-  assert.equal(p, 'CUSTOM HERE PROMPT');
-  assert.doesNotMatch(p, /Audience profile/);
-});
-
-test('@unit AC-5: profile block composes with the FAST engine block', () => {
-  const p = buildPrompt({ ...base, engine: 'fast', env: { MMD_PROFILE: 'Kid' } });
+test('@unit AC-4: profile block composes with the FAST engine block', () => {
+  const p = buildPrompt({ ...base, engine: 'fast', env: { MMD_PROFILE: 'Kid' }, composeFn: fakeComposer() });
   assert.match(p, /Engine: FAST/);
   assert.match(p, /Audience profile: Kid\./);
-  assert.match(p, /safe-by-default/i);
+  assert.match(p, /COMPOSED-FOR-Kid/);
 });

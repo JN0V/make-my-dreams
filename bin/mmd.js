@@ -19,7 +19,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { slugify, initStateFiles, nextAvailableSlug } from '../lib/parse-dream.js';
+import { slugify, deriveBranchSlug, initStateFiles, nextAvailableSlug } from '../lib/parse-dream.js';
 import { ensureLayout, readStatus, writeStatus, ensureGitignore } from '../lib/state.js';
 import { invokeAutodev } from '../lib/invoke-autodev.js';
 import { realityCheck } from '../lib/reality-check.js';
@@ -67,6 +67,7 @@ Engine flags (mutually exclusive):
 
 Mode flags (orthogonal to engine):
   --here                               Self / brownfield-in-place: modify cwd, no demo/<slug>/ scaffold (v0.2a)
+  --label <name>                       Human-readable branch name for --here (e.g. --label wip-salvage); else derived from the dream
   --skip-onboarding                    Bypass the v0.2c Project Onboarder gate (NOT RECOMMENDED)
 
 Idempotent re-run flags (used when a demo dir already exists):
@@ -140,7 +141,7 @@ async function resolveExistingChoice(flags) {
  *   - Reality Check is short-circuited (AC-6).
  *   - status.json carries mode/target_dir/slice_branch/base_branch/base_sha (AC-5).
  */
-async function runHereMode({ cwd: targetDir, dream, slug, engine, skipOnboarding }) {
+async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, engine, skipOnboarding }) {
   // F2 (Phase 4 review): canonicalize the target dir via fs.realpath so we
   // do NOT record a symlinked path in status.json (audit trail integrity)
   // while git operates on the real path. path.resolve alone does not follow
@@ -199,8 +200,10 @@ async function runHereMode({ cwd: targetDir, dream, slug, engine, skipOnboarding
     return grounding.exitCode;
   }
 
-  // AC-3 — slice branch creation (exit 5).
-  const sliceBranch = generateSliceBranchName(slug);
+  // AC-3 — slice branch creation (exit 5). The branch name uses branchSlug
+  // (human-readable, from --label or boilerplate-stripped dream — universal.md
+  // §VII), kept distinct from slug (slice_id) so status.json's id is unchanged.
+  const sliceBranch = generateSliceBranchName(branchSlug);
   const branchResult = await createSliceBranch(absTargetDir, sliceBranch);
   if (!branchResult.ok) {
     stderr.write(`error: ${branchResult.message}\n`);
@@ -498,8 +501,12 @@ async function main() {
   }
 
   let slug;
+  let branchSlug;
   try {
     slug = slugify(dream);
+    // universal.md §VII: the branch name must read like the work, not the
+    // dream's preamble. `--label` (if given) wins; else boilerplate is stripped.
+    branchSlug = deriveBranchSlug(dream, flags.label);
   } catch (err) {
     stderr.write(`error: ${err.message}\n`);
     return 2;
@@ -513,7 +520,7 @@ async function main() {
   // No demo/<slug>/ is created; state files live under <cwd>/.mmd/shared/.
   // The greenfield path below is unchanged when --here is absent.
   if (flags.here) {
-    return runHereMode({ cwd: cwd(), dream, slug, engine, skipOnboarding });
+    return runHereMode({ cwd: cwd(), dream, slug, branchSlug, engine, skipOnboarding });
   }
 
   // v0.2c AC-7: greenfield path consults the gate too. The greenfield use

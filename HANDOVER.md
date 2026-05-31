@@ -1,7 +1,7 @@
 # Session handover
 
 > **Read this first** when picking up the project across a context switch (Cowork ↔ Claude Code, Sonnet ↔ Opus, fresh session, new collaborator). It transfers the **intent** (what's next + why), not just the **state** (state is in git).
-> Updated: 2026-05-31 (Sunday), end of a multi-session arc that landed v0.2.4 → v0.3.0.
+> Updated: 2026-05-31 (Sunday), end of a multi-session arc that landed v0.2.4 → v0.3.1.
 
 ---
 
@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.3.0`
+- **Latest tag**: `v0.3.1`
 - **Branch**: `main`
-- **Version**: `0.3.0` (package.json)
+- **Version**: `0.3.1` (package.json)
 - **Active lessons**: 15 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021)
-- **ADRs**: 21 (ADR-001..ADR-021)
-- **Tests**: 1145 passing
+- **ADRs**: 22 (ADR-001..ADR-022)
+- **Tests**: 1186 passing
 - **Recent commits**:
-  - `9292f52 fix(v0.3.a-1): confirm parity hardening (Phase 4 re-review N1/N2)`
-  - `96c7e43 fix(v0.3.a-1): close DoS/state gaps in Dream Catcher routes (Phase 4 review)`
-  - `a88026f docs(v0.3.a-1): ADR-021 + L-021 + README Dream Catcher + bump 0.3.0 (AC-6)`
-  - `6fb2292 feat(v0.3.a-1): multi-step Dream Catcher web UI (AC-5)`
-  - `195956a feat(v0.3.a-1): Dream Catcher web routes /api/catch/{start,answer,confirm} (AC-4)`
+  - `2dcca70 fix(v0.3.a-2): avoid lone surrogate when truncating an over-long scope (Phase 4 review F-NEW-1)`
+  - `63422ea fix(v0.3.a-2): align scope-edit cap, harden UI + parse-reply (Phase 4 review F1-F5)`
+  - `743eb8f docs(v0.3.a-2): ADR-022 + README dial/editing + bump 0.3.1 (AC-7)`
+  - `e009b26 test(v0.3.a-2): mode-aware elicit fixture + 3-level/edit integration flows (AC-5)`
+  - `3e3e5c4 feat(v0.3.a-2): web UI — level chooser, question step, scope edit affordance (AC-6)`
 - **Generated**: 2026-05-31 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -46,6 +46,7 @@
 | v0.2.15 | Human-readable branch names (`--label` + boilerplate-stripped fallback) + constitution §VII | §VII written AND embodied |
 | v0.2.16 | `mmd handover` — auto-refresh the mechanical State block, never fabricate intent | L-020 closed (1st `--label` dogfood) |
 | **v0.3.0** | **Dream Catcher walking skeleton** — web dream → profile → autonomous `bmad-product-brief` scope → confirm → auto-dev | v0.3.a-1 (1st v0.3 milestone; verified end-to-end with a real BMAD call) |
+| **v0.3.1** | **Dream Catcher dial + scope editing** — Autonome/Équilibré/Guidé (0/1/2–3 turns) + `/api/catch/edit` | v0.3.a-2 (Dream Catcher CORE complete; guided multi-turn verified end-to-end) |
 
 **Plus an auto-promotion event** (post-v0.2.12, pre-v0.2.13): `mmd document-lessons` auto-promoted L-002 (claude -p stdout buffering) and L-016 (MMD_TIMEOUT_MS + spec-polish) into `ai-coding.md`, generated ADR-015 + ADR-016. **First time MMD modified its own constitution autonomously based on accumulated runtime data.**
 
@@ -59,8 +60,9 @@
 
 3. **v0.3 Dream Catcher** — design FROZEN in [`SPEC_V03A.md`](SPEC_V03A.md), being built in phases:
    - **v0.3.a-1 — DONE (v0.3.0).** Walking skeleton: web `mmd serve` → dream → profile (1st question) → ONE autonomous `bmad-product-brief` call (headless, Kid-aware) → scope card → confirm → existing auto-dev. Surface-agnostic core `lib/dream-catcher/{session,elicit,parse-reply,profile}.js`. Routes `/api/catch/{start,answer,confirm}` (CSRF/Host-guarded). Honest fallback to verbatim dream. Verified end-to-end with a REAL BMAD call (scope returned `profile:Kid, fallback:false`). See [`SPEC_V03A1.md`](SPEC_V03A1.md), ADR-021, L-021.
-   - **v0.3.a-2 — NEXT.** Add the involvement **dial** (Autonome / Équilibré-default / Guidé = 0/1/2–3 MMD-orchestrated turns — both modes de-risked by smoke tests) + **scope editing** before launch (`/api/catch/edit`). The core has a seam for the clarifying turns. Then v0.3.b: CLI/TTY surface + full `MMD_PROFILE` carrier.
-   - **Design facts already proven (don't re-investigate):** `bmad-product-brief` is the backbone (headless, autonomous, convergent, auto-applies Kid safe-by-default); headless `claude -p` has NO stdin, so guided mode is MMD-orchestrated *stateless per-turn* calls (turn 1 = "ask ONE question", final = "synthesize scope"); parsing is trivial because MMD controls each turn's intent (L-021).
+   - **v0.3.a-2 — DONE (v0.3.1).** Involvement **dial** (`lib/dream-catcher/level.js`: Autonome/Équilibré-default/Guidé = 0/1/2–3 turns) + **scope editing** (`/api/catch/edit`). `/answer` is now **state-driven** (session decides profile vs level vs clarify; returns `next ∈ level|question|scope`), keeping the frozen SPEC_V03A API. Guided multi-turn verified end-to-end with real BMAD calls (Q2 built on Q1's answer; scope tailored; edit replaced text). See [`SPEC_V03A2.md`](SPEC_V03A2.md), ADR-022. **Dream Catcher CORE is now complete.**
+   - **v0.3.b — NEXT (only remaining v0.3 work).** CLI/TTY surface for Dream Catcher (the dialogue from a terminal, for Pro users) + full `MMD_PROFILE` env/global carrier threaded into the auto-dev subprocess (today the profile only reaches `status.json`, not the build). The surface-agnostic core (`lib/dream-catcher/`) already supports a non-web driver.
+   - **Design facts already proven (don't re-investigate):** `bmad-product-brief` is the backbone (headless, autonomous, convergent, auto-applies Kid safe-by-default); headless `claude -p` has NO stdin, so guided mode is MMD-orchestrated *stateless per-turn* calls (turn 1 = "ask ONE question", final = "synthesize scope"); parsing is deterministic via output tags because MMD controls each turn's intent (L-021).
 
 ## Operational rules (non-evident, MUST apply)
 
@@ -116,7 +118,7 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 - `MAKE_MY_DREAMS.md` — scoping doc, v19 iterations of design (~1000 lines, complete rationale)
 - `docs/lessons-learned.md` — 15 active lessons (L-001..L-021 minus the promoted/non-active ones; count is now authoritative via `mmd handover`)
 - `.specify/memory/constitution/*.md` — 13 modules + the 2 promoted lesson rules in `ai-coding.md`
-- `docs/adr/*.md` — 21 ADRs documenting major design decisions (001..021)
+- `docs/adr/*.md` — 22 ADRs documenting major design decisions (001..022)
 - `SPEC_V02*.md` at root — every slice's spec, with full DoD
 - `CLAUDE.md` — Layer A diffusion (this is what Claude Code auto-loads at session start; it points to all the above)
 

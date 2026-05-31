@@ -18,11 +18,12 @@ dream  →  profile (1st question)  →  involvement level  →  BMAD elicitatio
 Design pillars:
 
 1. **BMAD-backed, not reinvented.** Each elicitation turn is a headless `claude -p "/bmad-product-brief …"` call (the exact invocation pattern MMD already uses for `/bmad-adv-auto-dev` at [invoke-autodev.js:284](lib/invoke-autodev.js#L284)). MMD orchestrates; BMAD facilitates. We do NOT write a custom question generator.
+   **✅ DE-RISKED (smoke test, 2026-05-31):** `claude -p "/bmad-product-brief <dream>"` ran fully headless/autonomous (zero questions, exit 0) and produced an 81-line structured brief — core capability + 2 small extras, explicit out-of-scope, and it **auto-applied the Kid safe-by-default profile** (no network/third-parties/offline) without being told the profile. Output: a friendly markdown summary on stdout (French) + a richer artifact at `_bmad-output/planning-artifacts/<slug>.md` (gitignored). Confirms the backbone is real, convergent, and Kid-aware out of the box.
 2. **Involvement is a dial.** The user chooses how much they steer:
-   - **Autonome ("fais pour moi")** → product-brief in *autonomous* mode: 0–1 question, MMD/BMAD infers a small scope and shows it for a yes/no.
-   - **Guidé ("je veux choisir")** → product-brief in *guided* mode: several precise clarifying questions across turns, richer scope.
+   - **Autonome ("fais pour moi")** → ONE headless `/bmad-product-brief` call in autonomous mode → small scope shown for a yes/no. **This is exactly the proven smoke-test path** (one call, no questions, structured brief out).
+   - **Guidé ("je veux choisir")** → MMD orchestrates the turns itself: each turn is a SEPARATE headless call that asks BMAD to either emit the *next single clarifying question* or, once enough is known, *synthesize the scope*. The user answers in the web UI between calls.
+   **Important reality (from the smoke test):** a headless `claude -p` subprocess CANNOT run BMAD's own interactive loop — it has no stdin. So the interactivity lives at the **MMD layer** (the web UI collects answers), and BMAD is invoked **statelessly per turn** with the accumulated `dream + answers` as context. "Autonome" = 1 stateless call; "guidé" = N stateless calls driven by MMD. The dial therefore controls *how many turns MMD runs*, not a flag inside one BMAD call.
    - (A middle "équilibré" default is **[OPEN]** — see §7.)
-   The same skill, two modes — so the dial is a parameter, not a fork.
 3. **Profile-first, Kid-aware.** The first question is "c'est pour qui ?" (Kid / Curious / Pro). The profile tailors TONE (simple+playful for Kid, technical for Pro) and, per the constitution, which modules bind. No runtime profile carrier exists yet ([constitution-bindings.yaml:88](.specify/memory/constitution-bindings.yaml#L88) is binding-only) — v0.3.a introduces a minimal one (see §3).
 4. **Surface: web-first.** For the Kid scenario it MUST be the web page (`mmd serve`), not a terminal. The refinement LOGIC lives in a surface-agnostic, testable core (`lib/dream-catcher/`); v0.3.a wires it to the **web** surface. CLI/TTY is **[OPEN]** (§7) — likely v0.3.b.
 5. **Converge, never explode.** The dialogue NARROWS toward one walking-skeleton-sized scope (L-009). It is explicitly NOT divergent brainstorming (which would multiply features and blow scope). The refined scope is capped (e.g. one primary capability + a couple of small extras).
@@ -142,7 +143,7 @@ ADR for the Dream Catcher design (BMAD-backed, involvement dial, web-first); REA
 ## 7. [OPEN] decisions for Sébastien (resolve on this doc)
 1. **Involvement levels**: two (autonome / guidé) or three (+ équilibré default)? What's the default if the user doesn't choose?
 2. **Surface scope**: web-only for v0.3.a (recommended), or web + CLI together?
-3. **BMAD skill**: confirm `bmad-product-brief` as the backbone — or prototype it against `advanced-elicitation` first? (Is product-brief installed + headless-invocable on this machine? Needs a smoke test before committing.)
+3. ~~**BMAD skill**~~ **— RESOLVED (smoke test 2026-05-31):** `bmad-product-brief` is installed, headless-invocable, autonomous, convergent, and Kid-aware. Confirmed as the backbone. (Open sub-point: how to feed the result to auto-dev — pass the stdout summary as the enriched dream, or hand auto-dev the `_bmad-output/.../<slug>.md` artifact directly? Leaning: archive the artifact, pass its scope to `status.json.dream`.)
 4. **Scope cap**: how do we define "walking-skeleton-sized"? e.g. "one primary capability + ≤2 small extras" — concrete enough?
 5. **Profile carrier**: minimal session/status field now (recommended) vs introduce `MMD_PROFILE` properly now.
 6. **Confirm gate**: after showing the refined scope, is a single "C'est parti !" enough, or do we want an edit-the-scope step before launch?

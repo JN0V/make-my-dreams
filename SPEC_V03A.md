@@ -1,6 +1,6 @@
-# Make My Dreams — v0.3.a Spec (DRAFT): Dream Catcher — refine the dream before launch
+# Make My Dreams — v0.3.a Spec: Dream Catcher — refine the dream before launch
 
-> **STATUS: DRAFT for design review.** This is a v0.3 design conversation captured as a spec, per the HANDOVER ("draft SPEC_V03A.md collaboratively, then launch"). Sections marked **[OPEN]** are decisions Sébastien still wants to make on the document. Nothing here is frozen and nothing is built yet.
+> **STATUS: FROZEN (design resolved 2026-05-31).** Captured as a design conversation per the HANDOVER, then resolved: both BMAD modes de-risked by smoke tests, and the six §7 open decisions answered by Sébastien (see §7). Decisions: **3 involvement levels** (Autonome / Équilibré [default] / Guidé), **web-only surface** for v0.3.a, **scope is editable** before launch. Ready to build.
 
 > Dream Catcher is THE end-user feature: it turns a vague one-line dream ("une appli pour dessiner") into a small, buildable scope BEFORE auto-dev runs — through a short, friendly dialogue. Today `mmd "<dream>"` (and the `mmd serve` web form) take the dream verbatim and launch immediately; a 13-year-old's "une appli pour dessiner" goes straight to auto-dev with no clarification, so the result is a guess. Dream Catcher inserts a refinement step. Two design pillars, both from this session's design conversation: (1) it **stands on a BMAD elicitation skill** rather than reinventing question-generation (MMD's whole philosophy — `bmad-product-brief`, invoked headless); (2) the user picks their **involvement level** — a dial from "fais simple pour moi" (autonomous, minimal questions) to "je veux guider" (verbose, precise, many questions) — which maps directly onto product-brief's native *guided ↔ autonomous* spectrum.
 
@@ -19,9 +19,11 @@ Design pillars:
 
 1. **BMAD-backed, not reinvented.** Each elicitation turn is a headless `claude -p "/bmad-product-brief …"` call (the exact invocation pattern MMD already uses for `/bmad-adv-auto-dev` at [invoke-autodev.js:284](lib/invoke-autodev.js#L284)). MMD orchestrates; BMAD facilitates. We do NOT write a custom question generator.
    **✅ DE-RISKED (smoke test, 2026-05-31):** `claude -p "/bmad-product-brief <dream>"` ran fully headless/autonomous (zero questions, exit 0) and produced an 81-line structured brief — core capability + 2 small extras, explicit out-of-scope, and it **auto-applied the Kid safe-by-default profile** (no network/third-parties/offline) without being told the profile. Output: a friendly markdown summary on stdout (French) + a richer artifact at `_bmad-output/planning-artifacts/<slug>.md` (gitignored). Confirms the backbone is real, convergent, and Kid-aware out of the box.
-2. **Involvement is a dial.** The user chooses how much they steer:
-   - **Autonome ("fais pour moi")** → ONE headless `/bmad-product-brief` call in autonomous mode → small scope shown for a yes/no. **This is exactly the proven smoke-test path** (one call, no questions, structured brief out).
-   - **Guidé ("je veux choisir")** → MMD orchestrates the turns itself: each turn is a SEPARATE headless call that asks BMAD to either emit the *next single clarifying question* or, once enough is known, *synthesize the scope*. The user answers in the web UI between calls.
+2. **Involvement is a dial — 3 levels** (Équilibré is the default). The user chooses how much they steer:
+   - **Autonome ("fais simple")** → ONE headless `/bmad-product-brief` call, zero questions → scope. **The proven smoke-test path.**
+   - **Équilibré (default)** → exactly ONE clarifying question, then synthesize → scope. Two MMD-orchestrated calls. The gentle middle: a little personalization, minimal friction.
+   - **Guidé ("je veux choisir")** → ~2–3 clarifying questions across turns, then synthesize → richer, more tailored scope. N MMD-orchestrated calls.
+   The level controls **how many clarifying turns MMD runs** (0 / 1 / 2–3) before the synthesize turn.
    **Important reality (from the smoke test):** a headless `claude -p` subprocess CANNOT run BMAD's own interactive loop — it has no stdin. So the interactivity lives at the **MMD layer** (the web UI collects answers), and BMAD is invoked **statelessly per turn** with the accumulated `dream + answers` as context. "Autonome" = 1 stateless call; "guidé" = N stateless calls driven by MMD. The dial therefore controls *how many turns MMD runs*, not a flag inside one BMAD call.
    **✅ GUIDED MODE DE-RISKED (prototype, 2026-05-31):** two MMD-orchestrated stateless calls worked end-to-end. Turn 1 (prompted "ask exactly ONE question") returned a single clean kid-friendly line — directly displayable, no JSON parsing. Turn 2 (given `dream + question + simulated answer`, prompted "synthesize the scope") returned a scope **tailored to the answer** (the child said "keep my drawings + lots of colors" → scope became draw+SAVE+gallery + rich palette, *different* from the autonomous run's PNG-export scope). **Parsing is trivial because MMD controls each turn's intent**: it tells BMAD "ask a question" vs "synthesize scope" per turn, so it always knows whether the output is a question (show it) or the final scope (confirm + launch) — no fragile classification needed.
    - (A middle "équilibré" default is **[OPEN]** — see §7.)
@@ -49,12 +51,14 @@ Design pillars:
 [Web] ✨ Voici ton appli :
       « Une toile de dessin web : 6 couleurs, une gomme, un bouton
         "Sauver mon dessin" (1 dessin gardé sur ton ordi). »
-      [ Recommencer ]   [ C'est parti ! ]
+      [ Recommencer ]   [ ✏️ Modifier ]   [ C'est parti ! ]
+  > (optionnel) ✏️ Modifier → le scope est éditable dans un champ texte,
+      l'utilisateur ajuste, revalide
   > C'est parti !
-      → existing pipeline: update status.json.dream = refined scope → invokeAutodev
+      → existing pipeline: update status.json.dream = (edited) refined scope → invokeAutodev
 ```
 
-In **guided** mode the same flow runs more turns with more precise questions and a more detailed scope.
+The user can **edit the scope text** before launching (a safety net + control), **restart** the whole dialogue, or **launch**. In **guided** mode the same flow runs more turns with more precise questions and a more detailed scope; in **autonome** it skips straight from the dream to the scope card.
 
 ---
 
@@ -82,7 +86,8 @@ Reused: lib/invoke-autodev.js#buildSubprocessEnv (env allowlist), lib/state.js (
 ### Proposed web API (conversational, replaces the one-shot POST /api/dream)
 - `POST /api/catch/start` `{ dream }` → `{ sessionId, next: "profile" }`
 - `POST /api/catch/answer` `{ sessionId, answer }` → `{ next: "level" | "question" | "scope", payload }`
-- `POST /api/catch/confirm` `{ sessionId }` → launches auto-dev, returns the existing `{ jobId, streamUrl }` (then today's SSE stream takes over)
+- `POST /api/catch/edit` `{ sessionId, scope }` → `{ scope }` (replace the synthesized scope text before launch)
+- `POST /api/catch/confirm` `{ sessionId }` → launches auto-dev with the (possibly edited) scope, returns the existing `{ jobId, streamUrl }` (then today's SSE stream takes over)
 - Session state stashed server-side (in-memory map keyed by sessionId; single-user localhost — no auth, matching today's model). Dialogue archived to `.mmd/local/dream-catcher/<ts>.md`.
 
 ### Profile carrier (minimal)
@@ -104,10 +109,10 @@ Tag: `@unit`.
 **Then** the reply is parsed into `{ questions[] }` (mid-dialogue) or `{ scope }` (final); an **unparseable** reply yields a clean fallback to the verbatim dream with a logged note (no fabrication, §VI). Invocation uses the existing env-allowlist + timeout handling.
 Tag: `@unit` (injected spawn) + `@integration` (fake claude fixture, like `MMD_AUTODEV_CMD`).
 
-### AC-3: Involvement dial changes the dialogue
+### AC-3: Involvement dial — 3 levels change the turn count
 **Given** the same dream
-**When** the user picks "autonome" vs "guidé"
-**Then** autonomous runs ≤1 question and a concise scope; guided runs several precise questions and a richer scope; both converge to a walking-skeleton-sized result (scope cap enforced).
+**When** the user picks Autonome / Équilibré / Guidé (Équilibré is the default if unset)
+**Then** the core runs 0 / 1 / 2–3 clarifying turns respectively before the synthesize turn; all three converge to a walking-skeleton-sized scope (cap: **one primary capability + ≤2 small extras** — the smoke test's natural shape). The level maps to MMD's turn count, not a flag inside one BMAD call.
 Tag: `@unit`.
 
 ### AC-4: Profile-first + Kid tone
@@ -116,10 +121,10 @@ Tag: `@unit`.
 **Then** it is the profile question; a Kid profile produces simple, playful phrasing and keeps `safe-by-default` bindings; profile is persisted to `status.json.profile`.
 Tag: `@unit`.
 
-### AC-5: Web surface end-to-end
+### AC-5: Web surface end-to-end (with editable scope)
 **Given** `mmd serve` running
-**When** a client drives `/api/catch/start` → `/answer`×N → `/confirm`
-**Then** the UI walks the steps, shows the refined scope with "Recommencer / C'est parti !", and `confirm` launches auto-dev via the existing pipeline + SSE stream. Back-compat: a direct/non-interactive submission still works (verbatim dream).
+**When** a client drives `/api/catch/start` → `/answer`×N → (optional `/edit`) → `/confirm`
+**Then** the UI walks the steps (dream → profile → level → questions), shows the refined scope card with **Recommencer / ✏️ Modifier / C'est parti !**; editing replaces the scope text; `confirm` launches auto-dev with the (possibly edited) scope via the existing pipeline + SSE stream. Back-compat: the legacy one-shot `POST /api/dream` still works (verbatim dream, no dialogue).
 Tag: `@integration`.
 
 ### AC-6: Docs + ADR + lesson
@@ -141,14 +146,14 @@ ADR for the Dream Catcher design (BMAD-backed, involvement dial, web-first); REA
 - The 5-Whys ([five-whys.js](lib/conductor/five-whys.js)) is the reference for "invoke a BMAD facilitation headless and parse a closed result, with a sacred fallback on unparseable output" — Dream Catcher's fallback-to-verbatim-dream mirrors that discipline.
 - Constitution bindings: universal, ai-coding, safe-by-default + kid (when profile=Kid), documentation, error-handling, security (untrusted web input — validate/escape).
 
-## 7. [OPEN] decisions for Sébastien (resolve on this doc)
-1. **Involvement levels**: two (autonome / guidé) or three (+ équilibré default)? What's the default if the user doesn't choose?
-2. **Surface scope**: web-only for v0.3.a (recommended), or web + CLI together?
-3. ~~**BMAD skill**~~ **— RESOLVED (smoke test 2026-05-31):** `bmad-product-brief` is installed, headless-invocable, autonomous, convergent, and Kid-aware. Confirmed as the backbone. (Open sub-point: how to feed the result to auto-dev — pass the stdout summary as the enriched dream, or hand auto-dev the `_bmad-output/.../<slug>.md` artifact directly? Leaning: archive the artifact, pass its scope to `status.json.dream`.)
-4. **Scope cap**: how do we define "walking-skeleton-sized"? e.g. "one primary capability + ≤2 small extras" — concrete enough?
-5. **Profile carrier**: minimal session/status field now (recommended) vs introduce `MMD_PROFILE` properly now.
-6. **Confirm gate**: after showing the refined scope, is a single "C'est parti !" enough, or do we want an edit-the-scope step before launch?
+## 7. Resolved decisions (design conversation, 2026-05-31)
+1. **Involvement levels** → **3 levels**: Autonome / **Équilibré (default)** / Guidé = 0 / 1 / 2–3 clarifying turns.
+2. **Surface** → **web-only** for v0.3.a; CLI/TTY deferred to v0.3.b. Core stays surface-agnostic + testable.
+3. **BMAD skill** → **`bmad-product-brief`** (smoke-tested: headless, autonomous, convergent, Kid-aware). Feed to auto-dev by passing the synthesized scope into `status.json.dream`; archive the `_bmad-output/.../<slug>.md` artifact under `.mmd/local/dream-catcher/`.
+4. **Scope cap** → **one primary capability + ≤2 small extras** (the shape both smoke tests produced naturally). Enforced/checked at synthesize time.
+5. **Profile carrier** → **minimal**: a `profile` field on the session, persisted to `status.json.profile`. Full `MMD_PROFILE` env/global config deferred to v0.3.b.
+6. **Confirm gate** → **editable scope**: after the scope card, the user can Recommencer / ✏️ Modifier (edit the text) / C'est parti ! (launch).
 
 ---
 
-*Spec v0.3.a — DRAFT, drafted 2026-05-31 as a design conversation. Backbone: BMAD `product-brief` invoked headless; centerpiece: an involvement dial mapping onto guided↔autonomous; surface: web-first for the Kid scenario. Not frozen — resolve §7 then firm up §4 and freeze.*
+*Spec v0.3.a — FROZEN 2026-05-31 after a design conversation + two BMAD smoke tests. Backbone: BMAD `product-brief` invoked headless (autonomous + MMD-orchestrated guided, both de-risked); centerpiece: a 3-level involvement dial (Autonome / Équilibré / Guidé) controlling MMD's turn count; surface: web-only for the Kid scenario; scope is editable before launch. Ready to build.*

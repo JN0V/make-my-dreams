@@ -106,8 +106,8 @@ test('@unit AC-1 (F1): __proto__/constructor/prototype keys are dropped, not ass
     'profiles:\n  __proto__: [evil]\n  constructor: [evil]\n  prototype: [evil]\n  Kid: [kid]\n',
   );
   assert.equal(({}).foo, undefined);
-  // The legitimate key still parses; the dangerous ones are absent as own keys.
+  // The legitimate key still parses; the dangerous ones are dropped entirely,
+  // so the ONLY own key under profiles is `Kid` (no __proto__/constructor/...).
   assert.deepEqual(b.profiles.Kid, ['kid']);
-  assert.ok(!Object.prototype.hasOwnProperty.call(b.profiles, '__proto__') ||
-    Array.isArray(b.profiles.Kid)); // sanity: Kid intact regardless
+  assert.deepEqual(Object.getOwnPropertyNames(b.profiles), ['Kid']);
 });

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import {
   parseArgv,
   resolveEngine,
+  resolveShouldCatch,
   ENGINE_FLAGS,
   SESSION_FLAGS,
   MODE_FLAGS,
@@ -66,6 +67,18 @@ test('@unit parseArgv (AC-1): --catch composes with engine + mode flags', () => 
 test('@unit KNOWN_FLAGS includes catch and no-catch', () => {
   assert.ok(KNOWN_FLAGS.includes('catch'));
   assert.ok(KNOWN_FLAGS.includes('no-catch'));
+});
+
+test('@unit AC-3 resolveShouldCatch: TTY default ON, --no-catch opts out, --catch forces', () => {
+  const none = { catch: false, 'no-catch': false };
+  // TTY-gated default: on a TTY → catch; non-TTY → skip.
+  assert.equal(resolveShouldCatch(none, true), true);
+  assert.equal(resolveShouldCatch(none, false), false);
+  // --no-catch suppresses even on a TTY.
+  assert.equal(resolveShouldCatch({ catch: false, 'no-catch': true }, true), false);
+  // --catch forces it regardless of isTTY (the non-TTY error is bin/mmd's job).
+  assert.equal(resolveShouldCatch({ catch: true, 'no-catch': false }, false), true);
+  assert.equal(resolveShouldCatch({ catch: true, 'no-catch': false }, true), true);
 });
 
 test('@unit parseArgv: lone dream → positional only', () => {

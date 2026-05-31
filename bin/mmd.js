@@ -23,7 +23,7 @@ import { slugify, deriveBranchSlug, initStateFiles, nextAvailableSlug } from '..
 import { ensureLayout, readStatus, writeStatus, ensureGitignore } from '../lib/state.js';
 import { invokeAutodev } from '../lib/invoke-autodev.js';
 import { realityCheck } from '../lib/reality-check.js';
-import { parseArgv, resolveEngine } from '../lib/argv-parser.js';
+import { parseArgv, resolveEngine, resolveShouldCatch } from '../lib/argv-parser.js';
 import { deriveSpec } from '../lib/spec-derive.js';
 import { buildEngineRecord, withDuration, fastBudgetExceeded } from '../lib/engine.js';
 import {
@@ -36,6 +36,8 @@ import {
 } from '../lib/here-mode.js';
 import { readFile as fsReadFile } from 'node:fs/promises';
 import { checkGate } from '../lib/discover/gate.js';
+import { runCliDreamCatcher } from '../lib/dream-catcher/cli-driver.js';
+import { runElicit } from '../lib/dream-catcher/elicit.js';
 
 // F30 — version sourced once from package.json (shared with GET /api/health).
 const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
@@ -45,6 +47,8 @@ const USAGE = `mmd ${VERSION} — Make My Dreams CLI
 
 Usage:
   mmd "<dream description>"            Generate a PWA fulfilling the dream
+                                       (on a TTY: an interactive Dream Catcher
+                                       dialogue refines it first — v0.3.b)
   mmd --fast "<dream>"                 Trimmed auto-dev pipeline (target <=10 min)
   mmd --here "<change>"                Modify the current git repo in place (v0.2a)
   mmd bench [--dry-run]                Run the dream-bench v0 harness (v0.2b)
@@ -71,6 +75,10 @@ Mode flags (orthogonal to engine):
   --label <name>                       Human-readable branch name for --here (e.g. --label wip-salvage); else derived from the dream
   --skip-onboarding                    Bypass the v0.2c Project Onboarder gate (NOT RECOMMENDED)
 
+Dream Catcher dialogue (greenfield only, mutually exclusive — v0.3.b):
+  --catch                              Force the interactive dialogue (errors on a non-TTY)
+  --no-catch                           Skip the dialogue even on a TTY (launch the verbatim dream)
+
 Idempotent re-run flags (used when a demo dir already exists):
   --resume                             Print current dream state and exit 3
   --fresh                              Delete the demo dir and restart
@@ -88,6 +96,8 @@ Environment variables:
   MMD_TIMEOUT_MS                       Subprocess timeout in ms (default 1800000, 0 to disable)
   MMD_REALITY_CHECK_BACKEND            mcp | playwright | skip
   MMD_DREAM_MAX_LEN                    Max dream length in chars (default 500)
+  MMD_PROFILE                          Audience profile threaded into the build (Kid|Curious|Pro);
+                                       set by the Dream Catcher dialogue. Kid → safe-by-default prompt (v0.3.b)
   MMD_HERE_PROTECTED_BRANCHES          Comma-separated list (default: main,master)
                                        — slice branch is always created from HEAD,
                                        even when on a protected branch (v0.2a AC-2)
@@ -109,6 +119,33 @@ async function promptRfc() {
   } finally {
     rl.close();
   }
+}
+
+/**
+ * v0.3.b — build a readline-backed io channel for the CLI Dream Catcher driver
+ * (AC-3). Reuses the `node:readline/promises` + `input.isTTY` pattern from
+ * promptRfc(). `ask` resolves to the trimmed answer, or `null` on EOF / abort
+ * (Ctrl-D) so the driver can honor "an aborted dialogue does not launch". `print`
+ * writes a line to stdout. Caller MUST call close() when the dialogue ends.
+ */
+function createReadlineIo() {
+  const rl = createInterface({ input, output });
+  return {
+    async ask(prompt) {
+      try {
+        return await rl.question(prompt);
+      } catch {
+        // readline rejects (e.g. AbortError) when the input stream closes (EOF).
+        return null;
+      }
+    },
+    print(text) {
+      output.write(text.endsWith('\n') ? text : `${text}\n`);
+    },
+    close() {
+      rl.close();
+    },
+  };
 }
 
 async function resolveExistingChoice(flags) {
@@ -491,7 +528,9 @@ async function main() {
     return argvError.exitCode;
   }
   const engine = resolveEngine(flags);
-  const dream = positional[0];
+  // `dream` is mutable: the v0.3.b Dream Catcher dialogue (greenfield, on a TTY)
+  // may replace it with a refined scope before launch (AC-3).
+  let dream = positional[0];
 
   if (dream === undefined) {
     stderr.write('error: dream string required\n' + USAGE);
@@ -531,6 +570,18 @@ async function main() {
     return runHereMode({ cwd: cwd(), dream, slug, branchSlug, engine, skipOnboarding });
   }
 
+  // v0.3.b AC-3: `--catch` forces the interactive Dream Catcher dialogue, which
+  // needs a real terminal. On a non-TTY it cannot run, so fail fast with a clear
+  // message (usage class → exit 2) rather than silently skipping it. This is a
+  // pure flag-usage check; the TTY-gated default path is resolved below.
+  if (flags.catch && !stdin.isTTY) {
+    stderr.write(
+      'error: --catch needs an interactive terminal (a TTY) to run the dialogue. ' +
+        'Run mmd directly in a terminal, or drop --catch to launch with the verbatim dream.\n',
+    );
+    return 2;
+  }
+
   // v0.2c AC-7: greenfield path consults the gate too. The greenfield use
   // case is "no demo/<slug>/ yet" but the cwd itself may still be a
   // brownfield (e.g. user runs `mmd "tiny PWA"` from inside their existing
@@ -542,6 +593,48 @@ async function main() {
       stderr.write(`${gate.message}\n`);
       return 5;
     }
+  }
+
+  // v0.3.b AC-3: TTY-gated Dream Catcher dialogue (greenfield only — never under
+  // --here, which returned above). `shouldCatch` defaults ON when stdin is a TTY,
+  // unless --no-catch is given; --catch forces it (the non-TTY case already
+  // exited 2 above). When catching, run the SAME session core the web drives,
+  // replace the dream with the refined scope, and thread the chosen profile into
+  // the build. A non-TTY without --catch skips the dialogue entirely (today's
+  // behavior, CI-safe). An aborted dialogue (EOF / restart→EOF) does NOT launch.
+  const shouldCatch = resolveShouldCatch(flags, stdin.isTTY);
+  let catchProfile = null;
+  if (shouldCatch) {
+    const io = createReadlineIo();
+    let result;
+    try {
+      result = await runCliDreamCatcher({
+        dream,
+        io,
+        elicit: (ctx) => runElicit({ ...ctx, env }),
+      });
+    } finally {
+      io.close();
+    }
+    if (!result.confirmed) {
+      stdout.write('Dialogue annulé — aucun rêve lancé.\n');
+      return 0;
+    }
+    // The refined scope becomes the dream the pipeline builds.
+    dream = result.scope;
+    catchProfile = result.profile || 'Curious';
+    // Re-derive the slug from the refined scope so demo/<slug>/ matches it.
+    try {
+      slug = slugify(dream);
+    } catch (err) {
+      stderr.write(`error: ${err.message}\n`);
+      return 2;
+    }
+    // AC-4: thread the chosen profile into the subprocess. buildSubprocessEnv
+    // passes MMD_* through, and buildPrompt (this process AND the nested claude)
+    // consumes it. Default Curious — never empty.
+    process.env.MMD_PROFILE = catchProfile;
+    stdout.write(`Profil : ${catchProfile}\n`);
   }
 
   let demoDir = path.join(cwd(), 'demo', slug);
@@ -632,6 +725,10 @@ async function main() {
     created_at: existing?.created_at || nowIso(),
     updated_at: nowIso(),
     tasks: [{ id: 'auto-dev', state: 'in_progress' }],
+    // AC-3: persist the chosen profile when the dialogue ran (parity with the
+    // web /api/catch/confirm path). Omitted entirely on the verbatim-dream path
+    // so non-catch runs keep their existing status.json shape (back-compat).
+    ...(catchProfile ? { profile: catchProfile } : {}),
     ...initialEngineRecord,
   };
   await writeStatus(demoDir, inProgressStatus);
@@ -715,6 +812,7 @@ async function main() {
     created_at: existing?.created_at || inProgressStatus.created_at,
     updated_at: nowIso(),
     tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
+    ...(catchProfile ? { profile: catchProfile } : {}),
     ...finalEngineRecord,
   });
   stdout.write(`[OK] Delivered at ${demoDir}\n`);

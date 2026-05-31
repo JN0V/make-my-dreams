@@ -382,3 +382,21 @@ This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanline
 **Category**: documentation, observability, automation, honesty
 **Applies to**: mmd handover, any-handover-doc, any-claude-spawn
 **Keywords for matching**: handover, state, drift, mechanical, derive, marker, idempotent, test count, count, tag, branch, parseLessons, fabricate, honesty
+
+---
+
+## L-021 — Headless `claude -p` has no stdin: multi-turn elicitation must be MMD-orchestrated stateless calls
+
+**Status**: active (1 occurrence — surfaced by the v0.3.a Dream Catcher de-risk smoke test, 2026-05-31)
+**Date**: 2026-05-31
+**Origin**: The Dream Catcher design assumed it could lean on BMAD's `bmad-product-brief` for elicitation. The natural reading of "an elicitation skill" is *interactive*: BMAD asks a question, the user answers, it asks the next, and so on. But the smoke test (SPEC_V03A §1) ran `claude -p "/bmad-product-brief <dream>"` and proved the headless reality: **a `claude -p` subprocess has no stdin and no interactive loop** — it cannot pause to ask the user anything. What it *can* do is converge fully autonomously when told to ask no questions (the smoke test produced an 81-line structured brief, Kid-aware, zero prompts, exit 0). The guided prototype then confirmed the corollary: multi-turn refinement works only when **MMD** drives it — turn 1 prompts BMAD "ask exactly ONE question", turn 2 feeds `dream + question + answer` back and prompts "synthesize the scope". Each turn is a fresh, stateless `claude -p` call.
+**The pattern**: a fourth-order L-009 echo — the *design* ("BMAD-backed elicitation dialogue") quietly assumed a capability the *implementation substrate* (`claude -p` headless) does not have. The gap between "BMAD facilitates a conversation" and "BMAD runs as a one-shot stateless subprocess" was never named until the smoke test forced it. Same shape as L-015 (Conductor assumed a file existed) and L-017 (SCAN assumed fixtures = reality): the abstraction held until a real run broke it.
+**Rule**:
+  1. **Headless LLM subprocesses are stateless one-shots — never assume a back-and-forth.** Any "conversation" with `claude -p` must be modeled as N independent calls, each carrying the full accumulated context (`dream + all prior answers`) as a prompt argument. There is no session, no stdin, no memory between calls.
+  2. **Interactivity lives at the orchestration layer, not inside the LLM call.** MMD (the web UI here) collects the human's answers; BMAD is invoked per turn with MMD telling it the turn's intent ("ask one question" vs "synthesize the scope"). The involvement dial is therefore *how many turns MMD runs*, not a flag inside one BMAD call.
+  3. **Because MMD controls each turn's intent, parsing stays trivial.** MMD already knows whether a reply is a question (show it) or the final scope (confirm + launch) — no fragile output classification. Keep the parser defensive anyway (validate before trust, ai-coding §III): an empty/garbage reply must trigger the honest fallback, never a fabricated scope (universal §VI).
+  4. **Generalizes to every headless-LLM integration in MMD.** `mmd unblock` (5-Whys), `mmd ship`, future skills: if a design says "have a dialogue with the model", translate it to "MMD orchestrates K stateless calls" before estimating it. v0.3.a-1 ships the proven 1-call autonomous path; the N-call guided modes are a-2.
+**To promote if**: 3 reuses validated (counter: 1) — strong candidate to promote to `ai-coding.md` as "Headless `claude -p` is a stateless one-shot; model any multi-turn interaction as N MMD-orchestrated stateless calls, never as an in-subprocess conversation." Until promoted, sits here as the foundational Dream Catcher lesson.
+**Category**: subprocess-control, ai-coding, dream-catcher, design-vs-implementation
+**Applies to**: mmd serve, mmd --here, any-claude-spawn
+**Keywords for matching**: dream catcher, bmad-product-brief, headless, claude -p, no stdin, stateless, multi-turn, elicitation, MMD-orchestrated, involvement dial, autonomous, guided, product brief, L-009 pattern, honest fallback, scope synthesis

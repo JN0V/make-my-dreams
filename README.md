@@ -376,6 +376,8 @@ mmd serve
 
 This starts a local HTTP server on `http://localhost:3000` (configurable) and auto-opens the default browser. A minimalist page lets anyone — including a 13-year-old kid — type a dream description, click "Go", watch progress stream live, and get a link to the generated PWA. Same machine as `mmd` runs on. No tunnel, no cloud, no account.
 
+**Dream Catcher** *(new in v0.3.a-1)* — instead of launching your dream verbatim, `mmd serve` now refines it first through a short, friendly dialogue: you type a dream, pick who it's for (Enfant / Curieux / Pro), and one **autonomous `bmad-product-brief`** call (headless `claude -p`) synthesizes a small, buildable scope (one capability + at most two extras; Kid profiles get safe-by-default framing). You see the proposed scope on a card and either **Recommencer** (start over) or **C'est parti !** to launch the existing auto-dev pipeline with that scope. If BMAD fails or returns nothing usable, the Dream Catcher is honest (universal §VI): it launches your **verbatim dream** with a visible note rather than fabricate a scope. The routes are `POST /api/catch/start|answer|confirm`; the legacy one-shot `POST /api/dream` still works unchanged. The Équilibré / Guidé multi-turn dial and scope editing come in v0.3.a-2. See [ADR-021](./docs/adr/021-dream-catcher.md) and [L-021](./docs/lessons-learned.md).
+
 ```
 ┌─────────────────────────────────────────────────┐
 │  Make My Dreams                                 │

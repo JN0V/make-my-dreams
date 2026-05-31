@@ -15,6 +15,17 @@ import { createServer } from '../../lib/server.js';
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const FAKE_ELICIT = path.join(REPO_ROOT, 'test', 'fixtures', 'fake-claude-elicit.sh');
 const FAKE_STREAMING = path.join(REPO_ROOT, 'test', 'fixtures', 'fake-autodev-streaming.sh');
+const CAPTURE_ENV = path.join(REPO_ROOT, 'test', 'fixtures', 'capture-env.sh');
+
+/** Poll until `file` exists (the spawned child writes it), up to ~2s. */
+async function waitForFile(file, timeoutMs = 2000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (existsSync(file)) return true;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  return false;
+}
 
 process.env.MMD_SERVE_ALLOW_RANDOM = '1';
 
@@ -128,6 +139,32 @@ test('@integration confirm writes status.json {dream:scope, profile} and archive
   const archive = readFileSync(path.join(archiveDir, archives[0]), 'utf8');
   assert.match(archive, /Profile: Curious/);
   assert.match(archive, /une appli pour dessiner/);
+});
+
+test('@integration AC-4: confirm threads MMD_PROFILE into the launch child env', async (t) => {
+  const capturePath = path.join(mkdtempSync(path.join(tmpdir(), 'mmd-env-')), 'env.txt');
+  const ctx = await bootServer({
+    MMD_AUTODEV_CMD: FAKE_ELICIT,
+    MMD_SERVE_RATE_LIMIT_PER_HOUR: '1000',
+    MMD_ENV_CAPTURE: capturePath,
+  });
+  t.after(async () => {
+    await ctx.server.shutdown('test');
+    ctx.restoreEnv();
+    rmSync(ctx.tmp, { recursive: true, force: true });
+    rmSync(path.dirname(capturePath), { recursive: true, force: true });
+  });
+
+  // Enfant → Kid profile, then confirm against the env-capturing fixture.
+  const { sessionId } = await startAutonome(ctx.baseUrl, 'une appli pour dessiner', 'Enfant');
+  process.env.MMD_AUTODEV_CMD = CAPTURE_ENV;
+  await post(ctx.baseUrl, '/api/catch/confirm', { sessionId });
+  process.env.MMD_AUTODEV_CMD = FAKE_ELICIT;
+
+  assert.ok(await waitForFile(capturePath), 'capture fixture should have written its env');
+  const captured = readFileSync(capturePath, 'utf8');
+  // The chosen profile reached the spawned build (AC-4) — Kid, never empty.
+  assert.match(captured, /^MMD_PROFILE=Kid$/m);
 });
 
 test('@integration honest fallback: BMAD failure → verbatim dream as scope, fallback flag true', async (t) => {

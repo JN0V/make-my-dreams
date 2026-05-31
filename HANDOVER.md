@@ -19,13 +19,13 @@
 - **Version**: `0.2.16` (package.json)
 - **Active lessons**: 13 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019)
 - **ADRs**: 20 (ADR-001..ADR-020)
-- **Tests**: 1090 passing
+- **Tests**: 1091 passing
 - **Recent commits**:
+  - `5cc43f4 docs(handover): refresh State block via mmd handover (17 -> 14 active lessons)`
   - `c9d2613 docs(handover): ADR-020 + L-020 + README + bump to v0.2.16`
   - `6e105ae test(handover): unit + integration coverage for mmd handover`
   - `98d29df docs(handover): add state markers around HANDOVER.md State block`
   - `d6c9e4a feat(handover): dispatch mmd handover + entry point (--dry-run, markers)`
-  - `ce004ad feat(handover): pure marker-bounded rewriter (preserve outside bytes)`
 - **Generated**: 2026-05-31 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

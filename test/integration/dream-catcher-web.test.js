@@ -176,6 +176,72 @@ test('@integration AC-5 served UI exposes the multi-step flow (dream → profile
   assert.match(appJs, /\/api\/catch\/confirm/);
 });
 
+test('@integration F1: a concurrent answer hits the single-in-flight synthesize guard (409)', async (t) => {
+  const ctx = await bootServer({
+    MMD_AUTODEV_CMD: FAKE_ELICIT,
+    MMD_FAKE_ELICIT_SLEEP: '0.4', // hold the first synthesize open
+    MMD_SERVE_RATE_LIMIT_PER_HOUR: '1000',
+  });
+  t.after(async () => { await ctx.server.shutdown('test'); ctx.restoreEnv(); rmSync(ctx.tmp, { recursive: true, force: true }); });
+
+  // The DoS the guard prevents is a loop of start[new session]+answer spawning
+  // unbounded claude processes — so use TWO distinct sessions.
+  const b1 = await (await post(ctx.baseUrl, '/api/catch/start', { dream: 'une appli pour dessiner' })).json();
+  const b2 = await (await post(ctx.baseUrl, '/api/catch/start', { dream: 'un jeu de plateforme' })).json();
+  // Fire the first answer (holds the synthesize open via the sleep) without awaiting.
+  const p1 = post(ctx.baseUrl, '/api/catch/answer', { sessionId: b1.sessionId, answer: 'Curieux' });
+  // small delay so p1 sets the synthesizing flag before p2 arrives
+  await new Promise((r) => setTimeout(r, 80));
+  const r2 = await post(ctx.baseUrl, '/api/catch/answer', { sessionId: b2.sessionId, answer: 'Pro' });
+  assert.equal(r2.status, 409);
+  assert.equal((await r2.json()).error, 'synthesize_in_progress');
+  const r1 = await p1;
+  assert.equal(r1.status, 200); // the first one still completes
+});
+
+test('@integration F2: confirm is rate-limited (429) once the bucket is exhausted', async (t) => {
+  const ctx = await bootServer({
+    MMD_AUTODEV_CMD: FAKE_STREAMING,
+    MMD_SERVE_RATE_LIMIT_PER_HOUR: '1', // one successful run fills the bucket
+    MMD_FAKE_LINES: '1',
+    MMD_FAKE_SLEEP: '0',
+  });
+  t.after(async () => { await ctx.server.shutdown('test'); ctx.restoreEnv(); rmSync(ctx.tmp, { recursive: true, force: true }); });
+
+  // Exhaust the bucket via a legacy run that exits 0 (recordSuccess fires on exit).
+  await post(ctx.baseUrl, '/api/dream', { dream: 'fill the rate bucket once' });
+  // Wait until the bucket records the success AND the in-flight job clears.
+  for (let i = 0; i < 100; i++) {
+    const s = ctx.server._state();
+    if (s.rateLimit.used >= 1 && s.inflightJobId === null) break;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  assert.equal(ctx.server._state().rateLimit.used, 1);
+
+  // Now run the Dream Catcher flow to a scope, then confirm → 429.
+  process.env.MMD_AUTODEV_CMD = FAKE_ELICIT;
+  const b1 = await (await post(ctx.baseUrl, '/api/catch/start', { dream: 'une appli pour dessiner' })).json();
+  await post(ctx.baseUrl, '/api/catch/answer', { sessionId: b1.sessionId, answer: 'Curieux' });
+  const r = await post(ctx.baseUrl, '/api/catch/confirm', { sessionId: b1.sessionId });
+  assert.equal(r.status, 429);
+  assert.equal((await r.json()).error, 'rate_limited');
+
+  // F3: the session was NOT consumed — it is still retryable.
+  assert.equal(ctx.server._state().catchSessionCount, 1);
+});
+
+test('@integration catch routes reject non-JSON (415) and oversized bodies (413)', async (t) => {
+  const ctx = await bootServer({ MMD_AUTODEV_CMD: FAKE_ELICIT });
+  t.after(async () => { await ctx.server.shutdown('test'); ctx.restoreEnv(); rmSync(ctx.tmp, { recursive: true, force: true }); });
+
+  const notJson = await post(ctx.baseUrl, '/api/catch/start', 'dream=x', { 'Content-Type': 'text/plain' });
+  assert.equal(notJson.status, 415);
+
+  const huge = JSON.stringify({ dream: 'x'.repeat(5000) }); // > MAX_BODY_BYTES (4096)
+  const tooBig = await post(ctx.baseUrl, '/api/catch/start', huge);
+  assert.equal(tooBig.status, 413);
+});
+
 test('@integration legacy POST /api/dream still works untouched', async (t) => {
   const ctx = await bootServer({ MMD_AUTODEV_CMD: FAKE_STREAMING, MMD_SERVE_RATE_LIMIT_PER_HOUR: '1000' });
   t.after(async () => { await ctx.server.shutdown('test'); ctx.restoreEnv(); rmSync(ctx.tmp, { recursive: true, force: true }); });

@@ -18,6 +18,12 @@ set -euo pipefail
 PROMPT="${1-}"
 echo "fake-claude-elicit: received prompt of ${#PROMPT} chars" >&2
 
+# MMD_FAKE_ELICIT_SLEEP (default 0): delay output so a test can fire a second
+# concurrent /api/catch/answer and exercise the single-in-flight synthesize guard.
+if [ -n "${MMD_FAKE_ELICIT_SLEEP:-}" ]; then
+  sleep "${MMD_FAKE_ELICIT_SLEEP}"
+fi
+
 EXIT_CODE="${MMD_FAKE_ELICIT_EXIT:-0}"
 
 if [ "$EXIT_CODE" != "0" ]; then

@@ -7,6 +7,13 @@
 
 ## State at handover
 
+> The block between the two markers below is mechanical and machine-derived.
+> Run `mmd handover --tests <N>` to refresh it — do NOT hand-edit it (that hand
+> maintenance is the drift this command exists to kill: this block said "17
+> active lessons" while the parser counted 13). Everything OUTSIDE the markers is
+> human intent and is preserved byte-for-byte.
+
+<!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.2.15` (human-readable branch names for `mmd --here` — embodies constitution §VII)
 - **Branch**: `main` (clean working tree, fully pushed to `origin/main`)
 - **Tests**: 1055 passing, 0 fail, 0 skipped
@@ -14,6 +21,7 @@
 - **Constitution**: v2.1.0 — added universal.md §VII "Human-readable first" (NON-NEGOTIABLE: names/phases/branches/commits/specs comprehensible to a human first, AI second).
 - **Active lessons**: 17 (in `docs/lessons-learned.md`; L-019 added; L-002 + L-016 remain promoted to `ai-coding.md`)
 - **Reflexive uses of `mmd --here` to date**: 13 (v0.2.15 was implemented DIRECTLY, not via auto-dev — small/surgical, ai-coding §II tool-choice)
+<!-- mmd:handover:state:end -->
 
 ## What just shipped (chronological, this multi-session arc)
 

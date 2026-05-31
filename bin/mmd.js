@@ -61,6 +61,8 @@ Usage:
   mmd document-lessons [--dry-run]     Increment lesson counters + auto-promote at threshold (v0.2.i)
   mmd unblock [<branch>] [--dry-run]   Run a 5-Whys stuck-recovery session on a slice (v0.2.j)
   mmd handover [--tests N] [--dry-run] Refresh HANDOVER.md's mechanical State block (v0.2.p)
+  mmd document-readme [--tests N] [--dry-run]
+                                       Refresh README.md's Status + Changelog blocks; report doc drift (v0.3.d)
   mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
   mmd --help, -h                       Print this usage and exit
@@ -509,6 +511,14 @@ async function main() {
     // dream string equal to "handover". Refreshes HANDOVER.md's State block.
     const { runHandover } = await import('./handover.js');
     return runHandover(rawArgs.slice(1));
+  }
+  if (rawArgs[0] === 'document-readme') {
+    // v0.3.d AC-1: `mmd document-readme` subcommand. Dispatched here (before
+    // checkGate / argv parsing) for the same reason as handover — must not parse
+    // as a dream string equal to "document-readme". Applies the handover pattern
+    // to README.md: refreshes the Status + Changelog mechanical blocks in place.
+    const { runDocumentReadme } = await import('./documentalist/document-readme.js');
+    return runDocumentReadme(rawArgs.slice(1));
   }
   if (rawArgs.includes('--version')) {
     stdout.write(`${VERSION}\n`);

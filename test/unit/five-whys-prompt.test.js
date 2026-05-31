@@ -68,3 +68,25 @@ test('@unit prompt tolerates missing optional fields', () => {
   assert.match(p, /slice\/min/);
   assert.match(p, /\(none reported\)/);
 });
+
+// SPEC_V02N AC-4: the WIP-salvage hint is additive + signal-keyed.
+
+test('@unit WIP-salvage hint appears only when wip-uncommitted-since-N-min fired', () => {
+  const withSignal = buildFiveWhysPrompt(ctx({
+    sliceBranch: 'slice/wip',
+    signals: ['no-commit-since-N-min', 'wip-uncommitted-since-N-min'],
+  }));
+  assert.match(withSignal, /WIP-salvage guidance/);
+  assert.match(withSignal, /git stash push -u -m "wip-salvage slice\/wip"/);
+  assert.match(withSignal, /is the appropriate recommended action/);
+
+  // Absent signal → no hint (no false guidance bleed).
+  const withoutSignal = buildFiveWhysPrompt(ctx());
+  assert.doesNotMatch(withoutSignal, /WIP-salvage guidance/);
+});
+
+test('@unit WIP-salvage hint does NOT add a new action to the closed enum', () => {
+  const p = buildFiveWhysPrompt(ctx({ signals: ['wip-uncommitted-since-N-min'] }));
+  // Still exactly the 5 canonical actions are presented as the closed set.
+  for (const a of RECOMMENDED_ACTIONS) assert.match(p, new RegExp(a));
+});

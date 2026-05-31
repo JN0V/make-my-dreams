@@ -365,3 +365,20 @@ This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanline
 **Category**: conductor, git, subprocess-control, observability
 **Applies to**: mmd --here, mmd unblock
 **Keywords for matching**: wip-uncommitted, uncommitted changes, git stash, stall signal, conductor, work in progress lost, killed mid-run, commit incrementally, worktree dirty, git status porcelain, WIP salvage, escalate-to-user, prompt-grounding
+
+---
+
+## L-020 — Mechanical handover state drifts when hand-maintained (HANDOVER.md said 17, the parser said 13)
+
+**Status**: active (1 occurrence — caught at the v0.2.p launch: the live HANDOVER.md State block claimed 17 active lessons while `parseLessons` counted 13)
+**Date**: 2026-05-31
+**Origin**: HANDOVER.md mixes human intent (roadmap, "why") with a mechanical "State at handover" block (latest tag, branch, version, lesson/ADR counts, recent commits). The mechanical block was hand-maintained and drifted: at the v0.2.p launch it claimed 17 active lessons while the authoritative parser (`parseLessons`) counted 13. A wrong number in the first document a tired human reads at 2 a.m. is exactly the human-opacity universal §VII warns against.
+**Rule**:
+  1. **Derive mechanical state; author only intent.** Any document that mixes machine-derivable facts with human intent MUST derive the mechanical part from the source of truth, not hand-maintain it. v0.2.p adds `mmd handover`, which re-derives ONLY the block between `<!-- mmd:handover:state:start -->` / `<!-- mmd:handover:state:end -->` and preserves every byte outside byte-for-byte.
+  2. **Count from the authoritative parser, not a regex or a human.** The active-lessons count comes from `parseLessons(...).filter(status==='active')`, the same code the composer trusts — never a hand-tally. A second source of truth is a second thing to drift.
+  3. **Never fabricate the non-derivable; mark it honest.** The one non-cheap field (passing-test count) is NOT auto-run (SRP: a doc generator is not a test runner; determinism). It comes from `--tests N` or an explicit `(run npm test to refresh)` placeholder — never an invented or copied-stale number (universal §VI honesty). A failing git call renders `(unavailable: <reason>)`, never a guess.
+  4. **Markers are the contract; refuse rather than guess.** If a marker is absent the command does NOT pick an insertion point — it exits non-zero and prints the derived block for the human to place. Idempotency (same state + same `--tests` ⇒ byte-identical file) is a tested invariant. See [ADR-020](adr/020-mmd-handover-subcommand.md).
+**To promote if**: 3 reuses validated (counter: 0) — candidate to promote to `documentation.md` as "machine-derivable doc state must be generated, not hand-maintained." Until then, sits here.
+**Category**: documentation, observability, automation, honesty
+**Applies to**: mmd handover, any-handover-doc, any-claude-spawn
+**Keywords for matching**: handover, state, drift, mechanical, derive, marker, idempotent, test count, count, tag, branch, parseLessons, fabricate, honesty

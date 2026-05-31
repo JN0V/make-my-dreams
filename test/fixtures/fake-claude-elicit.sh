@@ -36,6 +36,17 @@ if [ -n "${MMD_FAKE_ELICIT_EMPTY:-}" ]; then
   exit 0
 fi
 
+# Branch on the turn MODE, detected from the prompt's instructions (the a-2
+# ask_question / synthesize prompts carry distinct markers + wording; the a-1
+# autonome prompt carries neither marker and says "Ask NO questions").
+#
+# ask_question → emit a tagged QUESTION line (guided multi-turn).
+if echo "$PROMPT" | grep -q "QUESTION:"; then
+  QUESTION="${MMD_FAKE_ELICIT_QUESTION:-Quelle couleur préfères-tu ?}"
+  printf 'QUESTION: %s\n' "$QUESTION"
+  exit 0
+fi
+
 # Default canned scope. If the prompt mentions the Kid framing, reflect it so a
 # test can assert the profile reached the prompt.
 SCOPE="${MMD_FAKE_ELICIT_SCOPE:-}"
@@ -46,5 +57,12 @@ if [ -z "$SCOPE" ]; then
     SCOPE="A small drawing app: one touch canvas (core), a color palette, and a Save-as-PNG button. Walking-skeleton scope."
   fi
 fi
-printf '%s\n' "$SCOPE"
+
+# synthesize → emit the SCOPE marker so parse-reply detects it deterministically.
+# autonome (the a-1 path) emits the UNTAGGED scope so existing tests are unchanged.
+if echo "$PROMPT" | grep -q "SCOPE:"; then
+  printf 'SCOPE: %s\n' "$SCOPE"
+else
+  printf '%s\n' "$SCOPE"
+fi
 exit 0

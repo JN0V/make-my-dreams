@@ -55,6 +55,75 @@ test('@unit buildElicitPrompt injects Kid safe-by-default framing only for Kid',
   assert.doesNotMatch(pro, /safe-by-default/i);
 });
 
+test('@unit buildElicitPrompt mode:ask_question tags one question + carries prior Q&A', () => {
+  const p = buildElicitPrompt({
+    dream: 'une appli pour dessiner',
+    profile: 'Curious',
+    mode: 'ask_question',
+    previousAnswers: [{ question: 'Pour quel âge ?', answer: '6 ans' }],
+  });
+  assert.match(p, /EXACTLY ONE concise clarifying question/i);
+  assert.match(p, /QUESTION:/);
+  assert.doesNotMatch(p, /Walking-skeleton cap/); // no scope synthesis here
+  assert.match(p, /Pour quel âge \?/);
+  assert.match(p, /6 ans/);
+});
+
+test('@unit buildElicitPrompt mode:synthesize tags the scope + folds all prior Q&A', () => {
+  const p = buildElicitPrompt({
+    dream: 'un jeu',
+    profile: 'Pro',
+    mode: 'synthesize',
+    previousAnswers: [
+      { question: 'Quel genre ?', answer: 'plateforme' },
+      { question: 'Solo ou multi ?', answer: 'solo' },
+    ],
+  });
+  assert.match(p, /SCOPE:/);
+  assert.match(p, /ONE primary capability/i); // walking-skeleton cap kept
+  assert.match(p, /plateforme/);
+  assert.match(p, /solo/);
+});
+
+test('@unit buildElicitPrompt synthesize keeps Kid safe-by-default framing', () => {
+  const p = buildElicitPrompt({ dream: 'a game', profile: 'Enfant', mode: 'synthesize' });
+  assert.match(p, /safe-by-default/i);
+  assert.match(p, /SCOPE:/);
+});
+
+test('@unit buildElicitPrompt default mode is the a-1 autonome prompt (unchanged)', () => {
+  const fromDefault = buildElicitPrompt({ dream: 'draw', profile: 'Curious' });
+  const explicit = buildElicitPrompt({ dream: 'draw', profile: 'Curious', mode: 'autonome' });
+  assert.equal(fromDefault, explicit);
+  assert.match(fromDefault, /Ask NO questions/);
+  assert.doesNotMatch(fromDefault, /QUESTION:/);
+  assert.doesNotMatch(fromDefault, /SCOPE:/);
+});
+
+test('@unit runElicit ask_question mode returns {question} from a tagged reply', async () => {
+  const spawn = fakeSpawn({ stdout: 'QUESTION: Quelle couleur préfères-tu ?', code: 0 });
+  const r = await runElicit({ dream: 'draw', profile: 'Curious', mode: 'ask_question', env: {}, spawn });
+  assert.equal(r.ok, true);
+  assert.equal(r.fallback, false);
+  assert.equal(r.question, 'Quelle couleur préfères-tu ?');
+  assert.equal(r.scope, undefined);
+});
+
+test('@unit runElicit ask_question that gets a scope falls back honestly (no fabrication)', async () => {
+  const spawn = fakeSpawn({ stdout: 'A scope that is plenty long but untagged', code: 0 });
+  const r = await runElicit({ dream: 'my verbatim dream', profile: 'Curious', mode: 'ask_question', env: {}, spawn });
+  assert.equal(r.fallback, true);
+  assert.equal(r.scope, 'my verbatim dream');
+  assert.match(r.reason, /clarifying question/);
+});
+
+test('@unit runElicit synthesize mode returns {scope} from a SCOPE-tagged reply', async () => {
+  const spawn = fakeSpawn({ stdout: 'SCOPE: A drawing app with a canvas and a save button.', code: 0 });
+  const r = await runElicit({ dream: 'draw', profile: 'Curious', mode: 'synthesize', env: {}, spawn });
+  assert.equal(r.ok, true);
+  assert.equal(r.scope, 'A drawing app with a canvas and a save button.');
+});
+
 test('@unit resolveElicitMode mirrors the autodev switch', () => {
   assert.equal(resolveElicitMode({ MMD_AUTODEV_MODE: 'cli' }), 'cli');
   assert.equal(resolveElicitMode({ MMD_AUTODEV_MODE: 'test' }), 'test');

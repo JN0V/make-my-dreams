@@ -112,10 +112,25 @@
 
   /* ─────────────── Step 2: profile → level ─────────────── */
 
+  // F4 — disable a button group during an in-flight POST so a fast double-click
+  // can't fire two /api/catch/answer requests (the second would hit the server's
+  // 409 synthesize_in_progress guard and surface a spurious error). Re-enabled
+  // when the next step renders, or on error/reset via reenableCatchButtons().
+  function setButtonsDisabled(buttons, disabled) {
+    buttons.forEach(function (b) { b.disabled = disabled; });
+  }
+  function reenableCatchButtons() {
+    setButtonsDisabled(profileButtons, false);
+    setButtonsDisabled(levelButtons, false);
+    questionInput.disabled = false;
+    if (questionForm.querySelector('button')) questionForm.querySelector('button').disabled = false;
+  }
+
   profileButtons.forEach(function (btn) {
     btn.addEventListener('click', function () {
-      if (!sessionId) return;
+      if (!sessionId || btn.disabled) return;
       // Profile answer is a fast transition (no synthesize) → expect {next:'level'}.
+      setButtonsDisabled(profileButtons, true);
       postAnswer(btn.getAttribute('data-profile'), null);
     });
   });
@@ -124,8 +139,9 @@
 
   levelButtons.forEach(function (btn) {
     btn.addEventListener('click', function () {
-      if (!sessionId) return;
+      if (!sessionId || btn.disabled) return;
       // Level may synthesize (Autonome) or ask a question (guided) → show synth.
+      setButtonsDisabled(levelButtons, true);
       postAnswer(btn.getAttribute('data-level'), 'synth');
     });
   });
@@ -138,6 +154,10 @@
     var answer = questionInput.value.trim();
     if (answer.length === 0) return;
     questionInput.value = '';
+    // F4 — disable the clarifying-answer input/button during the in-flight POST.
+    questionInput.disabled = true;
+    var qSubmit = questionForm.querySelector('button');
+    if (qSubmit) qSubmit.disabled = true;
     postAnswer(answer, 'synth');
   });
 
@@ -153,16 +173,19 @@
     })
       .then(readJson)
       .then(function (r) {
-        if (!r.ok) { showSubmissionError(r); return; }
+        if (!r.ok) { reenableCatchButtons(); showSubmissionError(r); return; }
         renderNext(r.body);
       })
       .catch(function (err) {
+        reenableCatchButtons();
         showFailure('Quelque chose n\'a pas marché. / Something didn\'t work.', err.message || 'network error');
       });
   }
 
-  // Branch on the server's {next}: level | question | scope.
+  // Branch on the server's {next}: level | question | scope. Each branch lands on
+  // a fresh step, so re-enable the answer buttons (F4) for the next interaction.
   function renderNext(body) {
+    reenableCatchButtons();
     if (body.next === 'level') {
       showStep('level');
     } else if (body.next === 'question') {
@@ -452,6 +475,15 @@
       msg = 'Écris quelque chose dans la boîte. / Write something in the box.';
     } else if (b.error === 'dream_too_long') {
       msg = 'Le rêve est trop long (max ' + (b.max_chars || 500) + ' lettres). / Dream too long.';
+    } else if (b.error === 'scope_too_long') {
+      msg = 'Le scope est trop long (max ' + (b.max_chars || 4000) + ' lettres). Raccourcis-le. ' +
+            '/ The scope is too long (max ' + (b.max_chars || 4000) + ' chars). Trim it.';
+    } else if (b.error === 'scope_empty' || b.error === 'scope_invalid') {
+      msg = 'Écris quelque chose dans le scope. / Write something in the scope.';
+    } else if (b.error === 'synthesize_in_progress') {
+      msg = 'On réfléchit déjà à ton rêve, attends un instant. / Already thinking about your dream, hold on a moment.';
+    } else if (b.error === 'synthesize_failed') {
+      msg = 'On n\'a pas pu réfléchir à ton rêve. Réessaie. / We couldn\'t think it through. Try again.';
     } else if (b.error === 'unsluggable_dream') {
       msg = 'Utilise quelques lettres ou chiffres dans ton rêve. / Use some letters or numbers.';
     } else {
@@ -493,6 +525,7 @@
     stepSynth.hidden = true;
     stepScope.hidden = true;
     closeScopeEditor();
+    reenableCatchButtons(); // F4 — clear any in-flight disabled state
     form.hidden = false;
     input.disabled = false;
     submitBtn.disabled = false;

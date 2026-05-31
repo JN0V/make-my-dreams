@@ -74,7 +74,9 @@
       <!-- Edit affordance (AC-6): reveal a textarea prefilled with the scope. -->
       <div id="scope-edit" hidden>
         <label for="scope-edit-text" class="visually-hidden">Modifier le scope / Edit the scope</label>
-        <textarea id="scope-edit-text" rows="5" maxlength="500"></textarea>
+        <!-- maxlength matches the shared MAX_SCOPE_LEN (4000) in lib/dream-catcher/session.js (F1):
+             real synthesized scopes are multi-paragraph and exceed the 500-char dream cap. -->
+        <textarea id="scope-edit-text" rows="5" maxlength="4000"></textarea>
         <div class="result-actions">
           <button id="scope-edit-cancel" type="button" class="secondary">Annuler / Cancel</button>
           <button id="scope-edit-save" type="button">Enregistrer / Save</button>

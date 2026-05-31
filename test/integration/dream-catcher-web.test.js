@@ -344,9 +344,50 @@ test('@integration catch routes reject non-JSON (415) and oversized bodies (413)
   const notJson = await post(ctx.baseUrl, '/api/catch/start', 'dream=x', { 'Content-Type': 'text/plain' });
   assert.equal(notJson.status, 415);
 
-  const huge = JSON.stringify({ dream: 'x'.repeat(5000) }); // > MAX_BODY_BYTES (4096)
+  // F1: catch routes now use the larger 32 KB CATCH_MAX_BODY_BYTES (to hold a
+  // multi-paragraph scope), so the 413 body-cap guard fires above that, not 4 KB.
+  const huge = JSON.stringify({ dream: 'x'.repeat(40 * 1024) }); // > CATCH_MAX_BODY_BYTES (32 KB)
   const tooBig = await post(ctx.baseUrl, '/api/catch/start', huge);
   assert.equal(tooBig.status, 413);
+});
+
+/* ─────────── F1: scope-edit length cap aligned with synthesized scope ─────────── */
+
+test('@integration F1: a >500-char synthesized scope can be edited (no 500-char truncation)', async (t) => {
+  // A real bmad scope is multi-paragraph (>500 chars). The edit route must accept
+  // it — the old MAX_DREAM_LEN (500) cap rejected the common case (AC-4 broken).
+  const bigScope = 'A drawing app. '.repeat(60); // ~900 chars, well over 500
+  const ctx = await bootServer({
+    MMD_AUTODEV_CMD: FAKE_ELICIT,
+    MMD_FAKE_ELICIT_SCOPE: bigScope,
+    MMD_SERVE_RATE_LIMIT_PER_HOUR: '1000',
+  });
+  t.after(async () => { await ctx.server.shutdown('test'); ctx.restoreEnv(); rmSync(ctx.tmp, { recursive: true, force: true }); });
+
+  const { sessionId, scopeBody } = await startAutonome(ctx.baseUrl, 'une appli pour dessiner', 'Curieux');
+  assert.ok(scopeBody.scope.length > 500, 'synthesized scope should exceed 500 chars');
+
+  const edited = ('An edited multi-paragraph scope: one canvas, a palette, a Save button.\n').repeat(10).trim(); // ~700 chars
+  assert.ok(edited.length > 500);
+  const r = await post(ctx.baseUrl, '/api/catch/edit', { sessionId, scope: edited });
+  assert.equal(r.status, 200, 'a >500-char scope edit must be accepted');
+  assert.equal((await r.json()).scope, edited);
+});
+
+test('@integration F1: a scope at the shared ceiling (4000) round-trips through /edit', async (t) => {
+  const ctx = await bootServer({ MMD_AUTODEV_CMD: FAKE_ELICIT, MMD_SERVE_RATE_LIMIT_PER_HOUR: '1000' });
+  t.after(async () => { await ctx.server.shutdown('test'); ctx.restoreEnv(); rmSync(ctx.tmp, { recursive: true, force: true }); });
+
+  const { sessionId } = await startAutonome(ctx.baseUrl, 'une appli pour dessiner', 'Curieux');
+  const atCeiling = 'x'.repeat(4000); // exactly MAX_SCOPE_LEN
+  const r = await post(ctx.baseUrl, '/api/catch/edit', { sessionId, scope: atCeiling });
+  assert.equal(r.status, 200, 'a scope at the 4000-char ceiling must be accepted');
+  assert.equal((await r.json()).scope, atCeiling);
+
+  // One char over the ceiling → 400 scope_too_long.
+  const over = await post(ctx.baseUrl, '/api/catch/edit', { sessionId, scope: 'x'.repeat(4001) });
+  assert.equal(over.status, 400);
+  assert.equal((await over.json()).error, 'scope_too_long');
 });
 
 test('@integration N2: confirm refuses a slug that already has a demo build (409 duplicate_dream)', async (t) => {

@@ -6,6 +6,7 @@
 
 - No commit without explicit user approval (this is the human-in-the-loop gate).
 - Each commit MUST be atomic and correspond to one identifiable task.
+- Each commit message MUST be understandable by a human who does NOT know the project's internal codes: state WHAT changed and WHY in plain language. Codes (`AC-3`, `L-019`) are for traceability, never a substitute for the summary — `fix: AC-3` alone is FORBIDDEN (universal.md §VII).
 - Conventional Commits format:
   - `feat:` for new features
   - `fix:` for bug fixes
@@ -37,7 +38,7 @@ This rule applies to humans AND AI agents. An agent that performs 30 minutes of 
 
 Every non-trivial change MUST be developed on a dedicated branch, never directly on `main`. Branches are the prerequisite that makes "commit early, push always" safe (you can push 100 WIP commits on a feature branch without polluting `main`'s history) and that enables MMD's worktrees parallelization.
 
-1. **Naming**: `feat/<slug>`, `fix/<slug>`, `slice/<slice-name>`, `docs/<slug>`, `chore/<slug>`.
+1. **Naming**: `feat/<slug>`, `fix/<slug>`, `slice/<slice-name>`, `docs/<slug>`, `chore/<slug>`. The `<slug>` / `<slice-name>` MUST be a short, human-readable, plain-language description of the work (`fix/wip-salvage-stall-signal`, not `fix/ac3` nor a bare timestamp/hash) — per universal.md §VII. Auto-generated branch names (e.g. from an MMD slice) MUST still produce a readable stem; a uniqueness suffix MAY be appended but never replaces it.
 2. **Created before any code**: `git checkout -b feat/X` is the FIRST step of any work session.
 3. **Pushed early with tracking**: `git push -u origin feat/X` IMMEDIATELY after branch creation, even before the first commit.
 4. **Merged via PR (team mode) or fast-forward (solo mode)**: `main` only receives reviewed, tested merges.
@@ -49,4 +50,4 @@ Applies to humans AND AI agents. An AI that commits directly on `main` for a non
 
 ---
 
-*Version: 1.0.0 (extracted from constitution v1.3) | Loaded by anything that touches git. See bindings.*
+*Version: 1.1.0 (extracted from constitution v1.3; v1.1.0 adds human-readable commit/branch naming per universal §VII) | Loaded by anything that touches git. See bindings.*

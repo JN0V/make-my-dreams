@@ -101,3 +101,34 @@ test('@unit AC-6: package.json is bumped to 0.3.3', () => {
   const pkg = JSON.parse(read('package.json'));
   assert.equal(pkg.version, '0.3.3');
 });
+
+// ── SPEC_V03C AC-5: Layer C docs anchors (Phase-4 review F2) ──
+
+test('@unit AC-5: ADR-024 documents the Layer C composer rationale', () => {
+  const p = 'docs/adr/024-constitution-composer-layer-c.md';
+  assert.ok(existsSync(path.join(REPO_ROOT, p)), `${p} must exist`);
+  const md = read(p);
+  assert.match(md, /# ADR-024/);
+  assert.match(md, /Layer C/);
+  assert.match(md, /SPEC_V03C\.md/);                 // references the parent design
+  assert.match(md, /hand-rolled YAML/i);             // why no dependency
+  assert.match(md, /supersede/i);                    // supersedes the v0.3.b stopgap
+  assert.match(md, /fallback/i);                     // graceful-fallback contract
+  assert.match(md, /engine|context|skill/i);         // deferred dimensions
+});
+
+test('@unit AC-5: CLAUDE.md says the Layer C composer now EXISTS (not "planned")', () => {
+  const md = read('CLAUDE.md');
+  assert.match(md, /lib\/constitution-compose\.js/);
+  assert.match(md, /shipped v0\.3\.c/i);
+  assert.match(md, /ADR-024/);
+  // The stale "planned" framing for the composer must be gone.
+  assert.doesNotMatch(md, /constitution-compose\.js`, planned/);
+});
+
+test('@unit AC-5: README documents the Layer C composer under MMD_PROFILE', () => {
+  const md = read('README.md');
+  assert.match(md, /lib\/constitution-compose\.js/);
+  assert.match(md, /Layer C/);
+  assert.match(md, /ADR-024/);
+});

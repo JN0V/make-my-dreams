@@ -114,6 +114,38 @@ test('@unit AC-3: every module unreadable → null (nothing composable)', () => 
   assert.equal(out, null);
 });
 
+// Phase-4 review F3: a module name with path separators / `..` must never make
+// composeConstitution read outside moduleDir.
+test('@unit AC-3 (F3): a traversal module name is skipped, never read outside moduleDir', () => {
+  const reads = [];
+  const reader = (p) => {
+    reads.push(p);
+    if (p === '/b/bindings.yaml') return 'defaults:\n  always: [../../../../etc/passwd]\n';
+    const e = new Error('ENOENT'); e.code = 'ENOENT'; throw e;
+  };
+  const out = composeConstitution({
+    profile: 'X', bindingsPath: '/b/bindings.yaml', moduleDir: '/m', readFileFn: reader,
+  });
+  // Nothing composable (the only module is rejected) → null.
+  assert.equal(out, null);
+  // Critically: we never attempted to read the traversal path.
+  assert.ok(!reads.some((p) => p.includes('etc/passwd')), 'must not read the traversal target');
+});
+
+test('@unit AC-3 (F3): invalid name skipped with note while valid modules still compose', () => {
+  const files = {
+    '/b/bindings.yaml': 'defaults:\n  always: [universal, ../evil]\n',
+    '/m/universal.md': '# Universal\nApplies.',
+  };
+  const out = composeConstitution({
+    profile: 'X', bindingsPath: '/b/bindings.yaml', moduleDir: '/m', readFileFn: makeReader(files),
+  });
+  assert.ok(out);
+  assert.match(out, /## Constitution — universal/);
+  assert.match(out, /invalid module name/);
+  assert.match(out, /Applies\./);
+});
+
 test('@unit AC-3: unknown profile falls back to defaults.always modules', () => {
   const out = composeConstitution({ profile: 'Nope', ...opts });
   assert.ok(out);

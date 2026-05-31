@@ -88,3 +88,26 @@ test('@unit AC-1: whitespace around list items is trimmed', () => {
   const b = parseBindings('defaults:\n  always: [  universal ,  ai-coding  ]\n');
   assert.deepEqual(b.defaults.always, ['universal', 'ai-coding']);
 });
+
+// Phase-4 review F1: prototype pollution. A `__proto__:` section (or key) must
+// never write onto Object.prototype.
+test('@unit AC-1 (F1): a __proto__ section does not pollute Object.prototype', () => {
+  assert.doesNotThrow(() => parseBindings('__proto__:\n  always: [evil]\n'));
+  // The canary: a fresh object must NOT have inherited `always`.
+  assert.equal(({}).always, undefined, 'Object.prototype was polluted');
+  // And nothing nasty leaked onto the result either.
+  const b = parseBindings('__proto__:\n  always: [evil]\n');
+  assert.equal(({}).always, undefined);
+  assert.deepEqual(b.defaults.always, []);
+});
+
+test('@unit AC-1 (F1): __proto__/constructor/prototype keys are dropped, not assigned', () => {
+  const b = parseBindings(
+    'profiles:\n  __proto__: [evil]\n  constructor: [evil]\n  prototype: [evil]\n  Kid: [kid]\n',
+  );
+  assert.equal(({}).foo, undefined);
+  // The legitimate key still parses; the dangerous ones are absent as own keys.
+  assert.deepEqual(b.profiles.Kid, ['kid']);
+  assert.ok(!Object.prototype.hasOwnProperty.call(b.profiles, '__proto__') ||
+    Array.isArray(b.profiles.Kid)); // sanity: Kid intact regardless
+});

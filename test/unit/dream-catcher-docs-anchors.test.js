@@ -39,7 +39,33 @@ test('@unit AC-6: README documents Dream Catcher under mmd serve', () => {
   assert.match(md, /ADR-021/);
 });
 
-test('@unit AC-6: package.json is bumped to 0.3.0', () => {
+/* ─────────── v0.3.a-2 anchors (AC-7) ─────────── */
+
+test('@unit AC-7: ADR-022 exists and covers the dial + state-driven answer + tagging + editing', () => {
+  const p = 'docs/adr/022-dream-catcher-dial-and-edit.md';
+  assert.ok(existsSync(path.join(REPO_ROOT, p)), `${p} must exist`);
+  const md = read(p);
+  assert.match(md, /# ADR-022/);
+  assert.match(md, /SPEC_V03A\.md/);                    // references the parent design
+  assert.match(md, /L-021/);                            // references the lesson
+  assert.match(md, /Autonome.*Équilibré.*Guidé/s);      // the three levels
+  assert.match(md, /0 \/ 1 \/ 2/);                      // turn-count mapping
+  assert.match(md, /state-driven/i);                    // /answer design
+  assert.match(md, /QUESTION:|SCOPE:/);                 // deterministic tagging
+  assert.match(md, /editScope|\/api\/catch\/edit/);     // scope editing
+});
+
+test('@unit AC-7: README covers the 3 levels + scope editing + /api/catch/edit', () => {
+  const md = read('README.md');
+  assert.match(md, /Autonome/);
+  assert.match(md, /Équilibré/);
+  assert.match(md, /Guidé/);
+  assert.match(md, /\/api\/catch\/edit/);
+  assert.match(md, /Modifier|Edit/);
+  assert.match(md, /ADR-022/);
+});
+
+test('@unit AC-7: package.json is bumped to 0.3.1', () => {
   const pkg = JSON.parse(read('package.json'));
-  assert.equal(pkg.version, '0.3.0');
+  assert.equal(pkg.version, '0.3.1');
 });

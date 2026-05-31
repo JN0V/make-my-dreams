@@ -8,8 +8,9 @@ import assert from 'node:assert/strict';
 import { buildChangelog } from '../../lib/readme-sync/build-changelog.js';
 
 // Fake runGit: returns the configured for-each-ref payload. The real builder
-// asks for `for-each-ref --sort=-version:refname --format=...` — we match on the
-// 'for-each-ref' prefix and hand back a TAB-separated tag\tsubject body.
+// asks for `for-each-ref --sort=-version:refname --format=...` with three
+// TAB-separated fields (refname, objecttype, subject) — we match on the
+// 'for-each-ref' prefix and hand back that body.
 function fakeGit(stdout, { ok = true, code = 0, stderr = '' } = {}) {
   return async (args) => {
     if (args[0] === 'for-each-ref') {
@@ -21,10 +22,11 @@ function fakeGit(stdout, { ok = true, code = 0, stderr = '' } = {}) {
 
 test('@unit buildChangelog: one line per tag, newest-first, from annotation subjects', async () => {
   // The runner controls order (git --sort does the sorting); we feed newest-first.
+  // Annotated tags have objecttype 'tag'.
   const stdout = [
-    'v0.3.3\tLayer C: profile→constitution-module composer',
-    'v0.3.2\tDream Catcher CLI surface + MMD_PROFILE threading',
-    'v0.3.1\tDream Catcher involvement dial',
+    'v0.3.3\ttag\tLayer C: profile→constitution-module composer',
+    'v0.3.2\ttag\tDream Catcher CLI surface + MMD_PROFILE threading',
+    'v0.3.1\ttag\tDream Catcher involvement dial',
   ].join('\n') + '\n';
   const block = await buildChangelog({ runGit: fakeGit(stdout), repoRoot: '/repo' });
   const lines = block.split('\n');
@@ -34,10 +36,19 @@ test('@unit buildChangelog: one line per tag, newest-first, from annotation subj
 });
 
 test('@unit buildChangelog: a lightweight (non-annotated) tag renders (no annotation), not a crash', async () => {
-  const stdout = 'v0.3.3\tannotated subject\nv0.0.1\t\n';
+  // A lightweight tag points straight at a commit (objecttype 'commit'); git
+  // would echo the COMMIT subject — we must NOT treat that as an annotation.
+  const stdout = 'v0.3.3\ttag\tannotated subject\nv0.0.1\tcommit\tunrelated commit subject\n';
   const block = await buildChangelog({ runGit: fakeGit(stdout), repoRoot: '/repo' });
   assert.match(block, /- \*\*v0\.3\.3\*\* — annotated subject/);
   assert.match(block, /- \*\*v0\.0\.1\*\* — _\(no annotation\)_/);
+  assert.ok(!block.includes('unrelated commit subject'), 'must not borrow the commit subject');
+});
+
+test('@unit buildChangelog: an annotated tag with an empty subject → (no annotation)', async () => {
+  const stdout = 'v0.1.0\ttag\t\n';
+  const block = await buildChangelog({ runGit: fakeGit(stdout), repoRoot: '/repo' });
+  assert.match(block, /- \*\*v0\.1\.0\*\* — _\(no annotation\)_/);
 });
 
 test('@unit buildChangelog: an empty tag list yields an explicit no-tags line', async () => {
@@ -53,8 +64,8 @@ test('@unit buildChangelog: a failing git call renders (unavailable: …), never
   assert.match(block, /changelog unavailable: git exploded/);
 });
 
-test('@unit buildChangelog: a subject containing a tab keeps everything after the first tab', async () => {
-  const stdout = 'v1.0.0\tsummary\twith tab\n';
+test('@unit buildChangelog: a subject containing a tab keeps everything after the second tab', async () => {
+  const stdout = 'v1.0.0\ttag\tsummary\twith tab\n';
   const block = await buildChangelog({ runGit: fakeGit(stdout), repoRoot: '/repo' });
   assert.match(block, /- \*\*v1\.0\.0\*\* — summary\twith tab/);
 });

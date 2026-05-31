@@ -14,13 +14,19 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.2.15` (human-readable branch names for `mmd --here` — embodies constitution §VII)
-- **Branch**: `main` (clean working tree, fully pushed to `origin/main`)
-- **Tests**: 1055 passing, 0 fail, 0 skipped
-- **Global install**: `mmd --version` → `0.2.15`
-- **Constitution**: v2.1.0 — added universal.md §VII "Human-readable first" (NON-NEGOTIABLE: names/phases/branches/commits/specs comprehensible to a human first, AI second).
-- **Active lessons**: 17 (in `docs/lessons-learned.md`; L-019 added; L-002 + L-016 remain promoted to `ai-coding.md`)
-- **Reflexive uses of `mmd --here` to date**: 13 (v0.2.15 was implemented DIRECTLY, not via auto-dev — small/surgical, ai-coding §II tool-choice)
+- **Latest tag**: `v0.2.15`
+- **Branch**: `slice/here-mmd-handover-subcommand-1780224302`
+- **Version**: `0.2.16` (package.json)
+- **Active lessons**: 13 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019)
+- **ADRs**: 20 (ADR-001..ADR-020)
+- **Tests**: 1090 passing
+- **Recent commits**:
+  - `c9d2613 docs(handover): ADR-020 + L-020 + README + bump to v0.2.16`
+  - `6e105ae test(handover): unit + integration coverage for mmd handover`
+  - `98d29df docs(handover): add state markers around HANDOVER.md State block`
+  - `d6c9e4a feat(handover): dispatch mmd handover + entry point (--dry-run, markers)`
+  - `ce004ad feat(handover): pure marker-bounded rewriter (preserve outside bytes)`
+- **Generated**: 2026-05-31 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
 ## What just shipped (chronological, this multi-session arc)

@@ -1,11 +1,12 @@
-// MMD serve UI — v0.3.a-1 Dream Catcher multi-step flow.
+// MMD serve UI — v0.3.a-2 Dream Catcher multi-step flow.
 // Vanilla JS, no framework, no inline script (CSP `script-src 'self'`).
 //
-// Flow: dream textarea → 3 profile buttons (Enfant / Curieux / Pro) → autonomous
-// BMAD synthesize → scope card (Recommencer / C'est parti !) → existing SSE
-// progress view. No involvement-level chooser and no scope editor in this slice
-// (SPEC_V03A1 AC-5). The SSE/progress/result engine below is unchanged from
-// v0.2.5 — only the front of the flow is new.
+// Flow: dream textarea → 3 profile buttons (Enfant / Curieux / Pro) → LEVEL
+// chooser (Autonome / Équilibré / Guidé) → [one question at a time] × (0|1|2) →
+// scope card (Recommencer / ✏️ Modifier / C'est parti !) → existing SSE progress
+// view. /answer is state-driven: each POST returns {next} ∈ level|question|scope
+// and the UI renders whatever `next` says. Autonome skips the question step.
+// The SSE/progress/result engine below is unchanged from v0.2.5.
 
 (function () {
   'use strict';
@@ -16,12 +17,23 @@
   var submitBtn = document.getElementById('submit-btn');
   var stepProfile = document.getElementById('step-profile');
   var profileButtons = document.querySelectorAll('.profile-btn');
+  var stepLevel = document.getElementById('step-level');
+  var levelButtons = document.querySelectorAll('.level-btn');
+  var stepQuestion = document.getElementById('step-question');
+  var questionText = document.getElementById('question-text');
+  var questionForm = document.getElementById('question-form');
+  var questionInput = document.getElementById('question-input');
   var stepSynth = document.getElementById('step-synth');
   var stepScope = document.getElementById('step-scope');
   var scopeNote = document.getElementById('scope-note');
   var scopeText = document.getElementById('scope-text');
   var scopeRestart = document.getElementById('scope-restart');
   var scopeGo = document.getElementById('scope-go');
+  var scopeEdit = document.getElementById('scope-edit');
+  var scopeEditText = document.getElementById('scope-edit-text');
+  var scopeEditToggle = document.getElementById('scope-edit-toggle');
+  var scopeEditSave = document.getElementById('scope-edit-save');
+  var scopeEditCancel = document.getElementById('scope-edit-cancel');
 
   // Progress + result elements (existing)
   var progressSection = document.getElementById('progress');
@@ -98,30 +110,68 @@
       });
   }
 
-  /* ─────────────── Step 2: profile → synthesize ─────────────── */
+  /* ─────────────── Step 2: profile → level ─────────────── */
 
   profileButtons.forEach(function (btn) {
     btn.addEventListener('click', function () {
       if (!sessionId) return;
-      answerProfile(btn.getAttribute('data-profile'));
+      // Profile answer is a fast transition (no synthesize) → expect {next:'level'}.
+      postAnswer(btn.getAttribute('data-profile'), null);
     });
   });
 
-  function answerProfile(profile) {
-    showStep('synth');
+  /* ─────────────── Step 2b: level → question | scope ─────────────── */
+
+  levelButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!sessionId) return;
+      // Level may synthesize (Autonome) or ask a question (guided) → show synth.
+      postAnswer(btn.getAttribute('data-level'), 'synth');
+    });
+  });
+
+  /* ─────────────── Step 2c: clarifying answer → question | scope ─────────────── */
+
+  questionForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!sessionId) return;
+    var answer = questionInput.value.trim();
+    if (answer.length === 0) return;
+    questionInput.value = '';
+    postAnswer(answer, 'synth');
+  });
+
+  // Shared state-driven answer POST. `busyStep` is the step to show while the
+  // request is in flight (null = no transition; profile keeps the level hidden
+  // until the response arrives). The response {next} drives the next render.
+  function postAnswer(answer, busyStep) {
+    if (busyStep) showStep(busyStep);
     fetch('/api/catch/answer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: sessionId, answer: profile }),
+      body: JSON.stringify({ sessionId: sessionId, answer: answer }),
     })
       .then(readJson)
       .then(function (r) {
         if (!r.ok) { showSubmissionError(r); return; }
-        renderScope(r.body);
+        renderNext(r.body);
       })
       .catch(function (err) {
         showFailure('Quelque chose n\'a pas marché. / Something didn\'t work.', err.message || 'network error');
       });
+  }
+
+  // Branch on the server's {next}: level | question | scope.
+  function renderNext(body) {
+    if (body.next === 'level') {
+      showStep('level');
+    } else if (body.next === 'question') {
+      questionText.textContent = body.question || '';
+      showStep('question');
+      questionInput.focus();
+    } else { // 'scope'
+      renderScope(body);
+    }
   }
 
   /* ─────────────── Step 3: scope card → confirm ─────────────── */
@@ -136,7 +186,48 @@
       scopeNote.hidden = true;
       scopeNote.textContent = '';
     }
+    closeScopeEditor();
     showStep('scope');
+  }
+
+  /* ─────────────── Step 3b: edit the scope ─────────────── */
+
+  scopeEditToggle.addEventListener('click', function () {
+    // Reveal the textarea prefilled with the current scope.
+    scopeEditText.value = scopeText.textContent;
+    scopeEdit.hidden = false;
+    scopeEditToggle.hidden = true;
+    scopeEditText.focus();
+  });
+
+  scopeEditCancel.addEventListener('click', closeScopeEditor);
+
+  scopeEditSave.addEventListener('click', function () {
+    if (!sessionId) return;
+    var edited = scopeEditText.value.trim();
+    if (edited.length === 0) return;
+    scopeEditSave.disabled = true;
+    fetch('/api/catch/edit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: sessionId, scope: edited }),
+    })
+      .then(readJson)
+      .then(function (r) {
+        scopeEditSave.disabled = false;
+        if (!r.ok) { showSubmissionError(r); return; }
+        renderScope(r.body); // re-render the card with the saved scope
+      })
+      .catch(function (err) {
+        scopeEditSave.disabled = false;
+        showFailure('Quelque chose n\'a pas marché. / Something didn\'t work.', err.message || 'network error');
+      });
+  });
+
+  function closeScopeEditor() {
+    scopeEdit.hidden = true;
+    scopeEditToggle.hidden = false;
+    scopeEditSave.disabled = false;
   }
 
   scopeRestart.addEventListener('click', resetToStart);
@@ -173,6 +264,8 @@
   function showStep(name) {
     form.hidden = name !== 'dream';
     stepProfile.hidden = name !== 'profile';
+    stepLevel.hidden = name !== 'level';
+    stepQuestion.hidden = name !== 'question';
     stepSynth.hidden = name !== 'synth';
     stepScope.hidden = name !== 'scope';
     if (name !== 'dream' && name !== 'progress' && name !== 'result') {
@@ -184,6 +277,8 @@
   function beginProgress() {
     form.hidden = true;
     stepProfile.hidden = true;
+    stepLevel.hidden = true;
+    stepQuestion.hidden = true;
     stepSynth.hidden = true;
     stepScope.hidden = true;
     progressSection.hidden = false;
@@ -393,13 +488,17 @@
     progressSection.hidden = true;
     resultSection.hidden = true;
     stepProfile.hidden = true;
+    stepLevel.hidden = true;
+    stepQuestion.hidden = true;
     stepSynth.hidden = true;
     stepScope.hidden = true;
+    closeScopeEditor();
     form.hidden = false;
     input.disabled = false;
     submitBtn.disabled = false;
     scopeGo.disabled = false;
     scopeRestart.disabled = false;
+    if (questionInput) questionInput.value = '';
     input.value = '';
     input.focus();
     logBuffer = [];

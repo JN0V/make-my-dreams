@@ -37,7 +37,30 @@
       </div>
     </section>
 
-    <!-- Step 2b — synthesizing -->
+    <!-- Step 2b — the involvement level (the dial) -->
+    <section id="step-level" hidden>
+      <h2>Tu veux t'impliquer comment ? / How involved do you want to be?</h2>
+      <p class="step-hint">On te pose 0, 1 ou 2 questions. / We'll ask 0, 1 or 2 questions.</p>
+      <div class="level-buttons">
+        <button type="button" class="level-btn" data-level="Autonome">Je te fais confiance / Autonomous</button>
+        <button type="button" class="level-btn" data-level="Équilibré">Équilibré / Balanced</button>
+        <button type="button" class="level-btn" data-level="Guidé">Guidé / Guided</button>
+      </div>
+    </section>
+
+    <!-- Step 2c — one clarifying question at a time -->
+    <section id="step-question" hidden>
+      <h2>Une petite question / A quick question</h2>
+      <p id="question-text" class="question-text"></p>
+      <form id="question-form" autocomplete="off">
+        <label for="question-input" class="visually-hidden">Ta réponse / Your answer</label>
+        <input id="question-input" name="answer" type="text" maxlength="500"
+               placeholder="Ta réponse / Your answer" required>
+        <button id="question-submit" type="submit">Suivant / Next</button>
+      </form>
+    </section>
+
+    <!-- Step 2d — synthesizing -->
     <section id="step-synth" role="status" aria-live="polite" hidden>
       <h2>On réfléchit à ton rêve… / Thinking about your dream…</h2>
       <progress></progress>
@@ -48,8 +71,18 @@
       <h2>Voilà ce qu'on va construire / Here's what we'll build</h2>
       <p id="scope-note" class="heartbeat" hidden></p>
       <pre id="scope-text" class="scope-card"></pre>
+      <!-- Edit affordance (AC-6): reveal a textarea prefilled with the scope. -->
+      <div id="scope-edit" hidden>
+        <label for="scope-edit-text" class="visually-hidden">Modifier le scope / Edit the scope</label>
+        <textarea id="scope-edit-text" rows="5" maxlength="500"></textarea>
+        <div class="result-actions">
+          <button id="scope-edit-cancel" type="button" class="secondary">Annuler / Cancel</button>
+          <button id="scope-edit-save" type="button">Enregistrer / Save</button>
+        </div>
+      </div>
       <div class="result-actions">
         <button id="scope-restart" type="button" class="secondary">Recommencer / Start over</button>
+        <button id="scope-edit-toggle" type="button" class="secondary">✏️ Modifier / Edit</button>
         <button id="scope-go" type="button">C'est parti ! / Let's go!</button>
       </div>
     </section>

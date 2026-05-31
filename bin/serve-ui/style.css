@@ -129,7 +129,7 @@ button:disabled {
   align-self: flex-start;
 }
 
-#progress, #result, #step-profile, #step-synth, #step-scope {
+#progress, #result, #step-profile, #step-level, #step-question, #step-synth, #step-scope {
   margin-top: 24px;
   padding: 16px;
   border: 2px solid var(--border);
@@ -152,6 +152,57 @@ button:disabled {
 .profile-btn {
   flex: 1 1 30%;
   min-width: 120px;
+}
+
+/* Level chooser (the involvement dial) — 3 large tap targets, stacked or wrapped. */
+.level-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.level-btn {
+  flex: 1 1 30%;
+  min-width: 160px;
+}
+
+/* One clarifying question + its answer input. */
+.question-text {
+  margin: 0 0 12px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+#question-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+#question-input {
+  flex: 1 1 240px;
+  min-height: 48px;
+  padding: 12px;
+  font-size: 18px;
+  font-family: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: 6px;
+}
+
+#question-input:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Scope editor textarea (revealed by ✏️ Modifier). */
+#scope-edit {
+  margin: 8px 0 16px;
+}
+
+#scope-edit textarea {
+  min-height: 120px;
 }
 
 /* Scope card — read-only synthesized scope (textContent only; never innerHTML). */

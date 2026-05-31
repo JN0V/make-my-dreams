@@ -50,7 +50,28 @@ mmd "a drawing app that overlays an image on the camera feed"
 # → creates ./demo/drawing-app-overlays-image-camera-feed/ with a working PWA
 ```
 
-Env vars: `MMD_AUTODEV_CMD` (override subprocess for testing), `MMD_AUTODEV_MODE` (`cli` | `test` — explicit, replaces the v0.1 path heuristic), `MMD_QUIET=1` (suppress subprocess output on the terminal; log file preserved), `MMD_TIMEOUT_MS` (default 1800000), `MMD_REALITY_CHECK_BACKEND` (`mcp` | `playwright` | `skip`), `MMD_DREAM_MAX_LEN` (default 500).
+**Interactive Dream Catcher dialogue (`mmd "<dream>"` on a TTY) — *new in v0.3.b*.** When you run `mmd "<dream>"` in a terminal, MMD now refines your dream **before** launching — the same dialogue the web mode runs, driven over the *same* surface-agnostic core ([`lib/dream-catcher/`](./lib/dream-catcher/)), just in the terminal:
+
+```
+mmd "une appli pour dessiner"        (on a TTY)
+  → C'est pour qui ?  [enfant / curieux / pro]
+  → Niveau ?          [auto / équilibré / guidé]
+  → (guidé) Q1 → réponse → Q2 → réponse …
+  → ✨ Scope  → [R]ecommencer / [M]odifier / [Entrée]=C'est parti
+  → existing auto-dev launch with the refined scope
+```
+
+- **TTY-gated by default**: `shouldCatch = --catch || (stdin.isTTY && !--no-catch)`, and **never under `--here`**. So a terminal user gets the dialogue automatically, while `mmd "…" | cat` (no TTY) and CI launch the **verbatim dream** directly, unchanged.
+- **`--catch` / `--no-catch`** (mutually exclusive): `--catch` forces the dialogue (exit 2 on a non-TTY — it needs a terminal); `--no-catch` skips it even on a TTY.
+- **`[M]odifier`** edits the scope in place — opens `$EDITOR` on it if set, else a single-line replacement prompt. **`[R]ecommencer`** restarts from the profile step. An aborted dialogue (Ctrl-D / EOF) does **not** launch.
+- The refined scope replaces the dream fed to auto-dev, and the chosen **profile** is persisted to `status.json` **and threaded into the build** via `MMD_PROFILE` (see below).
+- If BMAD fails or returns nothing usable, the Dream Catcher is honest (universal §VI): it launches your **verbatim dream** with a visible note rather than fabricate a scope.
+
+See [ADR-023](./docs/adr/023-dream-catcher-cli-and-profile.md) and [L-022](./docs/lessons-learned.md).
+
+**`MMD_PROFILE` — the profile reaches the build — *new in v0.3.b*.** The audience profile chosen in the dialogue (`Kid` / `Curious` / `Pro`, default `Curious`) is exported as `MMD_PROFILE` into the auto-dev subprocess on **both** surfaces (CLI greenfield and the web `/api/catch/confirm`). The auto-dev prompt then **states the profile**, and for **`Kid`** it injects a **safe-by-default** directive (no network, no third-party services, offline, no accounts/UGC, age-appropriate). An unset `MMD_PROFILE` leaves the prompt unchanged (back-compat). The full profile→constitution-module binding (`kid.md` / `pro.md` via `constitution-bindings.yaml`) is a deferred composer slice. The profile is no longer a dead `status.json` field — see [L-022](./docs/lessons-learned.md).
+
+Env vars: `MMD_AUTODEV_CMD` (override subprocess for testing), `MMD_AUTODEV_MODE` (`cli` | `test` — explicit, replaces the v0.1 path heuristic), `MMD_QUIET=1` (suppress subprocess output on the terminal; log file preserved), `MMD_TIMEOUT_MS` (default 1800000), `MMD_REALITY_CHECK_BACKEND` (`mcp` | `playwright` | `skip`), `MMD_DREAM_MAX_LEN` (default 500), `MMD_PROFILE` (`Kid` | `Curious` | `Pro` — audience profile threaded into the build; usually set by the dialogue, `Kid` → safe-by-default prompt).
 
 ### FAST mode — *new in v0.2*
 
@@ -376,7 +397,7 @@ mmd serve
 
 This starts a local HTTP server on `http://localhost:3000` (configurable) and auto-opens the default browser. A minimalist page lets anyone — including a 13-year-old kid — type a dream description, click "Go", watch progress stream live, and get a link to the generated PWA. Same machine as `mmd` runs on. No tunnel, no cloud, no account.
 
-**Dream Catcher** *(v0.3.a-1, dial + editing in v0.3.a-2)* — instead of launching your dream verbatim, `mmd serve` refines it first through a short, friendly dialogue: you type a dream, pick who it's for (Enfant / Curieux / Pro), then choose **how involved you want to be** — an involvement dial with three levels:
+**Dream Catcher** *(v0.3.a-1, dial + editing in v0.3.a-2, CLI surface + profile threading in v0.3.b — see [ADR-023](./docs/adr/023-dream-catcher-cli-and-profile.md))* — instead of launching your dream verbatim, `mmd serve` (and, on a TTY, `mmd "<dream>"` — same core) refines it first through a short, friendly dialogue: you type a dream, pick who it's for (Enfant / Curieux / Pro), then choose **how involved you want to be** — an involvement dial with three levels:
 
 - **Autonome** ("Je te fais confiance") — **0 questions**: one autonomous `bmad-product-brief` call synthesizes the scope straight from your dream + profile (the original a-1 path).
 - **Équilibré** (the default) — **1 clarifying question** before the scope.

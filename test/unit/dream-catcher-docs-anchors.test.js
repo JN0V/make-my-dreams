@@ -65,7 +65,39 @@ test('@unit AC-7: README covers the 3 levels + scope editing + /api/catch/edit',
   assert.match(md, /ADR-022/);
 });
 
-test('@unit AC-7: package.json is bumped to 0.3.1', () => {
+/* ─────────── v0.3.b anchors (AC-6) ─────────── */
+
+test('@unit AC-6: ADR-023 exists and covers the CLI surface + profile threading', () => {
+  const p = 'docs/adr/023-dream-catcher-cli-and-profile.md';
+  assert.ok(existsSync(path.join(REPO_ROOT, p)), `${p} must exist`);
+  const md = read(p);
+  assert.match(md, /# ADR-023/);
+  assert.match(md, /SPEC_V03B\.md/);                 // references the slice spec
+  assert.match(md, /MMD_PROFILE/);                   // the threaded env var
+  assert.match(md, /resolveShouldCatch|--catch/);    // the TTY-gated trigger
+  assert.match(md, /safe-by-default/i);              // Kid consumption
+  assert.match(md, /deferred|defer/i);               // full bindings injection deferred
+});
+
+test('@unit AC-6: L-022 is a formal lesson with Category / Applies to / Keywords', () => {
+  const md = read('docs/lessons-learned.md');
+  assert.match(md, /## L-022 —/);
+  assert.match(md, /consume|dead variable/i);
+  const block = md.slice(md.indexOf('## L-022'));
+  assert.match(block, /\*\*Category\*\*:.*observability/);
+  assert.match(block, /\*\*Applies to\*\*:.*mmd serve/);
+  assert.match(block, /\*\*Keywords for matching\*\*:.*MMD_PROFILE/);
+});
+
+test('@unit AC-6: README documents interactive mmd dream mode + --catch/--no-catch + MMD_PROFILE', () => {
+  const md = read('README.md');
+  assert.match(md, /--catch/);
+  assert.match(md, /--no-catch/);
+  assert.match(md, /MMD_PROFILE/);
+  assert.match(md, /ADR-023/);
+});
+
+test('@unit AC-6: package.json is bumped to 0.3.2', () => {
   const pkg = JSON.parse(read('package.json'));
-  assert.equal(pkg.version, '0.3.1');
+  assert.equal(pkg.version, '0.3.2');
 });

@@ -400,3 +400,22 @@ This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanline
 **Category**: subprocess-control, ai-coding, dream-catcher, design-vs-implementation
 **Applies to**: mmd serve, mmd --here, any-claude-spawn
 **Keywords for matching**: dream catcher, bmad-product-brief, headless, claude -p, no stdin, stateless, multi-turn, elicitation, MMD-orchestrated, involvement dial, autonomous, guided, product brief, L-009 pattern, honest fallback, scope synthesis
+
+---
+
+## L-022 — Don't thread an env var (or any field) that nothing consumes: plumbing without a reader is a dead variable
+
+**Status**: active (1 occurrence — surfaced while wiring the Dream Catcher profile into the build, v0.3.b, 2026-05-31)
+**Date**: 2026-05-31
+**Origin**: Through v0.3.a the chosen audience **profile** (Kid / Curious / Pro) was dutifully collected by the dialogue and persisted to `status.json.profile` — and then read by nothing. The web confirm route even carried an honest comment admitting "threading the profile INTO the subprocess is deferred". So the profile *looked* wired (it appeared in state, in the archive, in logs) while having **zero effect on the actual build**: a Kid dream and a Pro dream produced byte-for-byte identical auto-dev prompts. The plumbing existed; the consumer did not. v0.3.b closed it by (a) setting `MMD_PROFILE` on both launch paths and (b) making `buildPrompt` actually consume it (state the profile; Kid → safe-by-default directive). The two halves are inseparable: setting the env var without the `buildPrompt` reader would have been the same dead-variable trap one layer down.
+**The pattern**: an *observability* sibling of the L-009 design-vs-implementation gap. A value that is stored/logged/passed but never **read by the behavior it claims to influence** is indistinguishable, from the outside, from one that works — until someone checks the output and finds it unchanged. "It's in `status.json`" is not "it changes the build", exactly as "I ran X" is not "X passed" (ai-coding §I). Threading a variable is only done when a consumer reads it AND its effect is observable in the artifact the variable is supposed to shape.
+**Rule**:
+  1. **A variable is not "wired" until a consumer reads it and its effect is observable.** Before adding an env var / status field / config key, name the exact site that will READ it and the artifact whose change proves it was read. If you can't, you're plumbing a dead variable — stop.
+  2. **Ship the producer and the consumer together, or not at all.** Setting `MMD_PROFILE` (producer) and `buildPrompt` consuming it (reader) are one change, not two slices. A "we'll consume it later" comment is a smell: the value sits dead and silently diverges from intent in the meantime.
+  3. **Test the consumption, not just the plumbing.** Assert the *artifact* changes (the built prompt carries the profile / Kid safe-by-default), not merely that the var survives the allowlist. An allowlist test proves transport; a prompt-content test proves effect.
+  4. **Default explicitly, never empty.** A threaded value gets a real default (here: `Curious`) so the consumer has a defined branch; an empty/unset value must be a deliberate, documented "leave unchanged" path (back-compat), not an accident.
+  5. **Generalizes to every cross-process value in MMD.** `MMD_SLUG`, `MMD_AUTODEV_QUICK`, future `MMD_*` vars, status.json fields, SSE event fields: each must have a named reader and an observable effect, or it is noise that erodes trust in the rest of the state.
+**To promote if**: 3 reuses validated (counter: 1) — candidate for `observability.md` (or `ai-coding.md`) as "A value isn't wired until a consumer reads it and its effect is observable; ship producer + consumer together and test the effect, not the transport." Until then it sits here as the profile-threading lesson.
+**Category**: observability, subprocess-control, env-threading, design-vs-implementation
+**Applies to**: mmd "<dream>", mmd serve, mmd --here, any-claude-spawn
+**Keywords for matching**: MMD_PROFILE, profile, env var, thread, consume, dead variable, buildPrompt, buildSubprocessEnv, observability, status.json, safe-by-default, Kid, allowlist, plumbing, producer consumer, dream catcher, auto-dev prompt

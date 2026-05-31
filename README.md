@@ -342,7 +342,7 @@ mmd unblock --force              # skip the detector, run the session unconditio
 mmd unblock --help
 ```
 
-`mmd unblock` first runs a deterministic, sub-100ms **stall detector** over `.mmd/shared/status.json`, the slice's last-commit age, and recent run-log error patterns. It emits signals from a closed enum (`no-commit-since-N-min`, `retry-count-exceeded`, `error-pattern-matched`, `duration-exceeded-budget`, `state-failed-explicit`, `heartbeat-stale`). If stalled (or `--force`), it spawns a **BMAD Party Mode** session: Mary (analyst) leads the 5-why chain while Winston (architect), Quinn (QA), Amelia (PO), and Christie (CSO) add their lens at each "why". Past lessons are auto-injected via the composer, so each session is smarter than the last.
+`mmd unblock` first runs a deterministic, sub-100ms **stall detector** over `.mmd/shared/status.json`, the slice's last-commit age, and recent run-log error patterns. It emits signals from a closed enum (`no-commit-since-N-min`, `retry-count-exceeded`, `error-pattern-matched`, `duration-exceeded-budget`, `state-failed-explicit`, `heartbeat-stale`, `wip-uncommitted-since-N-min`). The last of these (*new in v0.2.n*) fires when the slice worktree is dirty (`git status --porcelain` non-empty) **and** the last commit is older than `MMD_STALL_WIP_UNCOMMITTED_MIN` (default 15 min) — the WIP-loss-on-kill risk (L-019): an auto-dev run killed mid-flight that left uncommitted work. When it fires, the 5-Whys prompt recommends `escalate-to-user` with the non-destructive salvage step `git stash push -u`. A clean stale branch or a fresh never-committed branch never fires it. If stalled (or `--force`), it spawns a **BMAD Party Mode** session: Mary (analyst) leads the 5-why chain while Winston (architect), Quinn (QA), Amelia (PO), and Christie (CSO) add their lens at each "why". Past lessons are auto-injected via the composer, so each session is smarter than the last.
 
 The session writes `.mmd/shared/5-whys/<ts>.md` (full why-chain + evidence + parsed result) and prints one of five recommended actions:
 
@@ -354,7 +354,7 @@ The session writes `.mmd/shared/5-whys/<ts>.md` (full why-chain + evidence + par
 | `task-actually-complete` | 8 | the work is done — verify DoD and ship |
 | `false-positive-stall` | 8 | no real stall — keep running |
 
-`mmd unblock` does **not** auto-execute the action — you read the summary and act. Auto-trigger and auto-execution are a Conductor concern (see [MAKE_MY_DREAMS.md §4](./MAKE_MY_DREAMS.md)). Knobs: `MMD_STALL_MIN_NOCOMMIT` (default 10 min), `MMD_STALL_MAX_RETRIES` (3), `MMD_STALL_DURATION_BUDGET_FACTOR` (2.0), `MMD_STALL_ERROR_PATTERN_REGEX`, `MMD_FIVEWHYS_TIMEOUT_MS` (default 30 min). See [ADR-011](./docs/adr/011-five-whys-escalation.md) for the design rationale.
+`mmd unblock` does **not** auto-execute the action — you read the summary and act. Auto-trigger and auto-execution are a Conductor concern (see [MAKE_MY_DREAMS.md §4](./MAKE_MY_DREAMS.md)). Knobs: `MMD_STALL_MIN_NOCOMMIT` (default 10 min), `MMD_STALL_MAX_RETRIES` (3), `MMD_STALL_DURATION_BUDGET_FACTOR` (2.0), `MMD_STALL_ERROR_PATTERN_REGEX`, `MMD_STALL_WIP_UNCOMMITTED_MIN` (default 15 min), `MMD_FIVEWHYS_TIMEOUT_MS` (default 30 min). See [ADR-011](./docs/adr/011-five-whys-escalation.md) and [ADR-018](./docs/adr/018-wip-uncommitted-stall-signal.md) for the design rationale.
 
 ### Web mode (no terminal — for non-technical users)  — *new in v0.2.5*
 

@@ -346,3 +346,22 @@ This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanline
 **Category**: composer, design-vs-implementation, scale
 **Applies to**: *
 **Keywords for matching**: composer, autolearning, scale, context bloat, modularization, categorization, lessons-bindings, walking-skeleton scope, L-009 pattern fifth occurrence, scale assumption, Applies to, Category, predictive capture, prevention before pain
+
+---
+
+## L-019 — Auto-dev killed mid-run leaves uncommitted WIP at risk (commit-incrementally rule had no detector)
+
+**Status**: active (1 occurrence — a v0.2.k auto-dev run killed mid-flight left a large uncommitted working tree, rescued manually with `git stash push`)
+**Date**: 2026-05-31
+**Origin**: A v0.2.k Standard-engine auto-dev run was killed mid-pipeline. Because the run had generated substantial code without intermediate commits, the kill left a large dirty working tree. The rescue was a manual `git stash push -u` — and that only worked because someone noticed. The prevention rule already existed (commit-git.md §III "commit early, commit often, push always"; restated in every launch prompt as "commit incrementally per AC"), but its *failure* was invisible: nothing observed "auto-dev stopped committing yet the tree keeps changing". The work was one `git worktree` cleanup or misclick away from oblivion.
+**The pattern**: a load-bearing rule that lived only in prose/prompts, with no code that detects its violation. The conductor's stall detector (ADR-011) had `no-commit-since-N-min`, but that fires for a *clean* paused branch too — it could not tell "paused, nothing at risk" from "dirty, work at risk". The missing signal is the *conjunction*: dirty tree AND stale last commit.
+**Rule**:
+  1. **Make the prevention rule code-detectable.** A prose/prompt rule whose violation is expensive (here: lost work) must have a detector. v0.2.n adds a closed-enum stall signal `wip-uncommitted-since-N-min` (`lib/conductor/stall-signals.js` + `stall-detector.js`) that fires when `git status --porcelain` is non-empty AND the last commit is older than `MMD_STALL_WIP_UNCOMMITTED_MIN` (default 15 min). It flows through `mmd unblock` into the 5-Whys session.
+  2. **Derive, don't track (KISS).** Git records no "dirty-since" timestamp; derive WIP age from `lastCommitAge` (dirty tree + last commit N min ago ⇒ WIP uncommitted ≥ N min). Precise tracking would need conductor-side `status.json` bookkeeping — deferred (ADR-018).
+  3. **Detect + recommend, never auto-mutate.** The signal recommends `escalate-to-user` with the salvage step `git stash push -u -m "wip-salvage <slice>"`; it never auto-stashes (a false positive that auto-stashed mid-edit would itself cause the loss it prevents). The hint is additive prompt text only — the closed action set and the sacred `escalate-to-user` fallback (L-016, ADR-011) are unchanged.
+  4. **Negative/boundary discipline.** A clean stale branch, a fresh never-committed branch, and recent dirty work each do NOT fire — only the dirty+stale conjunction does.
+**Companion finding (candidate a, composer L-015 — already-resolved)**: the v0.2.h "composer didn't inject L-015 for the Conductor" miss was forensically reproduced on 2026-05-31 and found to be a *temporal* gap, not a live bug: at v0.2.h the composer passed no invocation context and L-015 had no `Applies to` field; both shipped in v0.2.l (`451e6e1` + `fda5665`), closing it incidentally. L-015 *does* match today under `context: { subcommand: 'mmd --here' }` (score 2: `prompt-grounding` + `conductor`). Lesson: a fix can land *incidentally* via a later refactor; capture the forensic conclusion and pin it with a regression-lock test (`test/integration/composer-l015-regression.test.js`) rather than re-fixing a non-bug. See ADR-018.
+**To promote if**: 3 reuses validated (counter: 0) — candidate to promote to `commit-git.md` as "every load-bearing process rule whose violation is costly must have an automated detector, not just prose." Until then, sits here.
+**Category**: conductor, git, subprocess-control, observability
+**Applies to**: mmd --here, mmd unblock
+**Keywords for matching**: wip-uncommitted, uncommitted changes, git stash, stall signal, conductor, work in progress lost, killed mid-run, commit incrementally, worktree dirty, git status porcelain, WIP salvage, escalate-to-user, prompt-grounding

@@ -356,6 +356,18 @@ The session writes `.mmd/shared/5-whys/<ts>.md` (full why-chain + evidence + par
 
 `mmd unblock` does **not** auto-execute the action — you read the summary and act. Auto-trigger and auto-execution are a Conductor concern (see [MAKE_MY_DREAMS.md §4](./MAKE_MY_DREAMS.md)). Knobs: `MMD_STALL_MIN_NOCOMMIT` (default 10 min), `MMD_STALL_MAX_RETRIES` (3), `MMD_STALL_DURATION_BUDGET_FACTOR` (2.0), `MMD_STALL_ERROR_PATTERN_REGEX`, `MMD_STALL_WIP_UNCOMMITTED_MIN` (default 15 min), `MMD_FIVEWHYS_TIMEOUT_MS` (default 30 min). See [ADR-011](./docs/adr/011-five-whys-escalation.md) and [ADR-018](./docs/adr/018-wip-uncommitted-stall-signal.md) for the design rationale.
 
+### Handover mode (`mmd handover`) — *new in v0.2.p*
+
+`HANDOVER.md` carries a session across context switches. Most of it is human **intent** (what's next + why) that no tool can derive — but one block, "State at handover" (latest tag, branch, version, lesson/ADR counts, recent commits), is purely mechanical and drifts when hand-maintained (the live file once claimed "17 active lessons" while the parser counted 13). `mmd handover` re-derives ONLY that block and rewrites it in place between two markers, leaving every human-authored section byte-for-byte untouched.
+
+```bash
+mmd handover --tests 1055            # refresh the State block; record 1055 passing tests
+mmd handover --tests 1055 --dry-run  # print the rewritten file to stdout, write nothing
+mmd handover --help
+```
+
+The active-lessons count comes from the authoritative `parseLessons` (not a hand-tally), the tag/branch/commits from `git`, and the version from `package.json`. The one non-cheap field — the passing-test count — is supplied via `--tests N` or left as an explicit `(run npm test to refresh)` placeholder; the command **never** invents a number, runs the suite, or fabricates intent (constitution universal §VI). A failing git call renders `(unavailable: <reason>)`. If the markers (`<!-- mmd:handover:state:start -->` / `<!-- mmd:handover:state:end -->`) are absent, it refuses to guess where to write and exits 4 with the derived block printed. Running it twice with the same repo state + same `--tests` produces a byte-identical file (idempotent). It never auto-commits — the human reviews and commits (commit-git §I). Exit codes: `0` ok / `2` user-argv error / `3` HANDOVER.md missing / `4` markers absent. See [ADR-020](./docs/adr/020-mmd-handover-subcommand.md) and [L-020](./docs/lessons-learned.md).
+
 ### Web mode (no terminal — for non-technical users)  — *new in v0.2.5*
 
 ```bash

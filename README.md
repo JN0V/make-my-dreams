@@ -449,23 +449,37 @@ This repo started as `extend-bmad` — a customization of BMAD that combined qui
 
 **v0.2e (2026-05-18)** delivered the **autolearning composer**: every `mmd` subprocess invocation (autodev, ship, qa, cso, document-release) now passes its prompt through a deterministic keyword-overlap matcher against `docs/lessons-learned.md` BEFORE spawning `claude -p`. Matched lessons' rules are prepended to the prompt; a `composer.json` audit trail is written alongside the run log. A new `mmd lessons` subcommand lists active lessons + injection counts, previews matches for any input, and prints individual lesson bodies. `scripts/audit-pillars.sh --with-composer` rolls up adoption across a slice. Pure-function library (`lib/composer/{parse-lessons,match,format,audit,usage-stats}.js`), sub-100ms on the live lessons file, no LLM call, no embedding model — see [ADR-010](./docs/adr/010-composer-minimal-keyword-overlap.md) for the design rationale. After v0.2e, the autolearning loop from [§6.5](./MAKE_MY_DREAMS.md) is operational end-to-end: failures captured as new lessons reach every future prompt automatically. Sixth reflexive use of `mmd --here` after L-010 / L-011 / L-013 / L-015 / L-016.
 
+**v0.2.5 → v0.3.3 (2026-05-18 → 2026-05-31)** — condensed arc (full detail per slice in each `SPEC_V0*.md` + `docs/adr/`): **v0.2.5** the `mmd serve` web UI (the accessibility unlock — see scoping v14); **v0.2.h–v0.2.13** prompt-grounding precheck (L-015 code-enforced), the Five-Whys `mmd unblock`, composer categorization, the lite Documentalist (`mmd document-lessons`, which auto-promoted its first lessons into the constitution), and 3-pillars install hardening (Spec Kit + OpenSpec + Ralph Loop); **v0.2.14** the `wip-uncommitted-since-N-min` stall signal; **constitution v2.1.0** added §VII "Human-readable first"; **v0.2.15** human-readable slice-branch names (`--label`); **v0.2.16** `mmd handover` (auto-refreshes this file's mechanical State block). Then **v0.3.0 → v0.3.3 — Dream Catcher**: the conversational dream-refinement feature on web *and* CLI (3 involvement levels Autonome/Équilibré/Guidé, editable scope), backed by a headless `bmad-product-brief` elicitation, with audience profiles (Kid/Curious/Pro) threaded into the build and bound to constitution modules via the new Layer-C composer (`lib/constitution-compose.js`). This whole arc was built reflexively — 18 `mmd --here` slices, 1268 tests.
+
 The folder will be renamed `make-my-dreams/` after v0.1 is validated. The repo itself can be renamed at any time on the git host.
 
 ## Status
 
-Pre-v0.1. See [BOOTSTRAP.md](./BOOTSTRAP.md) for the active dev plan, [docs/adr/](./docs/adr/) for architectural decisions, and [PROBLEMS.md](./PROBLEMS.md) for the catalog of 26 documented dev-by-AI problems and how MMD addresses each.
+**v0.3.3** (2026-05-31) — actively developed and **usable today**: the CLI, the `mmd serve` web UI, and the auto-dev pipeline all work. MMD is built through a **reflexive bootstrap** (MMD develops MMD): 18 `mmd --here` slices to date, **1268 tests passing**, 24 ADRs, 22 active lessons.
+
+What works now: **Dream Catcher** (conversational dream refinement on web *and* CLI — pick who it's for and how involved you want to be, get a small buildable scope, edit it, launch); `mmd serve` (local web UI for non-technical users); `mmd "<dream>"` / `mmd --here` (greenfield + brownfield auto-dev); plus `mmd handover`, `mmd unblock`, `mmd discover`, `mmd ship`, `mmd qa`, `mmd cso`, `mmd document-release`, `mmd document-lessons`, `mmd lessons`, `mmd bench`. Audience **profiles** (Kid / Curious / Pro) now shape the generated app via the constitution composer.
+
+Next on the roadmap (see [MAKE_MY_DREAMS.md](./MAKE_MY_DREAMS.md)): a lite doc-sync Documentalist, then v0.4 stateless Orchestrator + auto-handoff, v0.5 Conductor, v0.5b full Documentalist. See [BOOTSTRAP.md](./BOOTSTRAP.md) for the active plan, [docs/adr/](./docs/adr/) for decisions, and [PROBLEMS.md](./PROBLEMS.md) for the 26 documented dev-by-AI problems.
 
 ## Components
 
-- [`MAKE_MY_DREAMS.md`](./MAKE_MY_DREAMS.md) — full scoping document (v14, ~1000 lines)
+- [`MAKE_MY_DREAMS.md`](./MAKE_MY_DREAMS.md) — full scoping document (v19, ~1700 lines)
 - [`PROBLEMS.md`](./PROBLEMS.md) — annex: 26 documented problems and techniques
 - [`BOOTSTRAP.md`](./BOOTSTRAP.md) — step-by-step execution plan
-- [`SPEC_V01.md`](./SPEC_V01.md) — the v0.1 walking skeleton spec
-- [`install-mmd.sh`](./install-mmd.sh) — self-contained installer; currently installs Phase A (BMAD + adv module + auto-dev workflow), MMD's **Standard engine**. Future phases (B–F) added incrementally with each MMD version.
+- [`HANDOVER.md`](./HANDOVER.md) — session handover (state + intent); its State block is auto-refreshed by `mmd handover`
+- `SPEC_V0*.md` — one frozen spec per slice (the v0.1 walking skeleton through the latest [`SPEC_V03C.md`](./SPEC_V03C.md)); `docs/adr/` holds 24 ADRs
+- [`install-mmd.sh`](./install-mmd.sh) — self-contained installer; installs + functionally verifies the pillars (BMAD + adv module + auto-dev workflow, bun, gStack, and — since v0.2.13 — Spec Kit / OpenSpec / Ralph Loop).
 
 ## Quick start
 
-(Coming with v0.1 — currently the repo is a design + bootstrap workspace, not yet a usable CLI.)
+```bash
+bash install-mmd.sh .            # install the pillars + the auto-dev workflow
+npm install -g .                 # put `mmd` on your PATH
+mmd serve                        # open the web UI (easiest — for anyone)
+# …or, from a terminal:
+mmd "une appli pour dessiner"    # interactive Dream Catcher dialogue, then auto-dev
+mmd --here "add a dark-mode toggle"   # modify the current git repo in place
+```
 
 ## License
 

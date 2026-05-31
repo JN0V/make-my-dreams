@@ -242,6 +242,32 @@ test('@integration catch routes reject non-JSON (415) and oversized bodies (413)
   assert.equal(tooBig.status, 413);
 });
 
+test('@integration N2: confirm refuses a slug that already has a demo build (409 duplicate_dream)', async (t) => {
+  const ctx = await bootServer({ MMD_AUTODEV_CMD: FAKE_ELICIT, MMD_SERVE_RATE_LIMIT_PER_HOUR: '1000' });
+  t.after(async () => { await ctx.server.shutdown('test'); ctx.restoreEnv(); rmSync(ctx.tmp, { recursive: true, force: true }); });
+
+  // Pre-create a demo dir for the slug the fixture's canned scope will produce.
+  // The Curious fixture scope is the English one starting "A small drawing app";
+  // run the flow once to discover the slug, then a second flow must 409.
+  const b1 = await (await post(ctx.baseUrl, '/api/catch/start', { dream: 'une appli pour dessiner' })).json();
+  await post(ctx.baseUrl, '/api/catch/answer', { sessionId: b1.sessionId, answer: 'Curieux' });
+  process.env.MMD_AUTODEV_CMD = FAKE_STREAMING;
+  await post(ctx.baseUrl, '/api/catch/confirm', { sessionId: b1.sessionId });
+  // wait for in-flight to clear
+  for (let i = 0; i < 100; i++) {
+    if (ctx.server._state().inflightJobId === null) break;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  process.env.MMD_AUTODEV_CMD = FAKE_ELICIT;
+
+  // Second identical flow → same scope → same slug → duplicate.
+  const b2 = await (await post(ctx.baseUrl, '/api/catch/start', { dream: 'une appli pour dessiner' })).json();
+  await post(ctx.baseUrl, '/api/catch/answer', { sessionId: b2.sessionId, answer: 'Curieux' });
+  const r = await post(ctx.baseUrl, '/api/catch/confirm', { sessionId: b2.sessionId });
+  assert.equal(r.status, 409);
+  assert.equal((await r.json()).error, 'duplicate_dream');
+});
+
 test('@integration legacy POST /api/dream still works untouched', async (t) => {
   const ctx = await bootServer({ MMD_AUTODEV_CMD: FAKE_STREAMING, MMD_SERVE_RATE_LIMIT_PER_HOUR: '1000' });
   t.after(async () => { await ctx.server.shutdown('test'); ctx.restoreEnv(); rmSync(ctx.tmp, { recursive: true, force: true }); });

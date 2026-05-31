@@ -19,13 +19,13 @@
 - **Version**: `0.2.16` (package.json)
 - **Active lessons**: 14 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020)
 - **ADRs**: 20 (ADR-001..ADR-020)
-- **Tests**: 1093 passing
+- **Tests**: 1087 passing
 - **Recent commits**:
+  - `d3cce8f chore(handover): re-bless ship-help snapshot for v0.2.16 + refresh State`
   - `7236a19 fix(handover): actually add L-020 lesson + refresh State block to 14`
   - `f0228f8 fix(handover): add the L-020 lesson that was lost + refresh State block`
   - `5cc43f4 docs(handover): refresh State block via mmd handover (17 -> 14 active lessons)`
   - `c9d2613 docs(handover): ADR-020 + L-020 + README + bump to v0.2.16`
-  - `6e105ae test(handover): unit + integration coverage for mmd handover`
 - **Generated**: 2026-05-31 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

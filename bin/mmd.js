@@ -56,6 +56,7 @@ Usage:
   mmd lessons                          Introspect docs/lessons-learned.md + composer audits (v0.2e)
   mmd document-lessons [--dry-run]     Increment lesson counters + auto-promote at threshold (v0.2.i)
   mmd unblock [<branch>] [--dry-run]   Run a 5-Whys stuck-recovery session on a slice (v0.2.j)
+  mmd handover [--tests N] [--dry-run] Refresh HANDOVER.md's mechanical State block (v0.2.p)
   mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
   mmd --help, -h                       Print this usage and exit
@@ -464,6 +465,13 @@ async function main() {
     // dream string equal to "unblock". Runs the 5-Whys stuck-recovery session.
     const { runUnblock } = await import('./conductor/unblock.js');
     return runUnblock(rawArgs.slice(1));
+  }
+  if (rawArgs[0] === 'handover') {
+    // v0.2.p AC-1: `mmd handover` subcommand. Dispatched here (before checkGate
+    // / argv parsing) for the same reason as unblock/ship — must not parse as a
+    // dream string equal to "handover". Refreshes HANDOVER.md's State block.
+    const { runHandover } = await import('./handover.js');
+    return runHandover(rawArgs.slice(1));
   }
   if (rawArgs.includes('--version')) {
     stdout.write(`${VERSION}\n`);

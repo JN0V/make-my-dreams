@@ -1,7 +1,7 @@
 # Session handover
 
 > **Read this first** when picking up the project across a context switch (Cowork ↔ Claude Code, Sonnet ↔ Opus, fresh session, new collaborator). It transfers the **intent** (what's next + why), not just the **state** (state is in git).
-> Updated: 2026-05-31 (Sunday), end of a multi-session arc that landed v0.2.4 → v0.2.15.
+> Updated: 2026-05-31 (Sunday), end of a multi-session arc that landed v0.2.4 → v0.2.16.
 
 ---
 
@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.2.15`
-- **Branch**: `slice/here-mmd-handover-subcommand-1780224302`
+- **Latest tag**: `v0.2.16`
+- **Branch**: `main`
 - **Version**: `0.2.16` (package.json)
 - **Active lessons**: 14 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020)
 - **ADRs**: 20 (ADR-001..ADR-020)
 - **Tests**: 1087 passing
 - **Recent commits**:
+  - `7e4577d fix(handover): correct test count to the measured 1087 (was a guessed 1093)`
   - `d3cce8f chore(handover): re-bless ship-help snapshot for v0.2.16 + refresh State`
   - `7236a19 fix(handover): actually add L-020 lesson + refresh State block to 14`
   - `f0228f8 fix(handover): add the L-020 lesson that was lost + refresh State block`
   - `5cc43f4 docs(handover): refresh State block via mmd handover (17 -> 14 active lessons)`
-  - `c9d2613 docs(handover): ADR-020 + L-020 + README + bump to v0.2.16`
 - **Generated**: 2026-05-31 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -44,6 +44,7 @@
 | v0.2.13 | 3 pillars install hardening (Spec Kit + OpenSpec + Ralph Loop) | L-012 fully closed |
 | v0.2.14 | WIP-salvage stall signal (`wip-uncommitted-since-N-min`) + composer L-015 regression-lock | L-019 closed |
 | v0.2.15 | Human-readable branch names (`--label` + boilerplate-stripped fallback) + constitution §VII | §VII written AND embodied |
+| v0.2.16 | `mmd handover` — auto-refresh the mechanical State block, never fabricate intent | L-020 closed (1st `--label` dogfood) |
 
 **Plus an auto-promotion event** (post-v0.2.12, pre-v0.2.13): `mmd document-lessons` auto-promoted L-002 (claude -p stdout buffering) and L-016 (MMD_TIMEOUT_MS + spec-polish) into `ai-coding.md`, generated ADR-015 + ADR-016. **First time MMD modified its own constitution autonomously based on accumulated runtime data.**
 
@@ -53,12 +54,11 @@
    - **(b) WIP-salvage stall signal**: shipped. `wip-uncommitted-since-N-min` added to the closed enum + detector (`lib/conductor/stall-detector.js`, threshold `MMD_STALL_WIP_UNCOMMITTED_MIN` default 15, injectable never-throwing `gitWorktreeDirtyFn`); fires only on `dirty tree && lastCommitAge>threshold`. Flows through `mmd unblock` with a signal-keyed 5-Whys hint recommending `escalate-to-user` + `git stash push -u` (no new closed action; sacred fallback intact). NB: the hint lives in `lib/conductor/five-whys-prompt.js` (SRP-correct), not `unblock.js`.
    - **(a) composer migration accuracy**: investigation found this was **already-resolved**. The v0.2.h-launch miss was a *temporal* gap — context-wiring (`subcommand: 'mmd --here'`) and L-015's `Applies to` field both shipped later in v0.2.l (`fda5665` + `451e6e1`), closing it incidentally. Verified empirically: L-015 matches today. Shipped a **regression-lock test only** (`test/integration/composer-l015-regression.test.js`), no composer code change.
 
-2. **v0.3 Dream Catcher conversational** (bigger, 2-4h) — **now the top priority**:
-   - Replace `mmd <dream>` CLI arg with a 2-3 turn dialogue that refines the dream before launching. This is THE feature for end users (Sébastien's daughter scenario).
-   - Spec not yet drafted. Worth its own session (Opus 4.x ideal here for the conversational design reasoning).
+2. ~~**L-020 — `mmd handover`**~~ — **DONE in v0.2.16.** Subcommand refreshes ONLY the mechanical State block (tag, branch, version, lesson/ADR counts, recent commits) between `<!-- mmd:handover:state:* -->` markers; intent sections stay human-authored (§VI). Test count via `--tests N` or honest placeholder (no auto `npm test` — SRP). Pure builders in `lib/handover/{build-state-block,rewrite-markers}.js`, entry `bin/handover.js`. Run `mmd handover --tests <N>` after each slice instead of hand-editing the block (it caught a 17→14 stale-count drift on first use). See ADR-020.
 
-3. **L-020 candidate** (post-Dream Catcher, predictive):
-   - `mmd handover` subcommand that auto-generates this file from current state (last tag, last commits, in-flight tasks, recent lessons). Would have produced THIS very file mechanically. Pattern: session handover formalized as a command, not a wiki page.
+3. **v0.3 Dream Catcher conversational** (bigger, 2-4h) — **now the top priority**:
+   - Replace `mmd <dream>` CLI arg with a 2-3 turn dialogue that refines the dream before launching. This is THE feature for end users (Sébastien's daughter scenario).
+   - Spec not yet drafted. Worth its own session (Opus 4.x ideal here for the conversational design reasoning). Don't launch directly — start with a design conversation, then draft `SPEC_V03A.md`.
 
 ## Operational rules (non-evident, MUST apply)
 
@@ -112,9 +112,9 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 ## Where to find fuller context
 
 - `MAKE_MY_DREAMS.md` — scoping doc, v19 iterations of design (~1000 lines, complete rationale)
-- `docs/lessons-learned.md` — 17 active lessons (L-001..L-019 minus L-002 + L-016 promoted)
+- `docs/lessons-learned.md` — 14 active lessons (L-001..L-020 minus the promoted/non-active ones; count is now authoritative via `mmd handover`)
 - `.specify/memory/constitution/*.md` — 13 modules + the 2 promoted lesson rules in `ai-coding.md`
-- `docs/adr/*.md` — 19 ADRs documenting major design decisions (001..019)
+- `docs/adr/*.md` — 20 ADRs documenting major design decisions (001..020)
 - `SPEC_V02*.md` at root — every slice's spec, with full DoD
 - `CLAUDE.md` — Layer A diffusion (this is what Claude Code auto-loads at session start; it points to all the above)
 

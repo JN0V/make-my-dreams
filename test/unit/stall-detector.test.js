@@ -27,6 +27,9 @@ function opts(over = {}) {
     now: () => NOW_MS,
     readFileFn: () => { const e = new Error('ENOENT'); e.code = 'ENOENT'; throw e; },
     gitLastCommitEpochFn: () => null,
+    // SPEC_V02N: default to a clean tree so existing cases stay hermetic (no
+    // real `git status` spawn). AC-2 cases override this explicitly.
+    gitWorktreeDirtyFn: () => false,
     readRunLogsFn: () => '',
     env: {},
     ...over,
@@ -155,6 +158,104 @@ test('@unit multiple signals stacked + emitted in canonical enum order', () => {
     'state-failed-explicit',
   ]);
   assert.deepEqual(unknownSignals(r.signals), []);
+});
+
+// ── SPEC_V02N AC-2: wip-uncommitted-since-N-min detection ───────────────────
+
+test('@unit AC-2 dirty tree + stale commit → wip-uncommitted-since-N-min', () => {
+  const thirtyMinAgo = NOW_SEC - 30 * 60;
+  const r = detectStall(opts({
+    gitLastCommitEpochFn: () => thirtyMinAgo,
+    gitWorktreeDirtyFn: () => true,
+  }));
+  assert.equal(r.stalled, true);
+  assert.equal(r.evidence.worktreeDirty, true);
+  assert.equal(r.evidence.wipUncommittedMin, 30);
+  assert.equal(r.signals.includes('wip-uncommitted-since-N-min'), true);
+  // Both no-commit and wip fire (different remedies); each emitted once, in
+  // canonical enum order (no-commit before wip).
+  assert.deepEqual(r.signals, ['no-commit-since-N-min', 'wip-uncommitted-since-N-min']);
+});
+
+test('@unit AC-2 negative: clean tree + stale commit → NO wip signal', () => {
+  const thirtyMinAgo = NOW_SEC - 30 * 60;
+  const r = detectStall(opts({
+    gitLastCommitEpochFn: () => thirtyMinAgo,
+    gitWorktreeDirtyFn: () => false,
+  }));
+  assert.equal(r.evidence.worktreeDirty, false);
+  assert.equal(r.evidence.wipUncommittedMin, null);
+  assert.equal(r.signals.includes('wip-uncommitted-since-N-min'), false);
+  // A clean stale branch is the legitimate no-commit-since-N-min case.
+  assert.equal(r.signals.includes('no-commit-since-N-min'), true);
+});
+
+test('@unit AC-2 boundary: dirty tree + fresh commit (< threshold) → NO wip signal', () => {
+  const fiveMinAgo = NOW_SEC - 5 * 60;
+  const r = detectStall(opts({
+    gitLastCommitEpochFn: () => fiveMinAgo,
+    gitWorktreeDirtyFn: () => true,
+  }));
+  assert.equal(r.evidence.worktreeDirty, true);
+  assert.equal(r.evidence.wipUncommittedMin, 5); // derived, but under threshold
+  assert.equal(r.signals.includes('wip-uncommitted-since-N-min'), false);
+});
+
+test('@unit AC-2 fresh branch (no commits) + dirty tree → NO wip signal, wipUncommittedMin null', () => {
+  const r = detectStall(opts({
+    gitLastCommitEpochFn: () => null,
+    gitWorktreeDirtyFn: () => true,
+  }));
+  assert.equal(r.evidence.worktreeDirty, true);
+  assert.equal(r.evidence.wipUncommittedMin, null);
+  assert.equal(r.signals.includes('wip-uncommitted-since-N-min'), false);
+});
+
+test('@unit AC-2 gitWorktreeDirtyFn that throws → worktreeDirty null + errors entry (no crash)', () => {
+  const thirtyMinAgo = NOW_SEC - 30 * 60;
+  const r = detectStall(opts({
+    gitLastCommitEpochFn: () => thirtyMinAgo,
+    gitWorktreeDirtyFn: () => { throw new Error('git boom'); },
+  }));
+  assert.equal(r.evidence.worktreeDirty, null);
+  assert.equal(r.evidence.wipUncommittedMin, null);
+  assert.equal(r.signals.includes('wip-uncommitted-since-N-min'), false);
+  assert.ok(r.evidence.errors.some((e) => /worktree-dirty lookup failed/.test(e)));
+});
+
+// ── SPEC_V02N AC-3: threshold + env override ────────────────────────────────
+
+test('@unit AC-3 DEFAULT_THRESHOLDS.wipUncommittedMin === 15', () => {
+  assert.equal(DEFAULT_THRESHOLDS.wipUncommittedMin, 15);
+});
+
+test('@unit AC-3 MMD_STALL_WIP_UNCOMMITTED_MIN=25 → resolved 25', () => {
+  const t = resolveThresholds({ MMD_STALL_WIP_UNCOMMITTED_MIN: '25' });
+  assert.equal(t.wipUncommittedMin, 25);
+});
+
+test('@unit AC-3 non-numeric/empty env falls back to default', () => {
+  assert.equal(resolveThresholds({ MMD_STALL_WIP_UNCOMMITTED_MIN: 'abc' }).wipUncommittedMin, 15);
+  assert.equal(resolveThresholds({ MMD_STALL_WIP_UNCOMMITTED_MIN: '' }).wipUncommittedMin, 15);
+});
+
+test('@unit AC-3 explicit thresholds arg beats env (defaults < env < arg)', () => {
+  const t = resolveThresholds(
+    { MMD_STALL_WIP_UNCOMMITTED_MIN: '25' },
+    { wipUncommittedMin: 99 },
+  );
+  assert.equal(t.wipUncommittedMin, 99);
+});
+
+test('@unit AC-3 env threshold flows through detectStall (20 min commit, 15-min env)', () => {
+  const twentyMinAgo = NOW_SEC - 20 * 60;
+  const r = detectStall(opts({
+    gitLastCommitEpochFn: () => twentyMinAgo,
+    gitWorktreeDirtyFn: () => true,
+    env: { MMD_STALL_WIP_UNCOMMITTED_MIN: '15' },
+  }));
+  assert.equal(r.signals.includes('wip-uncommitted-since-N-min'), true);
+  assert.equal(r.evidence.wipUncommittedMin, 20);
 });
 
 test('@unit malformed status.json is captured in evidence.errors (no throw)', () => {

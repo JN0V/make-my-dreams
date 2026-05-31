@@ -17,7 +17,13 @@ test('@unit STALL_SIGNALS is the exact closed enum from AC-1', () => {
     'duration-exceeded-budget',
     'state-failed-explicit',
     'heartbeat-stale',
+    'wip-uncommitted-since-N-min',
   ]);
+});
+
+test('@unit wip-uncommitted-since-N-min is a recognized stall signal (SPEC_V02N AC-1)', () => {
+  assert.equal(isStallSignal('wip-uncommitted-since-N-min'), true);
+  assert.deepEqual(unknownSignals(['wip-uncommitted-since-N-min']), []);
 });
 
 test('@unit STALL_SIGNALS is frozen', () => {

@@ -70,6 +70,43 @@ test('mmd "" exits with code 2 (usage error)', () => {
   assert.equal(r.status, 2);
 });
 
+test('@integration AC-3: --catch on a non-TTY exits 2 with a needs-a-terminal message', () => {
+  // spawnSync gives the child a non-TTY stdin, so --catch (which needs an
+  // interactive dialogue) must fail fast rather than silently skip.
+  const tmp = makeTmp();
+  try {
+    const r = runMmd(['--catch', 'a tiny test app that shows hello world'], { cwd: tmp });
+    assert.equal(r.status, 2, `expected exit 2; stderr=${r.stderr}`);
+    assert.match(r.stderr, /terminal|TTY/i);
+    // It must NOT have launched anything.
+    assert.ok(!existsSync(path.join(tmp, 'demo')), 'no demo dir should be created on a --catch abort');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('@integration AC-3: --catch + --no-catch are mutually exclusive (exit 2)', () => {
+  const r = spawnSync('node', [MMD, '--catch', '--no-catch', 'a dream'], { encoding: 'utf8' });
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /mutually exclusive/i);
+});
+
+test('@integration AC-3: --no-catch on a non-TTY launches the verbatim dream (no dialogue)', () => {
+  // A non-TTY already skips the dialogue; --no-catch composes cleanly and the
+  // verbatim-dream path is unchanged (back-compat).
+  const tmp = makeTmp();
+  try {
+    const r = runMmd(['--no-catch', 'a tiny test app that shows hello world'], { cwd: tmp });
+    assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}`);
+    const demoDir = path.join(tmp, 'demo', 'tiny-test-app-shows-hello-world');
+    assert.ok(existsSync(demoDir), 'demoDir should exist (verbatim launch)');
+    // No Dream Catcher dialogue prompts were printed.
+    assert.doesNotMatch(r.stdout, /C'est pour qui|Niveau ?|Recommencer/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('happy path end-to-end with autodev stub creates demo dir + state files', () => {
   const tmp = makeTmp();
   try {

@@ -25,6 +25,7 @@ import { ensureLayout, readStatus, writeStatus, ensureGitignore } from '../lib/s
 import { invokeAutodev, buildSubprocessEnv, resolveAutodevMode } from '../lib/invoke-autodev.js';
 import { buildManifest, verifyManifest, sealIntact } from '../lib/sealed-tests/manifest.js';
 import { buildTesterPrompt, buildCoderPrompt } from '../lib/sealed-tests/tester-prompt.js';
+import { buildJudgePrompt, parseJudgeVerdict, judgeFallback } from '../lib/sealed-tests/judge.js';
 import { computeBlastRadius } from '../lib/sealed-tests/blast-radius.js';
 import { realityCheck } from '../lib/reality-check.js';
 import { parseArgv, resolveEngine, resolveShouldCatch } from '../lib/argv-parser.js';
@@ -388,16 +389,17 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
           engine,
         });
       },
-      failStatus: async (reason, elapsedSeconds) => {
+      failStatus: async (reason, elapsedSeconds, extra = {}) => {
         await writeStatus(absTargetDir, {
           ...inProgressStatus,
           state: 'failed',
           updated_at: nowIso(),
           reason,
+          ...extra,
           ...withDuration(initialEngineRecord, elapsedSeconds),
         });
       },
-      onClean: async ({ sealedCount, verdict, blastRadius, elapsedSeconds }) => {
+      onClean: async ({ sealedCount, verdict, blastRadius, judge, elapsedSeconds }) => {
         // Preserve the existing --here reporting (AC-6 Reality-Check
         // short-circuit + npm-test suggestion) on top of the sealed done-status.
         try {
@@ -414,6 +416,7 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
           tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
           sealed: { sealed_files: sealedCount, added: verdict.added },
           blast_radius: blastRadius,
+          judge,
           ...withDuration(initialEngineRecord, elapsedSeconds),
         });
         stdout.write(
@@ -610,6 +613,65 @@ function invokeSealedTester({ demoDir, prompt, logPath, timeoutMs }) {
 }
 
 /**
+ * Invoke the JUDGE sub-agent via `claude -p` and return the PARSED verdict
+ * (v0.4.d, SPEC_V04D AC-2). The behavioral oracle (P-09): after the sealed tests
+ * re-run green, the judge grades the implementation against WHAT WAS ASKED.
+ *
+ * Mirrors invokeSealedTester (same env allowlist, the MMD_AUTODEV_CMD test seam,
+ * the CLI-vs-test arg shape, and a forensic tee to a *.judge.log). The judge
+ * prompt rides as a single positional arg in test mode so the fake-claude can
+ * branch on the judge marker; as `-p <prompt>` in CLI mode.
+ *
+ * HONEST at every failure branch (universal §VI, the sacred fallback): a spawn
+ * error, a timeout (status===null), a non-zero exit, OR an unparseable reply all
+ * resolve to `overall:'uncertain'` with an explicit reason — NEVER `met`, NEVER a
+ * crash. parseJudgeVerdict itself never throws.
+ *
+ * @returns {{ verdicts: Array<{ac:string,status:string,reason:string}>, overall:string, reason?: string }}
+ */
+function invokeJudge({ demoDir, prompt, logPath, timeoutMs }) {
+  const cmd = process.env.MMD_AUTODEV_CMD || 'claude';
+  const mode = resolveAutodevMode(process.env);
+  const args = mode === 'cli' ? ['-p', prompt] : [prompt];
+  const childEnv = buildSubprocessEnv(process.env);
+
+  const r = spawnSync(cmd, args, {
+    cwd: demoDir,
+    env: childEnv,
+    encoding: 'utf8',
+    timeout: timeoutMs && timeoutMs > 0 ? timeoutMs : undefined,
+  });
+
+  // Forensic trail: tee whatever the judge emitted into the run log dir, like
+  // the tester. Synchronous so the file is flushed before this helper returns.
+  try {
+    mkdirSync(path.dirname(logPath), { recursive: true });
+    writeFileSync(
+      logPath,
+      `[judge] cmd=${cmd} mode=${mode} status=${r.status} signal=${r.signal || ''}\n` +
+        `--- stdout ---\n${r.stdout || ''}\n--- stderr ---\n${r.stderr || ''}\n`,
+      'utf8',
+    );
+  } catch { /* log is best-effort */ }
+
+  if (r.error) {
+    const code = r.error.code === 'ENOENT'
+      ? `'${cmd}' not found on PATH. Install Claude Code or set MMD_AUTODEV_CMD.`
+      : r.error.message;
+    return judgeFallback(`judge could not run: ${code}`);
+  }
+  // L-006: a timeout kills the child and leaves status===null — never parse a
+  // truncated/empty log as a confident verdict; fall back to uncertain.
+  if (r.status === null) {
+    return judgeFallback(`judge timed out or was killed (signal ${r.signal || 'unknown'})`);
+  }
+  if (r.status !== 0) {
+    return judgeFallback(`judge exited with code ${r.status}`);
+  }
+  return parseJudgeVerdict(r.stdout || '');
+}
+
+/**
  * Surface-agnostic sealed-test pipeline (v0.4.b, SPEC_V04B AC-1):
  *   TESTER → SEAL (+ empty-seal AND incomplete-seal integrity guards)
  *          → CODER (injected callback) → VERIFY → re-run sealed tests → BLAST.
@@ -631,9 +693,11 @@ function invokeSealedTester({ demoDir, prompt, logPath, timeoutMs }) {
  *
  * The two surface-specific status writers are injected so each surface keeps its
  * own status.json shape and reporting:
- *   - failStatus(reason, elapsedSeconds): persist the `failed` state.
- *   - onClean({ sealedCount, verdict, blastRadius, elapsedSeconds }): persist the
- *     `done` state + emit the surface's success reporting.
+ *   - failStatus(reason, elapsedSeconds, extra?): persist the `failed` state;
+ *     `extra` is merged into the status object (used to record `judge` on a
+ *     behavioral-gap exit).
+ *   - onClean({ sealedCount, verdict, blastRadius, judge, elapsedSeconds }):
+ *     persist the `done` state + emit the surface's success reporting.
  *
  * @param {{
  *   targetDir: string,            // cwd for the re-run + blast-radius walk (demoDir | absTargetDir)
@@ -643,10 +707,12 @@ function invokeSealedTester({ demoDir, prompt, logPath, timeoutMs }) {
  *   slice: string|null,           // optional spec text to ground the tester (greenfield slice.md; null in --here)
  *   logPath: string,
  *   coder: (sealedDir: string) => Promise<{ code: number|null }>,
- *   failStatus: (reason: string, elapsedSeconds: number) => Promise<void>,
- *   onClean: (info: { sealedCount: number, verdict: object, blastRadius: object, elapsedSeconds: number }) => Promise<void>,
+ *   failStatus: (reason: string, elapsedSeconds: number, extra?: object) => Promise<void>,
+ *   onClean: (info: { sealedCount: number, verdict: object, blastRadius: object, judge: object, elapsedSeconds: number }) => Promise<void>,
  * }} opts
- * @returns {Promise<number>} exit code (0 clean; 6 for any sealed-pipeline failure)
+ * @returns {Promise<number>} exit code: 0 clean; 6 for any sealed-pipeline
+ *   failure (tester/seal/coder/tamper/failing re-run); 7 for a behavioral gap
+ *   (sealed tests pass but the judge did not grade every AC `met`).
  */
 async function runSealedPipeline({
   targetDir, sealedDir, dream, slug, slice = null, logPath, coder, failStatus, onClean,
@@ -760,6 +826,48 @@ async function runSealedPipeline({
   }
   stdout.write('Sealed step 4/5 — ORACLE re-run: sealed tests PASS (independent verification).\n');
 
+  // ── 4c. JUDGE — the behavioral oracle (P-09, v0.4.d) ───────────────────────
+  // The sealed tests prove the code does what they CHECK; they cannot prove it
+  // does what was ASKED (an AC no test covers slips through green). Now that the
+  // deterministic gate has passed AND the seal is intact, a judge sub-agent
+  // grades the implementation against the dream/ACs, using the sealed tests +
+  // the produced artifacts as evidence. It runs ONLY here — a tampered/failed
+  // seal already exited 6 above, before the judge ever runs.
+  const judgeArtifacts = listFilesRelSync(targetDir, { skipDirs: ['.mmd', 'node_modules', '.git'] });
+  const artifactsSummary = judgeArtifacts.length
+    ? `Produced/changed files (${judgeArtifacts.length}): ${judgeArtifacts.join(', ')}`
+    : '(no application files were enumerated)';
+  const judgeLog = logPath.replace(/\.log$/, '.judge.log');
+  stdout.write('Sealed step JUDGE — grading the implementation against WHAT WAS ASKED (P-09)...\n');
+  const judge = invokeJudge({
+    demoDir: targetDir,
+    prompt: buildJudgePrompt({ dream, slice, sealedDir, artifactsSummary }),
+    logPath: judgeLog,
+    timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+  });
+  // overall === 'met' (every AC met) → proceed. Any not-met/uncertain (or an
+  // unparseable reply, which fell back to uncertain) → EXIT 7 (behavioral-gap),
+  // distinct from the tamper exit (6) so the two oracle failures are
+  // distinguishable. The slice is NOT marked done (universal §VI — never a
+  // fabricated pass). The per-AC verdict is printed and written to status.json.
+  if (judge.overall !== 'met') {
+    const perAc = judge.verdicts.map((v) => `  AC ${v.ac}: ${v.status} — ${v.reason}`);
+    await failStatus(`behavioral gap (judge OVERALL: ${judge.overall})`, elapsed(), { judge });
+    stderr.write(
+      `error: --sealed BEHAVIORAL GAP (P-09) — the sealed tests pass, but the judge graded ` +
+        `the implementation OVERALL: ${judge.overall} against what was asked.\n` +
+        (perAc.length ? `${perAc.join('\n')}\n` : '') +
+        (judge.reason ? `  reason: ${judge.reason}\n` : '') +
+        `The slice is NOT done. Exit 7 (behavioral-gap) — distinct from a tamper/seal ` +
+        `failure (exit 6). See ${judgeLog}.\n`,
+    );
+    return 7;
+  }
+  stdout.write(
+    `Sealed step JUDGE — OVERALL: MET (the implementation satisfies what was asked; ` +
+      `${judge.verdicts.length} AC(s) graded).\n`,
+  );
+
   // ── 5. BLAST RADIUS (import-graph accurate, advisory) → status.json.blast_radius
   // computeBlastRadius now resolves the import graph and returns the transitive
   // reverse closure as `transitive` — the true blast radius we log (v0.4.c).
@@ -777,7 +885,7 @@ async function runSealedPipeline({
       `(import-graph accurate).\n`,
   );
 
-  await onClean({ sealedCount, verdict, blastRadius, elapsedSeconds: elapsed() });
+  await onClean({ sealedCount, verdict, blastRadius, judge, elapsedSeconds: elapsed() });
   return 0;
 }
 
@@ -820,16 +928,17 @@ async function runSealedGreenfield({
         engine,
       });
     },
-    failStatus: async (reason, elapsedSeconds) => {
+    failStatus: async (reason, elapsedSeconds, extra = {}) => {
       await writeStatus(demoDir, {
         ...inProgressStatus,
         state: 'failed',
         updated_at: nowIso(),
         reason,
+        ...extra,
         ...withDuration(initialEngineRecord, elapsedSeconds),
       });
     },
-    onClean: async ({ sealedCount, verdict, blastRadius, elapsedSeconds }) => {
+    onClean: async ({ sealedCount, verdict, blastRadius, judge, elapsedSeconds }) => {
       await writeStatus(demoDir, {
         slice_id: slug,
         dream,
@@ -840,6 +949,7 @@ async function runSealedGreenfield({
         ...(catchProfile ? { profile: catchProfile } : {}),
         sealed: { sealed_files: sealedCount, added: verdict.added },
         blast_radius: blastRadius,
+        judge,
         ...withDuration(initialEngineRecord, elapsedSeconds),
       });
       stdout.write(

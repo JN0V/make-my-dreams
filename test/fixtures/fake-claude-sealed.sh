@@ -28,6 +28,30 @@ set -euo pipefail
 SEALED_DIR="$PWD/.mmd/shared/sealed-tests"
 ALL_ARGS="$*"
 
+# ── JUDGE (v0.4.d behavioral oracle) ──────────────────────────────────────────
+# The judge prompt carries the "BEHAVIORAL JUDGE" marker (JUDGE_MARKER in
+# lib/sealed-tests/judge.js) and NOT "SEALED ORACLE", so it must be matched
+# BEFORE the tester branch. Emit a deterministic tagged verdict:
+#   MMD_FAKE_JUDGE_NOTMET=1       → OVERALL: NOT-MET (a behavioral gap)
+#   MMD_FAKE_JUDGE_UNPARSEABLE=1  → prose with no tags → MMD falls back to uncertain
+#   (default)                     → OVERALL: MET (the implementation matches the ask)
+if printf '%s' "$ALL_ARGS" | grep -q "BEHAVIORAL JUDGE"; then
+  if [ -n "${MMD_FAKE_JUDGE_UNPARSEABLE:-}" ]; then
+    echo "I took a look and it all seems fine to me — looks good, ship it."
+    exit 0
+  fi
+  if [ -n "${MMD_FAKE_JUDGE_NOTMET:-}" ]; then
+    echo "AC 1: MET — the counter UI renders"
+    echo "AC 2: NOT-MET — the minus button is missing; the dream asked for plus AND minus"
+    echo "OVERALL: NOT-MET — at least one acceptance criterion is not satisfied"
+    exit 0
+  fi
+  echo "AC 1: MET — the counter starts at zero and renders"
+  echo "AC 2: MET — both the plus and minus buttons are present and wired"
+  echo "OVERALL: MET — every acceptance criterion is satisfied by the implementation"
+  exit 0
+fi
+
 if printf '%s' "$ALL_ARGS" | grep -q "SEALED ORACLE"; then
   # ── TESTER ──────────────────────────────────────────────────────────────
   if [ -n "${MMD_FAKE_SEALED_TESTER_EMPTY:-}" ]; then

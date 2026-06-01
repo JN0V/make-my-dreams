@@ -37,6 +37,9 @@ import {
   checkArtifactConformance,
   checkFactConformance,
 } from '../../lib/documentalist/conformance.js';
+import { extractDocLinks } from '../../lib/documentalist/doc-links.js';
+import { buildCoherenceGraph, coupledNeighbors } from '../../lib/documentalist/coherence-graph.js';
+import { computeBlastRadius } from '../../lib/sealed-tests/blast-radius.js';
 
 // The curated "truth docs" scanned for drift/conformance (SPEC_V07B AC-3/AC-4).
 // These are the OPERATIONAL docs that claim artifacts exist NOW. We DELIBERATELY
@@ -78,6 +81,7 @@ const USAGE = `mmd document-review — the Documentalist's coherence review (SPE
 
 Usage:
   mmd document-review [--with-claude] [--dry-run]
+  mmd document-review --since <ref>
   mmd document-review --help
 
 Behavior:
@@ -97,7 +101,16 @@ Behavior:
   else in the repo. The report is a dashboard — regenerate it after material
   changes; do not hand-edit it.
 
+  --since <ref> (v0.7.d): the staleness-on-diff query. Computes the files
+  changed since <ref> (git diff --name-only), walks a DERIVED coherence graph
+  (code-to-code imports + doc-to-code refs + doc-to-doc links), and prints the
+  ranked, advisory "Coupled changes" report to stdout — "change one node, learn
+  which neighbors to review". This mode is a QUERY: it writes NOTHING (it does
+  NOT rewrite ${REPORT_REL_PATH}). Coupling is a review hint, never a gate.
+
 Flags:
+  --since <ref>  Staleness-on-diff: report the coupled neighbors of what changed
+                 since <ref>. Read-only (writes nothing). Standalone mode.
   --with-claude  Layer an LLM judgment pass on top of the deterministic
                  reconciliation (opt-in). On absent/non-zero/unparseable claude,
                  falls back to the deterministic report with an honest note —
@@ -106,32 +119,48 @@ Flags:
   --help, -h     Print this usage and exit 0.
 
 Exit codes:
-  0  ok (written, or printed under --dry-run)
+  0  ok (written, or printed under --dry-run / --since)
   2  user/argv error
   3  cannot write ${REPORT_REL_PATH}
   4  MAKE_MY_DREAMS.md unreadable (no roadmap to reconcile)
+  5  --since: git diff failed (not a git repo, or a bad/unknown <ref>)
 
 mmd ${VERSION}
 `;
 
 /**
  * Parse the few document-review flags. Mirrors the document-readme contract:
- * boolean flags only, unknown flag → exit 2, no positionals.
+ * boolean flags + the `--since <ref>` query, unknown flag → exit 2, no positionals.
+ *
+ * `--since <ref>` switches to the v0.7.d staleness-on-diff mode (a read-only
+ * query — it never rewrites the dashboard). It requires a value (the git ref).
  *
  * @param {string[]} rawArgs
- * @returns {{ withClaude: boolean, dryRun: boolean, help: boolean, error: { message: string, exitCode: number }|null }}
+ * @returns {{ withClaude: boolean, dryRun: boolean, help: boolean, since: string|null, error: { message: string, exitCode: number }|null }}
  */
 export function parseDocumentReviewArgs(rawArgs) {
-  const out = { withClaude: false, dryRun: false, help: false, error: null };
+  const out = { withClaude: false, dryRun: false, help: false, since: null, error: null };
   if (!Array.isArray(rawArgs)) {
     out.error = { message: 'parseDocumentReviewArgs: rawArgs must be an array', exitCode: 2 };
     return out;
   }
-  for (const tok of rawArgs) {
+  for (let i = 0; i < rawArgs.length; i += 1) {
+    const tok = rawArgs[i];
     if (tok === '--with-claude') out.withClaude = true;
     else if (tok === '--dry-run') out.dryRun = true;
     else if (tok === '--help' || tok === '-h') out.help = true;
-    else {
+    else if (tok === '--since') {
+      const val = rawArgs[i + 1];
+      if (typeof val !== 'string' || val.length === 0 || val.startsWith('-')) {
+        out.error = {
+          message: "--since requires a git ref (e.g. 'mmd document-review --since main').",
+          exitCode: 2,
+        };
+        return out;
+      }
+      out.since = val;
+      i += 1; // consume the value
+    } else {
       out.error = {
         message: `unknown document-review arg: '${tok}'. Run 'mmd document-review --help' to see supported flags.`,
         exitCode: 2,
@@ -342,11 +371,198 @@ function semanticDriftWithClaude({ inventory, dangling, staleFacts }) {
   return { text, note: null };
 }
 
+// ── v0.7.d: --since staleness-on-diff (the coherence graph walk) ────────────
+
+// Human labels for the edge kinds in the "Coupled changes" report (universal §VII).
+const KIND_LABEL = Object.freeze({
+  import: 'imports',
+  'doc-ref': 'doc→code ref',
+  'doc-link': 'doc↔doc link',
+  transitive: 'transitive',
+});
+
+const isJs = (f) => /\.(?:js|mjs|cjs)$/.test(f);
+const isMd = (f) => /\.md$/i.test(f);
+
+/**
+ * The default git seam for --since: the list of files changed since <ref>, and
+ * the repo's tracked files (the universe of graph nodes). Both via git; a
+ * failure (not a repo / bad ref) is returned as an error, never thrown.
+ *
+ * @param {string} root
+ * @param {string} ref
+ * @returns {{ changed: string[]|null, tracked: string[], error: string|null }}
+ */
+function defaultGitSeam(root, ref) {
+  const run = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', timeout: 20000 });
+  let changed;
+  try {
+    changed = run(['diff', '--name-only', ref])
+      .split('\n').map((s) => s.trim()).filter(Boolean);
+  } catch (err) {
+    const stderrTxt = (err && err.stderr ? String(err.stderr) : '').trim();
+    return { changed: null, tracked: [], error: stderrTxt || (err && err.message) || 'git diff failed' };
+  }
+  let tracked = [];
+  try {
+    tracked = run(['ls-files']).split('\n').map((s) => s.trim()).filter(Boolean);
+  } catch {
+    tracked = []; // diff worked but ls-files didn't — degrade to no doc nodes (honest)
+  }
+  return { changed, tracked, error: null };
+}
+
+/**
+ * Build the coherence graph for a --since run from the THREE derived sources
+ * (SPEC_V07D AC-3), then walk it from the changed set.
+ *
+ *   - code↔code imports : computeBlastRadius (reuses the resolved import graph,
+ *                         ADR-027) — direct importers of each changed file.
+ *   - doc→code refs     : doc-refs.js `file` refs (`.js` targets) over every doc.
+ *   - doc↔doc links     : doc-links.js (`[[wiki]]` / `ADR-NNN` / relative `.md`).
+ *
+ * Conservative (precision-first, AC-4): an edge is kept ONLY when its target is a
+ * real tracked file (a dangling target is the v0.7.b drift detector's concern,
+ * not the graph's — we don't flag phantom neighbors). Pure beyond the injected
+ * reads; the actual graph build + walk are the pure lib functions.
+ *
+ * @param {string} root
+ * @param {string[]} changed changed (repo-relative) files
+ * @param {string[]} tracked all tracked files (graph-node universe)
+ * @param {object} inventory the live inventory (for ADR-number → file resolution)
+ * @returns {Array<{file: string, neighbors: object[]}>}
+ */
+function buildSinceCoupling(root, changed, tracked, inventory) {
+  const trackedSet = new Set(tracked);
+  const jsFiles = tracked.filter(isJs);
+  const docFiles = tracked.filter(isMd);
+
+  // Read cache so per-changed-file computeBlastRadius calls don't re-read disk.
+  const cache = new Map();
+  const readRel = (rel) => {
+    if (cache.has(rel)) return cache.get(rel);
+    let t = '';
+    try { t = readFileSync(path.join(root, rel), 'utf8'); } catch { t = ''; }
+    cache.set(rel, t);
+    return t;
+  };
+
+  // 1. Import edges (code↔code): direct importers of each changed file.
+  const io = { listFiles: () => jsFiles, readFile: readRel };
+  const importEdges = [];
+  for (const c of changed) {
+    const { importers } = computeBlastRadius([c], io);
+    for (const imp of importers) importEdges.push({ from: c, to: imp });
+  }
+
+  // 2/3. Doc edges: scan every tracked doc once for code refs + doc links.
+  const resolveAdr = (n) => {
+    const a = (inventory.adrs || []).find((x) => x && x.number === n);
+    return a && a.file ? `docs/adr/${a.file}` : null;
+  };
+  const docToCodeEdges = [];
+  const docLinkEdges = [];
+  for (const doc of docFiles) {
+    const text = readRel(doc);
+    if (!text) continue;
+    for (const r of extractDocRefs(text)) {
+      // Only `.js` file refs are doc→code; `.md` file refs are doc↔doc.
+      if (r.kind === 'file' && trackedSet.has(r.value)) {
+        if (isJs(r.value)) docToCodeEdges.push({ from: doc, to: r.value });
+        else if (isMd(r.value)) docLinkEdges.push({ from: doc, to: r.value });
+      }
+    }
+    for (const e of extractDocLinks(text, { docPath: doc, resolveAdr })) {
+      if (trackedSet.has(e.to)) docLinkEdges.push({ from: doc, to: e.to });
+    }
+  }
+
+  const graph = buildCoherenceGraph({ importEdges, docToCodeEdges, docLinkEdges });
+  return coupledNeighbors(graph, changed);
+}
+
+/**
+ * Render the "Coupled changes" report (AC-3) — ranked, advisory, plain-language
+ * (universal §VII). Pure: coupling result in, markdown out.
+ *
+ * @param {string} ref the git ref the diff is against
+ * @param {Array<{file: string, neighbors: object[]}>} coupling
+ * @returns {string}
+ */
+export function renderCoupledChanges(ref, coupling) {
+  const lines = [];
+  lines.push('## Coupled changes (staleness — review the neighbors of what you changed)');
+  lines.push('_Derived graph, advisory + ranked. Coupling ≠ certainty — review, don\'t obey._');
+  lines.push('');
+
+  if (coupling.length === 0) {
+    lines.push(`No files changed since \`${ref}\`. Nothing to couple.`);
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  lines.push(`Changed in this diff (${coupling.length} file${coupling.length === 1 ? '' : 's'}), against \`${ref}\`:`);
+  lines.push('');
+
+  let isolated = 0;
+  for (const { file, neighbors } of coupling) {
+    if (neighbors.length === 0) {
+      isolated += 1;
+      continue;
+    }
+    lines.push(`- ${file}`);
+    for (const n of neighbors) {
+      const tag = n.strength === 'strong' ? 'strong' : 'weak';
+      const label = KIND_LABEL[n.kind] || n.kind;
+      lines.push(`    → review (${tag}): ${n.to}   [${label}]`);
+    }
+  }
+
+  if (isolated > 0) {
+    lines.push('');
+    lines.push(
+      `${isolated} changed file${isolated === 1 ? ' has' : 's have'} no coupled neighbors ` +
+      '(no edges) — likely self-contained.',
+    );
+  }
+  lines.push('');
+  return lines.join('\n');
+}
+
+/**
+ * Run the --since staleness-on-diff query (AC-3). Read-only: prints the "Coupled
+ * changes" report to stdout and writes NOTHING. A git failure (not a repo / bad
+ * ref) → an honest non-zero exit (5), never a crash.
+ *
+ * @param {string} root
+ * @param {string} ref
+ * @param {{ gitSeam?: function }} injected test seam for the git diff/ls-files
+ * @returns {number} exit code
+ */
+function runSinceMode(root, ref, injected = {}) {
+  const seam = injected.gitSeam || defaultGitSeam;
+  const { changed, tracked, error } = seam(root, ref);
+  if (error || changed === null) {
+    stderr.write(
+      `error: --since could not compute the diff against '${ref}': ${error || 'git diff failed'}\n` +
+      '  Is this a git repo, and is the ref valid? Try a known ref (e.g. main, HEAD~1).\n',
+    );
+    return 5;
+  }
+
+  const inventory = gatherRealInventory(root);
+  const coupling = buildSinceCoupling(root, changed, tracked, inventory);
+  const report = renderCoupledChanges(ref, coupling);
+  stdout.write(report);
+  if (!report.endsWith('\n')) stdout.write('\n');
+  return 0;
+}
+
 /**
  * Entry point invoked by bin/mmd.js when argv[0] === 'document-review'.
  *
  * @param {string[]} rawArgs everything AFTER 'document-review'
- * @param {{ enrich?: function }} [injected] test seam for the claude enrichment
+ * @param {{ enrich?: function, gitSeam?: function }} [injected] test seams
  * @returns {Promise<number>} exit code
  */
 export async function runDocumentReview(rawArgs, injected = {}) {
@@ -362,6 +578,12 @@ export async function runDocumentReview(rawArgs, injected = {}) {
   }
 
   const root = processCwd();
+
+  // v0.7.d: --since is a standalone, READ-ONLY staleness query. It returns before
+  // any roadmap read / report write — the no-flag dashboard path stays unchanged.
+  if (parsed.since) {
+    return runSinceMode(root, parsed.since, injected);
+  }
 
   // The roadmap is mandatory input — without it there is nothing to reconcile.
   let roadmapText;

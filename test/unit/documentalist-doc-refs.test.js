@@ -69,6 +69,23 @@ test('@unit doc-refs: extracts `mmd <subcommand>` ONLY inside inline code (preci
   assert.ok(!refs.some((r) => r.kind === 'subcommand' && r.value === 'from'), 'prose word not a subcommand');
 });
 
+test('@unit doc-refs: a NEGATED / hypothetical / future `mmd <name>` is NOT captured (precision)', () => {
+  const text = [
+    'There is no standalone `mmd judge` command.', // negation before
+    'No `mmd init` step is needed.', // negation before
+    'A future `mmd doctor` could check the install.', // future before
+    'Adding a 5th skill (e.g. `mmd context-save`).', // e.g. before
+    'v0.7.c — active compaction via `mmd document-compact`.', // version-plan before
+    'But `mmd teleport` was never built.', // affirmative claim ("never" is AFTER) → captured
+  ].join('\n');
+  const refs = extractDocRefs(text);
+  for (const name of ['judge', 'init', 'doctor', 'context-save', 'document-compact']) {
+    assert.ok(!find(refs, 'subcommand', name), `not-a-claim '${name}' must be suppressed`);
+  }
+  // The affirmative dangling claim is still captured (recall preserved).
+  assert.ok(find(refs, 'subcommand', 'teleport'), 'a plain affirmative ref is still captured');
+});
+
 test('@unit doc-refs: `mmd --here` and `mmd "<dream>"` are NOT subcommand refs', () => {
   const text = 'Use `mmd --here` on your repo, or `mmd "<dream>"` for greenfield.';
   const refs = extractDocRefs(text);

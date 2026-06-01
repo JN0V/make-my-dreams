@@ -61,13 +61,9 @@ _Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edi
 
 ### Dangling references (a doc claims an artifact that does not exist)
 
-- ⚠️ HANDOVER.md:217 → `mmd document-compact` — 'document-compact' is not a known subcommand (renamed/removed/planned?)
 - ⚠️ docs/lessons-learned.md:240 → `bin/ship.js` — file not found (renamed/removed?)
 - ⚠️ docs/adr/007-gstack-effective-via-ship-subcommand.md:70 → `lib/ship/invoke-claude.js` — file not found (renamed/removed?)
-- ⚠️ docs/adr/009-medium-gstack-integration-pattern.md:34 → `mmd context-save` — 'context-save' is not a known subcommand (renamed/removed/planned?)
-- ⚠️ docs/adr/017-three-pillars-install-hardening.md:79 → `mmd doctor` — 'doctor' is not a known subcommand (renamed/removed/planned?)
-- ⚠️ docs/adr/028-llm-judge-behavioral-oracle.md:44 → `mmd judge` — 'judge' is not a known subcommand (renamed/removed/planned?)
-- ⚠️ docs/adr/032-transparent-first-run-setup.md:20 → `mmd init` — 'init' is not a known subcommand (renamed/removed/planned?)
+- ⚠️ docs/adr/032-transparent-first-run-setup.md:60 → `mmd init` — 'init' is not a known subcommand (renamed/removed/planned?)
 
 ### Stale facts (a prose claim disagrees with the live inventory)
 

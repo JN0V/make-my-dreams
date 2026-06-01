@@ -50,7 +50,10 @@ built **detect-before-correct** (flag-only; it NEVER edits a doc to "fix" it).
    (`MMD_DOCUMENT_REVIEW_CMD`) that flags where a doc's *description* likely no
    longer reflects behavior even though its cited paths still exist. Honest
    fallback (an explicit "unavailable" note) on absent/non-zero/empty — NEVER a
-   fabricated "conformant" verdict (the sacred uncertain discipline).
+   fabricated "conformant" verdict (the sacred uncertain discipline). Note:
+   under `--with-claude` the command makes **two** `claude -p` calls — the
+   v0.7.a roadmap-commentary pass and this semantic-drift pass — each bounded by
+   `MMD_DOCUMENT_REVIEW_TIMEOUT_MS`; both are opt-in and degrade independently.
 
 ## Precision is the priority (AC-4)
 
@@ -72,13 +75,26 @@ recall:
   just the `SUBCOMMANDS` export — *truth over tidiness*: `mmd lessons` is
   dispatched yet missing from the export, and treating it as dangling would be a
   false positive.
+- **Negated / hypothetical / future command mentions are not flagged.** Design
+  prose routinely *names* a command to say it does NOT exist — "no standalone
+  mmd judge", "No mmd init", a "future mmd doctor", "e.g. mmd context-save", or
+  a lettered-version "mmd document-compact" plan. A not-a-claim guard skips a
+  backticked `mmd <name>` when a negation / hypothetical / rejected / lettered-
+  version cue precedes it on the line — the doc is not asserting the artifact
+  exists. (Example command names are written here WITHOUT backticks on purpose,
+  so this very ADR does not trip the scan — dogfooding the precision rule.)
 
-On MMD itself the scan reports **7 dangling references + 2 stale facts**, all
-genuine drift (planned/never-built subcommands cited in old ADRs, two moved
-files, and two stale ADR counts in README/HANDOVER), with **zero** false
-positives on the dozens of valid references — exactly the precision+recall the
-detector must earn before v0.7.c lets the Documentalist *act* (compaction) and
-any later prose auto-correction.
+On MMD itself the scan reports **3 dangling references + 0 stale facts**, with
+**zero** false positives on the dozens of valid references:
+- two code files removed when the `ship` subcommand was retired, still cited in
+  a `lessons-learned.md` retro and ADR-007 (genuine, actionable navigability
+  drift in historical records);
+- one rejected-alternative command (`mmd init`) named in an ADR.
+The detector also **dogfooded itself mid-slice**: it caught two stale ADR counts
+in README + HANDOVER ("24 ADRs" / "30 ADRs"), which were corrected to
+non-brittle prose — so the live scan now shows **0 stale facts**. This is
+exactly the precision+recall the detector must earn before v0.7.c lets the
+Documentalist *act* (compaction) and any later prose auto-correction.
 
 ## Consequences
 

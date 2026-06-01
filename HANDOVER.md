@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.7.1`
-- **Branch**: `main`
-- **Version**: `0.7.1` (package.json)
+- **Branch**: `slice/here-documentalist-compact-spec-archival-1780333351`
+- **Version**: `0.7.2` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 35 (ADR-001..ADR-035)
-- **Tests**: 1597 passing
+- **ADRs**: 36 (ADR-001..ADR-036)
+- **Tests**: 1622 passing
 - **Recent commits**:
-  - `c4b12e8 docs(v0.7.1): refresh changelog + mechanical blocks at v0.7.1 / 1616 tests`
-  - `25d0c68 test(v0.7.b): add F4 coverage (by/until vX is a current claim) + refresh blocks to 1597`
-  - `c4c88ee docs(v0.7.b): refresh mechanical blocks to 1596 tests + regenerate coherence dashboard`
-  - `a68bb85 fix(v0.7.b): Phase-4 adversarial review fixes — precision guard + honest result docs`
-  - `0684c91 docs(v0.7.b): ADR-035 + README/CLAUDE/HANDOVER drift docs, bump 0.7.1 (AC-5)`
+  - `0bb931f docs(v0.7.c): ADR-036 + README/CLAUDE for mmd document-compact; bump 0.7.2 (AC-5)`
+  - `007e208 feat(v0.7.c): mmd document-compact subcommand — archive root SPEC sprawl (AC-2, AC-3)`
+  - `6da472d feat(v0.7.c): pure compaction planner + idempotent reference-rewrite (AC-1, AC-3)`
+  - `b9f9f6d docs(v0.7.c): SPEC for the Documentalist's active compaction (mmd document-compact)`
+  - `0c81264 fix(docs): correct ADR-007's stale invoke-claude.js path + gitignore greenfield scratch`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

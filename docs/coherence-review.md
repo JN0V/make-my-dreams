@@ -3,7 +3,7 @@
 
 > Generated on demand by `mmd document-review` — the Documentalist's **detection** face: a designed-vs-built reconciliation of the roadmap against MMD's real surface, plus doc-health flags. It is a **dashboard, not a hand-maintained doc** — regenerate it after any material change (new subcommand, ADR, tag, or `MAKE_MY_DREAMS.md` edit) with `mmd document-review`. The designed-vs-built table is a **heuristic** (name-matching), not an authoritative audit; run `mmd document-review --with-claude` to layer LLM judgment on top.
 
-_MMD 0.7.1._
+_MMD 0.7.2._
 
 ## Designed vs built (roadmap §9 reconciliation — heuristic)
 
@@ -39,25 +39,25 @@ Legend: ✅ built · 🟡 partial · ❌ unbuilt · ❓ unknown.
 ## Doc health
 
 - ⚠️ MAKE_MY_DREAMS.md: 1722 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ README.md: 675 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
+- ⚠️ README.md: 692 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ HANDOVER.md: 224 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ PROBLEMS.md: 241 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ BOOTSTRAP.md: 393 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ docs/lessons-learned.md: 516 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ 34 SPEC_V*.md at the repo root — sprawl, archive candidate (v0.7.b active compaction)
+- ⚠️ 35 SPEC_V*.md at the repo root — sprawl, archive candidate (v0.7.b active compaction)
 
-## Inventory  (13 subcommands · 35 ADRs · 21 lessons · tags v0.1.0..v0.7.1)
+## Inventory  (14 subcommands · 36 ADRs · 21 lessons · tags v0.1.0..v0.7.1)
 
-- **Subcommands** (13): serve, bench, ship, discover, qa, cso, document-release, unblock, document-lessons, handover, document-readme, document-review, lessons
+- **Subcommands** (14): serve, bench, ship, discover, qa, cso, document-release, unblock, document-lessons, handover, document-readme, document-review, document-compact, lessons
 - **lib/ modules** (25): argv-parser, bench, composer, conductor, constitution-compose, discover, documentalist, dream-catcher, engine, handover, here-mode, here-mode, invoke-autodev, onboarding, parse-dream, rate-limit, readme-sync, reality-check, sealed-tests, security-headers, server, skills, spec-derive, sse, state
-- **ADRs** (35): latest ADR-035 — The Documentalist checks DRIFT: is the doc still TRUE? (conformance over tidiness)
+- **ADRs** (36): latest ADR-036 — The Documentalist ACTS: active compaction by archiving the SPEC sprawl (act on the safe thing first)
 - **Active lessons**: 21
-- **Root SPEC files**: 34
+- **Root SPEC files**: 35
 - **Tags**: 34 (v0.1.0..v0.7.1)
 
 ## Drift / conformance  (does the doc still match reality?)
 
-_Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edit your docs (detect-before-correct). Scanned 39 truth docs._
+_Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edit your docs (detect-before-correct). Scanned 40 truth docs._
 
 ### Dangling references (a doc claims an artifact that does not exist)
 

@@ -79,6 +79,8 @@ Usage:
   mmd handover [--tests N] [--dry-run] Refresh HANDOVER.md's mechanical State block (v0.2.p)
   mmd document-readme [--tests N] [--dry-run]
                                        Refresh README.md's Status + Changelog blocks; report doc drift (v0.3.d)
+  mmd document-review [--with-claude] [--dry-run]
+                                       Documentalist coherence review — designed-vs-built + doc-health (v0.7.a)
   mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
   mmd --help, -h                       Print this usage and exit
@@ -1361,6 +1363,15 @@ async function main() {
     // to README.md: refreshes the Status + Changelog mechanical blocks in place.
     const { runDocumentReadme } = await import('./documentalist/document-readme.js');
     return runDocumentReadme(rawArgs.slice(1));
+  }
+  if (rawArgs[0] === 'document-review') {
+    // v0.7.a AC-3: `mmd document-review` subcommand. Dispatched here (before
+    // checkGate / argv parsing) for the same reason as the document-* family —
+    // it must not parse as a dream string equal to "document-review". The
+    // Documentalist's coherence review: gather inventory → reconcile the §9
+    // roadmap → render → write docs/coherence-review.md (read-only beyond that).
+    const { runDocumentReview } = await import('./documentalist/document-review.js');
+    return runDocumentReview(rawArgs.slice(1));
   }
   if (rawArgs.includes('--version')) {
     stdout.write(`${VERSION}\n`);

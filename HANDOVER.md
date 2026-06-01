@@ -1,7 +1,7 @@
 # Session handover
 
 > **Read this first** when picking up the project across a context switch (Cowork ↔ Claude Code, Sonnet ↔ Opus, fresh session, new collaborator). It transfers the **intent** (what's next + why), not just the **state** (state is in git).
-> Updated: 2026-06-01, end of a multi-session arc that landed v0.2.4 → v0.5.0 (v0.3 Dream Catcher + Layer-C composer + doc-sync + v0.4 Bundle-B complete + v0.5 Conductor brick 1: Layer-6 notifications).
+> Updated: 2026-06-01, end of a multi-session arc that landed v0.2.4 → v0.5.1 (v0.3 Dream Catcher + Layer-C composer + doc-sync + v0.4 Bundle-B complete + v0.5 Conductor: Layer-6 notifications + live context monitor).
 
 ---
 
@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.5.0`
+- **Latest tag**: `v0.5.1`
 - **Branch**: `main`
-- **Version**: `0.5.0` (package.json)
-- **Active lessons**: 20 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026)
-- **ADRs**: 29 (ADR-001..ADR-029)
-- **Tests**: 1398 passing
+- **Version**: `0.5.1` (package.json)
+- **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
+- **ADRs**: 30 (ADR-001..ADR-030)
+- **Tests**: 1423 passing
 - **Recent commits**:
-  - `871ff43 test(v0.5.a): cover the --here failure→run_failed surface + ADR egress note (Phase-4 review)`
-  - `5343da8 docs(v0.5.a): ADR-029 + L-026 + README/CLAUDE.md + bump to 0.5.0 (AC-5)`
-  - `bf29569 feat(v0.5.a): wire best-effort notifications into greenfield + --here completion (AC-3)`
-  - `ec482bb feat(v0.5.a): Conductor Layer-6 notify core — shouldNotify + buildNotification + sendNotification (AC-1/AC-2/AC-4)`
-  - `7117389 docs(v0.5.a): SPEC_V05A.md — Conductor notifications (Layer 6 webhook fan-out)`
+  - `2189b4a fix(v0.5.b): address Phase-4 adversarial review (F1–F4)`
+  - `f3f84c3 docs(v0.5.b): ADR-030 + L-027 + README/CLAUDE.md + bump to 0.5.1 (AC-6)`
+  - `4ac5e2a feat(v0.5.b): wire --monitor into bin (status.json.context + 70% signal/notify) (AC-3/AC-4)`
+  - `b8db5a7 feat(v0.5.b): opt-in monitored stream-json spawn + readable re-render (AC-3/AC-5)`
+  - `353e556 feat(v0.5.b): add the opt-in --monitor boolean flag (AC-1)`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -55,6 +55,7 @@
 | **v0.4.2** | **Import-graph blast radius** — `computeBlastRadius` parses+resolves module specifiers → transitive reverse closure (true P-05 reach); no parser dep | v0.4.c — accurate impact (no comment false-positives, no `./`vs`../` collision, transitive) |
 | **v0.4.3** | **LLM-as-judge behavioral oracle** (P-09) — after the sealed-test gate, a judge grades the impl against *what was asked*; not-met/uncertain → exit 7 (distinct from tamper exit 6) | v0.4.d — Bundle B now has BOTH oracles (P-04 deterministic + P-09 behavioral) |
 | **v0.5.0** | **Conductor brick 1 — Layer-6 notifications** (opt-in `MMD_NOTIFY_URL`): best-effort POST ✅/❌ on run done/failed to a user webhook (ntfy/Slack/…) | v0.5.a — the proactive-feedback fix for detached runs (no spawn change, never breaks a run) |
+| **v0.5.1** | **Conductor brick 2 — live context monitor** (opt-in `--monitor`): stream-json `usage` → context % in `status.json` + `READY_FOR_HANDOFF`/`context_70` at 70% | v0.5.b — the Conductor can SEE; default spawn (bootstrap path) untouched; auto-handoff still future |
 
 **Plus an auto-promotion event** (post-v0.2.12, pre-v0.2.13): `mmd document-lessons` auto-promoted L-002 (claude -p stdout buffering) and L-016 (MMD_TIMEOUT_MS + spec-polish) into `ai-coding.md`, generated ADR-015 + ADR-016. **First time MMD modified its own constitution autonomously based on accumulated runtime data.**
 
@@ -81,9 +82,11 @@
    - **v0.4.c — DONE (v0.4.2):** import-graph blast radius ([`SPEC_V04C.md`](SPEC_V04C.md), ADR-027, L-024) — `computeBlastRadius` resolves specifiers + returns the transitive reverse closure; no parser dep (vanilla-stack); verified (no comment false-positive, no `./`vs`../` collision, transitive chain).
    - **v0.4.d — DONE (v0.4.3):** LLM-as-judge behavioral oracle ([`SPEC_V04D.md`](SPEC_V04D.md), ADR-028, L-025) — after the deterministic sealed-test gate, a judge grades the impl against *what was asked* (the dream/ACs), met/not-met/uncertain; not-met/uncertain → exit 7; unparseable → uncertain (sacred fallback, never a fabricated pass). Bundle B now has BOTH oracles (P-04 + P-09). **Only remaining v0.4.x candidate:** `--sealed` as a Standard-engine default (deliberately left opt-in — it would add a tester+judge LLM cost to every Standard run).
 
-7. **v0.5 Conductor — STARTED (v0.5.0 = brick 1, Layer-6 notifications).** Token-visibility for the 70% auto-handoff is **DE-RISKED**: `claude -p --output-format stream-json --verbose` emits per-turn + cumulative `usage` (input/output/cache tokens) and the `system` event carries the model (→ context window known, e.g. `claude-opus-4-8[1m]` = 1M). So % of context is computable from a monitored subprocess.
-   - **v0.5.b — NEXT: live context monitor.** Spawn auto-dev via stream-json, parse `usage`, write context-% + a `READY_FOR_HANDOFF` signal at 70% to `status.json` (+ surface in the serve UI, + a `70%` notification event). Riskier than v0.5.a (it CHANGES the spawn from text to stream-json parsing — re-examine the L-002 buffering + tee behavior). The actual auto-handoff/resume stays further out (auto-dev is a monolithic BMAD call; "handoff of what" needs MMD-orchestrated steps — low-value per the v0.4 finding).
-   - Then **Bundle C** (observability/HITL, risk-scoring) and **v0.5b full Documentalist** (event-driven, Diataxis, gStack `/document-generate`+`/document-release`).
+7. **v0.5 Conductor — bricks 1 + 2 DONE.** Token-visibility for the 70% auto-handoff was **DE-RISKED** (`claude -p --output-format stream-json --verbose` emits `usage` + the model in the `system` event → context window known, `[1m]` = 1M).
+   - **v0.5.a — DONE (v0.5.0):** Layer-6 notifications (`MMD_NOTIFY_URL`).
+   - **v0.5.b — DONE (v0.5.1):** live context monitor (opt-in `--monitor`) — stream-json `usage` → `status.json.context` (model/window/tokens/pct) + `READY_FOR_HANDOFF`/`context_70` at `MMD_HANDOFF_THRESHOLD` (0.70). `lib/conductor/stream-parse.js` (pure). **The default spawn is byte-for-byte untouched** (opt-in protects the bootstrap — `--output-format` only in the monitor branch). See [`SPEC_V05B.md`](SPEC_V05B.md), ADR-030, L-027.
+   - **NEXT in v0.5:** (a) the actual **auto-handoff/resume** — but it needs MMD to orchestrate auto-dev in steps (auto-dev is a monolithic BMAD call today; "handoff of what" — deemed low-value in v0.4); honestly, the monitor's `READY_FOR_HANDOFF` is an early-warning, and full resume is a big design question. (b) **Bundle C** (observability/HITL, per-action risk-scoring). (c) a **serve-UI context gauge** from `status.json.context` (small, visible win).
+   - Then **v0.5b full Documentalist** (event-driven, Diataxis, gStack `/document-generate`+`/document-release`).
 
 8. **Smaller / housekeeping:** `--sealed` as a Standard default (deliberately opt-in — adds tester+judge LLM cost per run); **`MAKE_MY_DREAMS.md` reconciliation pass** — its labels `v0.3a`/`v0.3b` mean Dream **Expander** (divergent brainstorming, arguably superseded by our convergent Dream Catcher) / Plan-Review Worker (unbuilt), NOT what we shipped as v0.3.x.
 
@@ -139,9 +142,9 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 ## Where to find fuller context
 
 - `MAKE_MY_DREAMS.md` — scoping doc, v19 iterations of design (~1000 lines, complete rationale)
-- `docs/lessons-learned.md` — 20 active lessons (L-001..L-026 minus the promoted/non-active ones; count is now authoritative via `mmd handover`)
+- `docs/lessons-learned.md` — 21 active lessons (L-001..L-027 minus the promoted/non-active ones; count is now authoritative via `mmd handover`)
 - `.specify/memory/constitution/*.md` — 13 modules + the 2 promoted lesson rules in `ai-coding.md`
-- `docs/adr/*.md` — 29 ADRs documenting major design decisions (001..029)
+- `docs/adr/*.md` — 30 ADRs documenting major design decisions (001..030)
 - `SPEC_V02*.md` at root — every slice's spec, with full DoD
 - `CLAUDE.md` — Layer A diffusion (this is what Claude Code auto-loads at session start; it points to all the above)
 

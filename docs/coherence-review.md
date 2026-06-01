@@ -3,7 +3,7 @@
 
 > Generated on demand by `mmd document-review` — the Documentalist's **detection** face: a designed-vs-built reconciliation of the roadmap against MMD's real surface, plus doc-health flags. It is a **dashboard, not a hand-maintained doc** — regenerate it after any material change (new subcommand, ADR, tag, or `MAKE_MY_DREAMS.md` edit) with `mmd document-review`. The designed-vs-built table is a **heuristic** (name-matching), not an authoritative audit; run `mmd document-review --with-claude` to layer LLM judgment on top.
 
-_MMD 0.7.0._
+_MMD 0.7.1._
 
 ## Designed vs built (roadmap §9 reconciliation — heuristic)
 
@@ -25,7 +25,7 @@ _heuristic — matched roadmap capability names against the built inventory (sub
 | Conductor + Bundle C Observability/HITL | v0.5 | lib conductor | 🟡 partial |
 | Documentalist (integrates gStack) + Context Worker | v0.5b | lib documentalist, related: context | 🟡 partial |
 | Polymorphic Reality Check + Mockup (integrates gStack) | v0.6 | lib reality-check | 🟡 partial |
-| Dream Delivery + Retro & Trend (integrates gStack) | v0.7 | (none) | ❌ unbuilt |
+| Dream Delivery + Retro & Trend (integrates gStack) | v0.7 | tag v0.7.x shipped | 🟡 partial |
 | Automated watch + Autolearning | v0.8 | (none) | ❌ unbuilt |
 | Parallel Conductor + worktrees + Bundle E + Safety Hooks | v0.9 | lib conductor | 🟡 partial |
 | Optional gbrain RAG (large brownfield) | v0.9b | related: brownfield | 🟡 partial |
@@ -39,18 +39,36 @@ Legend: ✅ built · 🟡 partial · ❌ unbuilt · ❓ unknown.
 ## Doc health
 
 - ⚠️ MAKE_MY_DREAMS.md: 1722 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ README.md: 668 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ HANDOVER.md: 216 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
+- ⚠️ README.md: 674 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
+- ⚠️ HANDOVER.md: 224 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ PROBLEMS.md: 241 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ BOOTSTRAP.md: 393 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ docs/lessons-learned.md: 516 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ 33 SPEC_V*.md at the repo root — sprawl, archive candidate (v0.7.b active compaction)
+- ⚠️ 34 SPEC_V*.md at the repo root — sprawl, archive candidate (v0.7.b active compaction)
 
-## Inventory  (12 subcommands · 34 ADRs · 21 lessons · tags v0.1.0..v0.6.1)
+## Inventory  (13 subcommands · 35 ADRs · 21 lessons · tags v0.1.0..v0.7.0)
 
-- **Subcommands** (12): serve, bench, ship, discover, qa, cso, document-release, unblock, document-lessons, handover, document-readme, document-review
+- **Subcommands** (13): serve, bench, ship, discover, qa, cso, document-release, unblock, document-lessons, handover, document-readme, document-review, lessons
 - **lib/ modules** (25): argv-parser, bench, composer, conductor, constitution-compose, discover, documentalist, dream-catcher, engine, handover, here-mode, here-mode, invoke-autodev, onboarding, parse-dream, rate-limit, readme-sync, reality-check, sealed-tests, security-headers, server, skills, spec-derive, sse, state
-- **ADRs** (34): latest ADR-034 — The Documentalist's first slice: a report-only coherence review (`mmd document-review`), detect before act
+- **ADRs** (35): latest ADR-035 — The Documentalist checks DRIFT: is the doc still TRUE? (conformance over tidiness)
 - **Active lessons**: 21
-- **Root SPEC files**: 33
-- **Tags**: 32 (v0.1.0..v0.6.1)
+- **Root SPEC files**: 34
+- **Tags**: 33 (v0.1.0..v0.7.0)
+
+## Drift / conformance  (does the doc still match reality?)
+
+_Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edit your docs (detect-before-correct). Scanned 39 truth docs._
+
+### Dangling references (a doc claims an artifact that does not exist)
+
+- ⚠️ HANDOVER.md:217 → `mmd document-compact` — 'document-compact' is not a known subcommand (renamed/removed/planned?)
+- ⚠️ docs/lessons-learned.md:240 → `bin/ship.js` — file not found (renamed/removed?)
+- ⚠️ docs/adr/007-gstack-effective-via-ship-subcommand.md:70 → `lib/ship/invoke-claude.js` — file not found (renamed/removed?)
+- ⚠️ docs/adr/009-medium-gstack-integration-pattern.md:34 → `mmd context-save` — 'context-save' is not a known subcommand (renamed/removed/planned?)
+- ⚠️ docs/adr/017-three-pillars-install-hardening.md:79 → `mmd doctor` — 'doctor' is not a known subcommand (renamed/removed/planned?)
+- ⚠️ docs/adr/028-llm-judge-behavioral-oracle.md:44 → `mmd judge` — 'judge' is not a known subcommand (renamed/removed/planned?)
+- ⚠️ docs/adr/032-transparent-first-run-setup.md:20 → `mmd init` — 'init' is not a known subcommand (renamed/removed/planned?)
+
+### Stale facts (a prose claim disagrees with the live inventory)
+
+- ✅ No stale facts — bounded counts / current-version claims match the inventory.

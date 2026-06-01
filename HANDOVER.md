@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.7.0`
-- **Branch**: `main`
-- **Version**: `0.7.0` (package.json)
+- **Branch**: `slice/here-documentalist-drift-conformance-1780328624`
+- **Version**: `0.7.1` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 34 (ADR-001..ADR-034)
-- **Tests**: 1561 passing
+- **ADRs**: 35 (ADR-001..ADR-035)
+- **Tests**: 1595 passing
 - **Recent commits**:
-  - `8fc9246 docs(v0.7.a): ADR-034 + README/CLAUDE document-review docs, self-validation, bump 0.7.0 (AC-4/AC-5)`
-  - `9e6f6b0 feat(v0.7.a): coherence-report render + mmd document-review subcommand (AC-3)`
-  - `02c44ce feat(v0.7.a): heuristic roadmap reconciliation — designed vs built (AC-2)`
-  - `dc80f2d feat(v0.7.a): deterministic inventory gatherer for the Documentalist (AC-1)`
-  - `f38d174 docs(v0.7.a): SPEC for the Documentalist's coherence review (mmd document-review)`
+  - `da268b7 test(v0.7.b): integration coverage for the Drift section — recall + precision + read-only (AC-4)`
+  - `d693026 feat(v0.7.b): wire the Drift scan into mmd document-review (AC-3/AC-4)`
+  - `c983730 feat(v0.7.b): render the Drift / conformance section (AC-3, render half)`
+  - `27e4adc feat(v0.7.b): pure conformance checks — dangling refs + bounded stale facts (AC-2)`
+  - `5ed92c1 feat(v0.7.b): pure line-aware doc-ref extractor — what a doc claims exists (AC-1)`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -144,7 +144,7 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 - `MAKE_MY_DREAMS.md` — scoping doc, v19 iterations of design (~1000 lines, complete rationale)
 - `docs/lessons-learned.md` — 21 active lessons (L-001..L-027 minus the promoted/non-active ones; count is now authoritative via `mmd handover`)
 - `.specify/memory/constitution/*.md` — 13 modules + the 2 promoted lesson rules in `ai-coding.md`
-- `docs/adr/*.md` — 30 ADRs documenting major design decisions (001..030)
+- `docs/adr/*.md` — the project's ADRs documenting major design decisions (the authoritative count lives in the State block above, refreshed by `mmd handover`)
 - `SPEC_V02*.md` at root — every slice's spec, with full DoD
 - `CLAUDE.md` — Layer A diffusion (this is what Claude Code auto-loads at session start; it points to all the above)
 

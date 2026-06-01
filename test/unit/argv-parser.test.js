@@ -14,6 +14,7 @@ import {
   VALUE_FLAGS,
   CATCH_FLAGS,
   SEALED_FLAGS,
+  MONITOR_FLAGS,
   KNOWN_FLAGS,
 } from '../../lib/argv-parser.js';
 
@@ -28,6 +29,7 @@ test('@unit parseArgv: empty argv → all flags false, no positional, no error',
     catch: false,
     'no-catch': false,
     sealed: false,
+    monitor: false,
   });
   assert.deepEqual(r.positional, []);
   assert.equal(r.error, null);
@@ -245,10 +247,10 @@ test('@unit resolveEngine: --deep alone (forward-compat) resolves to "standard" 
   assert.equal(resolveEngine({ fast: false, standard: false, deep: true }), 'standard');
 });
 
-test('@unit KNOWN_FLAGS is the union of ENGINE_FLAGS, SESSION_FLAGS, MODE_FLAGS, VALUE_FLAGS, CATCH_FLAGS, and SEALED_FLAGS (v0.4.a)', () => {
+test('@unit KNOWN_FLAGS is the union of ENGINE_FLAGS, SESSION_FLAGS, MODE_FLAGS, VALUE_FLAGS, CATCH_FLAGS, SEALED_FLAGS, and MONITOR_FLAGS (v0.5.b)', () => {
   assert.deepEqual(
     [...KNOWN_FLAGS].sort(),
-    [...ENGINE_FLAGS, ...SESSION_FLAGS, ...MODE_FLAGS, ...VALUE_FLAGS, ...CATCH_FLAGS, ...SEALED_FLAGS].sort(),
+    [...ENGINE_FLAGS, ...SESSION_FLAGS, ...MODE_FLAGS, ...VALUE_FLAGS, ...CATCH_FLAGS, ...SEALED_FLAGS, ...MONITOR_FLAGS].sort(),
   );
   // Defensive: arrays are frozen (immutable contract).
   assert.ok(Object.isFrozen(ENGINE_FLAGS));
@@ -257,6 +259,7 @@ test('@unit KNOWN_FLAGS is the union of ENGINE_FLAGS, SESSION_FLAGS, MODE_FLAGS,
   assert.ok(Object.isFrozen(VALUE_FLAGS));
   assert.ok(Object.isFrozen(CATCH_FLAGS));
   assert.ok(Object.isFrozen(SEALED_FLAGS));
+  assert.ok(Object.isFrozen(MONITOR_FLAGS));
   assert.ok(Object.isFrozen(KNOWN_FLAGS));
 });
 
@@ -610,4 +613,27 @@ test('@unit parseArgv (v0.2c): --skip-onboarding composes with --here', () => {
 
 test('@unit MODE_FLAGS contains skip-onboarding (v0.2c)', () => {
   assert.ok(MODE_FLAGS.includes('skip-onboarding'));
+});
+
+// ── v0.5.b — the opt-in live context monitor flag (SPEC_V05B AC-1) ──────────
+test('@unit parseArgv (v0.5.b AC-1): --monitor is a recognized boolean, default false', () => {
+  // default false
+  assert.equal(parseArgv(['a counter app']).flags.monitor, false);
+  // set true when present
+  const r = parseArgv(['--monitor', 'a counter app']);
+  assert.equal(r.error, null);
+  assert.equal(r.flags.monitor, true);
+});
+
+test('@unit parseArgv (v0.5.b AC-1): --monitor is in KNOWN_FLAGS (never rejected as unknown)', () => {
+  assert.ok(KNOWN_FLAGS.includes('monitor'));
+});
+
+test('@unit parseArgv (v0.5.b AC-1): --monitor composes with engine / mode / sealed flags (no mutex)', () => {
+  const r = parseArgv(['--monitor', '--here', '--fast', '--sealed', 'a change']);
+  assert.equal(r.error, null, `unexpected error: ${r.error && r.error.message}`);
+  assert.equal(r.flags.monitor, true);
+  assert.equal(r.flags.here, true);
+  assert.equal(r.flags.fast, true);
+  assert.equal(r.flags.sealed, true);
 });

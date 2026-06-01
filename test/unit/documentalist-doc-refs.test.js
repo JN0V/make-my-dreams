@@ -124,6 +124,18 @@ test('@unit doc-refs: skips fenced code blocks (illustrative/future paths not ov
   assert.ok(!refs.some((r) => r.kind === 'subcommand'), 'fenced subcommand skipped');
 });
 
+test('@unit doc-refs: a placeholder template path is NOT collected as a claim', () => {
+  const text = [
+    'Name the new ADR `docs/adr/0NN-slug.md` under the ADR folder.', // 0NN placeholder
+    'A handler lives in `lib/<module>/handler.js`.', // angle-bracket placeholder
+    'But lib/documentalist/doc-refs.js is real.', // real → kept
+  ].join('\n');
+  const refs = extractDocRefs(text);
+  assert.ok(!refs.some((r) => r.kind === 'file' && /0NN/.test(r.value)), 'NN-run placeholder skipped');
+  assert.ok(!refs.some((r) => r.kind === 'file' && /[<>]/.test(r.value)), 'angle-bracket placeholder skipped');
+  assert.ok(find(refs, 'file', 'lib/documentalist/doc-refs.js'), 'the real path is still collected');
+});
+
 test('@unit doc-refs: deduplicates by kind+value, keeping the first line', () => {
   const text = [
     'First mention bin/mmd.js here.', // line 1

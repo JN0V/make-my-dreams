@@ -146,6 +146,16 @@ test('@unit conformance(fact): "current version X" mismatch flagged against the 
   assert.match(String(v.actual), /v0\.7\.0/);
 });
 
+test('@unit conformance(fact): a compound or quoted number is NOT read as a count claim', () => {
+  const docs = [
+    // "top-5 lessons" (compound), and a quoted historical value — neither is a
+    // current count claim; precision-first, both must be ignored.
+    { doc: 'README.md', text: 'See the top-5 lessons by injection count.\nThe file once claimed "17 active lessons" while the parser counted 13.' },
+  ];
+  const out = checkFactConformance({ docs, inventory: INVENTORY });
+  assert.deepEqual(out, [], 'compound / quoted numbers are not stale-fact drift');
+});
+
 test('@unit conformance(fact): historical narrative is IGNORED (no false positive)', () => {
   const docs = [
     { doc: 'CLAUDE.md', text: 'As of v0.5.2 there were 30 ADRs.\nShipped in v0.2.x with 5 subcommands.' },

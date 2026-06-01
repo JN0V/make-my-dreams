@@ -191,7 +191,7 @@ async function resolveExistingChoice(flags) {
  *   - Reality Check is short-circuited (AC-6).
  *   - status.json carries mode/target_dir/slice_branch/base_branch/base_sha (AC-5).
  */
-async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, engine, skipOnboarding }) {
+async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, engine, skipOnboarding, sealed = false }) {
   // F2 (Phase 4 review): canonicalize the target dir via fs.realpath so we
   // do NOT record a symlinked path in status.json (audit trail integrity)
   // while git operates on the real path. path.resolve alone does not follow
@@ -351,11 +351,80 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
     throw e;
   }
 
-  // AC-4 — build the in-place prompt for auto-dev (no demo/ scaffold).
-  const herePrompt = buildHerePrompt({ dream, sliceBranch, targetDir: absTargetDir, engine });
-
   const timestamp = `${nowIso().replace(/[:.]/g, '-')}-${process.pid}`;
   const logPath = path.join(absTargetDir, '.mmd', 'local', 'runs', `${timestamp}.log`);
+
+  // v0.4.b AC-3 — `mmd --here --sealed`: run the SAME surface-agnostic sealed
+  // pipeline as greenfield, with a --here coder (buildHerePrompt told the sealed
+  // dir is read-only + invokeAutodev on the slice branch). The sealed dir lives
+  // in the target repo's gitignored .mmd/shared/sealed-tests/; the tester grounds
+  // on the dream (no slice.md in --here). The existing status.json transitions
+  // and --here reporting (Reality-Check short-circuit + npm-test suggestion +
+  // the review/merge/discard hints) are preserved via the injected status
+  // writers. Without --sealed, the path below is unchanged.
+  if (sealed) {
+    const sealedDir = path.join(absTargetDir, '.mmd', 'shared', 'sealed-tests');
+    return runSealedPipeline({
+      targetDir: absTargetDir,
+      sealedDir,
+      dream,
+      slug,
+      slice: null, // --here has no slice.md — the tester grounds on the dream
+      logPath,
+      coder: (sealedDirArg) => {
+        const sealedHerePrompt = buildHerePrompt({
+          dream, sliceBranch, targetDir: absTargetDir, engine, sealedDir: sealedDirArg,
+        });
+        return invokeAutodev({
+          demoDir: absTargetDir,
+          dream,
+          slug,
+          promptParts: { dream, slug, demoDir: absTargetDir, prompt: sealedHerePrompt, mode: 'here' },
+          logPath,
+          timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+          engine,
+        });
+      },
+      failStatus: async (reason, elapsedSeconds) => {
+        await writeStatus(absTargetDir, {
+          ...inProgressStatus,
+          state: 'failed',
+          updated_at: nowIso(),
+          reason,
+          ...withDuration(initialEngineRecord, elapsedSeconds),
+        });
+      },
+      onClean: async ({ sealedCount, verdict, blastRadius, elapsedSeconds }) => {
+        // Preserve the existing --here reporting (AC-6 Reality-Check
+        // short-circuit + npm-test suggestion) on top of the sealed done-status.
+        try {
+          const rc = await realityCheck({ demoDir: absTargetDir, hereMode: true });
+          stdout.write(`Reality Check: ${rc.status}${rc.reason ? ' — ' + rc.reason : ''}\n`);
+        } catch (err) {
+          stderr.write(`Reality Check: error — ${err.message}\n`);
+        }
+        await maybeSuggestNpmTest(absTargetDir);
+        await writeStatus(absTargetDir, {
+          ...inProgressStatus,
+          state: 'done',
+          updated_at: nowIso(),
+          tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
+          sealed: { sealed_files: sealedCount, added: verdict.added },
+          blast_radius: blastRadius,
+          ...withDuration(initialEngineRecord, elapsedSeconds),
+        });
+        stdout.write(
+          `[OK] Sealed changes applied on ${sliceBranch}. The sealed oracle was intact and passed.\n` +
+            `     Review with: git diff ${baseSha}..HEAD\n` +
+            `     Merge with:  git checkout ${baseBranch} && git merge --ff-only ${sliceBranch}\n` +
+            `     Discard with: git checkout ${baseBranch} && git branch -D ${sliceBranch}\n`,
+        );
+      },
+    });
+  }
+
+  // AC-4 — build the in-place prompt for auto-dev (no demo/ scaffold).
+  const herePrompt = buildHerePrompt({ dream, sliceBranch, targetDir: absTargetDir, engine });
 
   const startNs = process.hrtime.bigint();
   let invokeResult;
@@ -909,7 +978,7 @@ async function main() {
   // No demo/<slug>/ is created; state files live under <cwd>/.mmd/shared/.
   // The greenfield path below is unchanged when --here is absent.
   if (flags.here) {
-    return runHereMode({ cwd: cwd(), dream, slug, branchSlug, engine, skipOnboarding });
+    return runHereMode({ cwd: cwd(), dream, slug, branchSlug, engine, skipOnboarding, sealed: flags.sealed });
   }
 
   // v0.3.b AC-3: `--catch` forces the interactive Dream Catcher dialogue, which

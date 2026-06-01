@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.5.2`
-- **Branch**: `main`
-- **Version**: `0.5.2` (package.json)
+- **Branch**: `slice/here-third-party-readiness-first-run-setup-1780321310`
+- **Version**: `0.6.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 31 (ADR-001..ADR-031)
-- **Tests**: 1444 passing
+- **ADRs**: 32 (ADR-001..ADR-032)
+- **Tests**: 1490 passing
 - **Recent commits**:
-  - `ce289a4 docs(handover): capture the in-flight v0.5.c run + resume steps (context-switch safety)`
-  - `5fba787 refactor(v0.5.c): reuse buildMmdAutodevArgs in the fake-cmd spawn branch (DRY)`
-  - `d2f970a docs(v0.5.c): ADR-031 + README/CLAUDE.md serve-gauge notes + bump 0.5.2 (AC-5)`
-  - `6b9273d fix(v0.5.c): make renderGauge markup CSP-safe (no inline styles)`
-  - `dffa4eb feat(v0.5.c): surface context monitor in mmd serve (AC-1/AC-2/AC-4)`
+  - `c20ac35 test(v0.6.a): re-bless version-pinned assertions for 0.6.0`
+  - `fc7d535 docs(v0.6.a): ADR-032 + README/CLAUDE "Using MMD on your own repo" + bump 0.6.0 (AC-5)`
+  - `e036fbf feat(v0.6.a): wire the first-run setup guard into mmd --here (AC-3)`
+  - `4ecda80 feat(v0.6.a): runFirstRunSetup — the transparent first-run guard (AC-3, lib)`
+  - `4f97867 feat(v0.6.a): onboarding cheat-sheet — surface the operational tribal knowledge (AC-4)`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

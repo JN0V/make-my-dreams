@@ -505,8 +505,8 @@ export function renderCoupledChanges(ref, coupling) {
   lines.push('');
 
   let isolated = 0;
-  for (const { file, neighbors } of coupling) {
-    if (neighbors.length === 0) {
+  for (const { file, neighbors, hubSuppressed } of coupling) {
+    if (neighbors.length === 0 && !hubSuppressed) {
       isolated += 1;
       continue;
     }
@@ -515,6 +515,14 @@ export function renderCoupledChanges(ref, coupling) {
       const tag = n.strength === 'strong' ? 'strong' : 'weak';
       const label = KIND_LABEL[n.kind] || n.kind;
       lines.push(`    → review (${tag}): ${n.to}   [${label}]`);
+    }
+    // Honest hub-source cap note (never a silent truncation — universal §VI). The
+    // file couples to too much of the repo to list it all as a useful hint.
+    if (hubSuppressed > 0) {
+      lines.push(
+        `    … +${hubSuppressed} more direct neighbor${hubSuppressed === 1 ? '' : 's'} suppressed ` +
+        `(hub source — this file couples to much of the repo; the top ${neighbors.length} are shown).`,
+      );
     }
   }
 

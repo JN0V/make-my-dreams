@@ -139,6 +139,48 @@ test('@integration document-review --since: doc↔doc links couple ADRs (wiki + 
   }
 });
 
+test('@integration document-review --since: a HUB SOURCE caps the flood + prints an honest suppressed-count note', async () => {
+  // A hub doc that references MANY (> HUB_DEGREE = 12) lib files. Changing it
+  // must NOT flood the report with 20 "strong" lines — cap to the top 12 + a note.
+  const dir = await mkdtemp(path.join(tmpdir(), 'mmd-since-hub-'));
+  try {
+    await mkdir(path.join(dir, 'lib'), { recursive: true });
+    const N = 20;
+    const refs = [];
+    for (let i = 0; i < N; i += 1) {
+      const rel = `lib/mod-${String(i).padStart(2, '0')}.js`;
+      await writeFile(path.join(dir, rel), `export const m${i} = ${i};\n`);
+      refs.push(rel);
+    }
+    // HUB.md references every module → degree N (a hub source when changed).
+    await writeFile(
+      path.join(dir, 'HUB.md'),
+      `# Hub\n\n${refs.map((r) => `- the module ${r} does a thing`).join('\n')}\n`,
+    );
+    await writeFile(path.join(dir, 'package.json'), JSON.stringify({ name: 'hub', version: '0.7.4' }));
+    await writeFile(path.join(dir, 'MAKE_MY_DREAMS.md'), '# MMD\n## 9. Roadmap\n');
+
+    git(dir, ['init', '-q']);
+    git(dir, ['config', 'user.email', 't@t.t']);
+    git(dir, ['config', 'user.name', 'T']);
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-qm', 'baseline']);
+
+    await writeFile(path.join(dir, 'HUB.md'), `# Hub (edited)\n\n${refs.map((r) => `- the module ${r} does a thing`).join('\n')}\n`);
+    git(dir, ['commit', '-aqm', 'edit hub']);
+
+    const r = runSince(dir, 'HEAD~1');
+    assert.equal(r.status, 0, r.stderr);
+    // Capped: exactly 12 "review (strong)" lines for HUB.md, not 20.
+    const strongLines = (r.stdout.match(/→ review \(strong\):/g) || []).length;
+    assert.equal(strongLines, 12, `expected 12 capped neighbors, got ${strongLines}\n${r.stdout}`);
+    // Honest note naming the suppressed count + the hub-source reason.
+    assert.match(r.stdout, /\+8 more direct neighbors suppressed \(hub source/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('@integration document-review --since: a bad/unknown ref → honest non-zero (exit 5), no crash', async () => {
   const dir = await makeRepo();
   try {

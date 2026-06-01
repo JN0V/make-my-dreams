@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import {
   buildCoherenceGraph,
   coupledNeighbors,
+  HUB_DEGREE,
 } from '../../lib/documentalist/coherence-graph.js';
 
 // Find the single changed-file entry, then its neighbor record by target.
@@ -118,6 +119,72 @@ test('@unit coherence-graph: deterministic — same inputs, same output (order-i
     importEdges: [{ from: 'y.js', to: 'z.js' }, { from: 'x.js', to: 'y.js' }],
   });
   assert.deepEqual(coupledNeighbors(a, ['x.js']), coupledNeighbors(b, ['x.js']));
+});
+
+// ── v0.7.e: hub-SOURCE cap (the symmetric counterpart to hub-transit suppression).
+// When the CHANGED file itself is a hub (> HUB_DEGREE direct neighbors), the report
+// would flood with dozens of "strong" lines. Cap to the top HUB_DEGREE, record the
+// suppressed count, and skip transitive expansion for that source. ────────────────
+
+// Build a doc-link star: `hub` directly linked to `count` leaf docs, lexically
+// ordered leaf-00.md .. leaf-NN.md so the deterministic ranking is checkable.
+function hubStar(count) {
+  const docLinkEdges = [];
+  for (let i = 0; i < count; i += 1) {
+    docLinkEdges.push({ from: 'hub.md', to: `leaf-${String(i).padStart(2, '0')}.md` });
+  }
+  return buildCoherenceGraph({ docLinkEdges });
+}
+
+test('@unit coherence-graph: a HUB SOURCE caps to HUB_DEGREE direct neighbors + records the suppressed count', () => {
+  const extra = 5;
+  const g = hubStar(HUB_DEGREE + extra);
+  const result = coupledNeighbors(g, ['hub.md']);
+  const entry = result[0];
+  assert.equal(entry.file, 'hub.md');
+  assert.equal(entry.neighbors.length, HUB_DEGREE, 'capped to HUB_DEGREE');
+  assert.equal(entry.hubSuppressed, extra, 'records how many direct neighbors were dropped');
+  assert.ok(entry.neighbors.every((n) => n.strength === 'strong'), 'all kept neighbors are direct/strong');
+  // The kept top-N is deterministic: leaves are doc-links of one kind, so ranked
+  // lexically by path → leaf-00 .. leaf-(HUB_DEGREE-1).
+  assert.equal(entry.neighbors[0].to, 'leaf-00.md');
+  assert.equal(entry.neighbors[HUB_DEGREE - 1].to, `leaf-${String(HUB_DEGREE - 1).padStart(2, '0')}.md`);
+});
+
+test('@unit coherence-graph: a HUB SOURCE skips the transitive layer (no weak neighbors on top of a flood)', () => {
+  // hub.md → many leaves (hub source); one leaf also links to deep.md. Without the
+  // hub-source short-circuit, deep.md would surface WEAK/transitive. It must not.
+  const g = buildCoherenceGraph({
+    docLinkEdges: [
+      ...Array.from({ length: HUB_DEGREE + 3 }, (_, i) => ({ from: 'hub.md', to: `leaf-${String(i).padStart(2, '0')}.md` })),
+      { from: 'leaf-00.md', to: 'deep.md' },
+    ],
+  });
+  const entry = coupledNeighbors(g, ['hub.md'])[0];
+  assert.ok(!entry.neighbors.some((n) => n.to === 'deep.md'), 'no transitive neighbor for a hub source');
+  assert.ok(entry.neighbors.every((n) => n.strength === 'strong'), 'hub source emits only direct/strong neighbors');
+});
+
+test('@unit coherence-graph: a source at EXACTLY HUB_DEGREE is NOT a hub (no cap, no suppressed field, transitive intact)', () => {
+  // Exactly HUB_DEGREE direct leaves + one leaf linking onward to deep.md.
+  const g = buildCoherenceGraph({
+    docLinkEdges: [
+      ...Array.from({ length: HUB_DEGREE }, (_, i) => ({ from: 'hub.md', to: `leaf-${String(i).padStart(2, '0')}.md` })),
+      { from: 'leaf-00.md', to: 'deep.md' },
+    ],
+  });
+  const entry = coupledNeighbors(g, ['hub.md'])[0];
+  assert.equal(entry.hubSuppressed, undefined, 'no hubSuppressed field for a non-hub source');
+  assert.equal(entry.neighbors.length, HUB_DEGREE + 1, 'all direct leaves + the transitive deep.md');
+  const deep = nb(entry.neighbors, 'deep.md');
+  assert.ok(deep && deep.strength === 'weak' && deep.kind === 'transitive', 'transitive layer intact below the threshold');
+});
+
+test('@unit coherence-graph: an ordinary entry carries NO hubSuppressed field (back-compat shape)', () => {
+  const g = buildCoherenceGraph({ importEdges: [{ from: 'a.js', to: 'b.js' }] });
+  const entry = coupledNeighbors(g, ['a.js'])[0];
+  assert.equal(entry.hubSuppressed, undefined);
+  assert.deepEqual(Object.keys(entry).sort(), ['file', 'neighbors']);
 });
 
 test('@unit coherence-graph: never throws on junk input', () => {

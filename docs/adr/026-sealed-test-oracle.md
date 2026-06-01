@@ -44,7 +44,7 @@ On an intact seal, MMD **re-runs** the sealed tests (`node --test`) as the indep
 ## Consequences
 
 - **Positive**: MMD now has the first correctness-hardening of its own auto-dev — an oracle the coder cannot quietly weaken (closes the P-04 vector for opt-in runs). Enforcement is committed, tested (unit + integration with a fake claude that never hits the network), and independent of the gitignored workflow. Blast radius gives a first, honest signal of a change's reach (P-05).
-- **Negative / limits**: opt-in only — a default-on guard would protect every run but changes the default path (deferred deliberately). The blast radius is grep-based (false positives/negatives); `node --test` assumes the tester emits runnable test files. Both are documented, not hidden.
+- **Negative / limits**: opt-in only — a default-on guard would protect every run but changes the default path (deferred deliberately). The blast radius is grep-based (false positives/negatives). The sealed re-run is `node --test` over the sealed files, which assumes they are runnable and module-type-compatible with the generated demo (today MMD writes no `package.json`, so CJS test files run; a coder that later writes `"type":"module"` could make a CJS oracle fail to load — a v0.5 hardening: the tester prompt should match the project's module type). All documented, not hidden.
 
 ## Alternatives considered
 

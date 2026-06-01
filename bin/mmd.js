@@ -16,7 +16,7 @@ import { rm, lstat, writeFile, realpath } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
-import { readFileSync, readdirSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -456,9 +456,10 @@ async function maybeSuggestNpmTest(targetDir) {
 // ─────────────────────────────────────────────────────────────────────────
 
 /**
- * Synchronously list FILE paths under `rootDir`, relative to it, skipping the
- * given top-level directory names. Used both as the sealed-dir lister (fresh
- * each verify) and as the blast-radius candidate lister. Returns [] for a
+ * Synchronously list FILE paths under `rootDir`, relative to it, skipping any
+ * directory whose name is in `skipDirs` AT ANY DEPTH (so a nested `node_modules`
+ * is pruned, not just a top-level one). Used both as the sealed-dir lister
+ * (fresh each verify) and as the blast-radius candidate lister. Returns [] for a
  * missing dir (never throws — universal §VI).
  */
 function listFilesRelSync(rootDir, { skipDirs = [] } = {}) {
@@ -474,7 +475,7 @@ function listFilesRelSync(rootDir, { skipDirs = [] } = {}) {
     for (const e of entries) {
       const childRel = rel ? path.join(rel, e.name) : e.name;
       if (e.isDirectory()) {
-        if (rel === '' && skip.has(e.name)) continue;
+        if (skip.has(e.name)) continue; // prune at any depth
         walk(childRel);
       } else if (e.isFile()) {
         out.push(childRel);
@@ -512,14 +513,16 @@ function invokeSealedTester({ demoDir, prompt, logPath, timeoutMs }) {
   });
 
   // Forensic trail: tee whatever the tester emitted into the run log dir.
+  // Synchronous so the file is flushed before this (sync) helper returns and
+  // its caller acts on the tester result (no fire-and-forget race on errors).
   try {
     mkdirSync(path.dirname(logPath), { recursive: true });
-    writeFile(
+    writeFileSync(
       logPath,
       `[tester] cmd=${cmd} mode=${mode} status=${r.status}\n` +
         `--- stdout ---\n${r.stdout || ''}\n--- stderr ---\n${r.stderr || ''}\n`,
       'utf8',
-    ).catch(() => {});
+    );
   } catch { /* log is best-effort */ }
 
   if (r.error) {
@@ -599,6 +602,20 @@ async function runSealedGreenfield({
     );
     return 6;
   }
+  // Seal-integrity guard: buildManifest silently skips a file it cannot read
+  // (manifest.js, by design — never throw). If the on-disk listing has MORE
+  // files than the manifest hashed, a sealed file went un-hashed and the seal
+  // would not protect it — that is exactly the anti-P-04 hole. Refuse rather
+  // than seal a partial oracle (universal §VI: never a silent sealed-OK).
+  const sealedOnDisk = listFilesRelSync(sealedDir).length;
+  if (sealedOnDisk !== sealedCount) {
+    await failStatus(`seal incomplete: ${sealedOnDisk - sealedCount} sealed file(s) could not be hashed`);
+    stderr.write(
+      `error: --sealed seal incomplete — ${sealedOnDisk} file(s) on disk but only ${sealedCount} hashed; ` +
+        `an unhashed sealed file would be unprotected. Refusing to proceed. See ${testerLog}\n`,
+    );
+    return 6;
+  }
   stdout.write(`Sealed step 2/5 — SEAL: ${sealedCount} test file(s) hashed (read-only oracle).\n`);
 
   // ── 3. CODER (existing auto-dev, told the sealed dir is read-only) ─────────
@@ -667,7 +684,7 @@ async function runSealedGreenfield({
     );
     return 6;
   }
-  stdout.write('Sealed step 4/5 — ORACLE: sealed tests PASS (independent verification).\n');
+  stdout.write('Sealed step 4/5 — ORACLE re-run: sealed tests PASS (independent verification).\n');
 
   // ── 5. BLAST RADIUS (stub, advisory) → status.json.blast_radius ────────────
   const changedFiles = listFilesRelSync(demoDir, { skipDirs: ['.mmd', 'node_modules', '.git'] });

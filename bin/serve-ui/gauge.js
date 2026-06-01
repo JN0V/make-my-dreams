@@ -69,21 +69,24 @@ export function renderGauge(context) {
     ? '<div class="gauge-badge" role="status">⚠️ ready for handoff</div>'
     : '';
 
-  // The width is rounded to keep the inline style terse; the data-pct carries the
-  // precise value for tests / debugging. The threshold marker is a fixed 70% tick.
+  // CSP-safe markup (the default page runs under style-src 'self' — NO inline
+  // styles): the bar is a native <progress value=pct> (an ATTRIBUTE, not a style),
+  // and the fixed 70% threshold tick is positioned by an external CSS class
+  // (.gauge-threshold in style.css), so no inline `style=` is needed. data-pct
+  // carries the precise value for tests / debugging.
+  const valueNow = Math.round(pctNum);
   return (
-    '<div class="gauge" data-pct="' + pctNum.toFixed(1) + '">' +
+    '<div class="gauge" data-pct="' + pctNum.toFixed(1) + '" data-threshold="' + HANDOFF_MARKER_PCT + '">' +
       '<div class="gauge-meta">' +
         '<span class="gauge-model">' + model + '</span> · ' +
         '<span class="gauge-tokens">' + tokens + ' / ' + windowLabel + ' tokens</span> · ' +
         '<span class="gauge-pct">' + pctLabel + '</span>' +
       '</div>' +
-      '<div class="gauge-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" ' +
-           'aria-valuenow="' + Math.round(pctNum) + '" ' +
-           'aria-label="context du chef d\'orchestre / orchestrator context">' +
-        '<div class="gauge-fill" style="width:' + pctNum.toFixed(1) + '%"></div>' +
-        '<div class="gauge-threshold" style="left:' + HANDOFF_MARKER_PCT + '%" ' +
-             'title="70% — seuil de relais / handoff threshold"></div>' +
+      '<div class="gauge-track">' +
+        '<progress class="gauge-bar" max="100" value="' + valueNow + '" ' +
+             'aria-label="context du chef d\'orchestre / orchestrator context">' +
+             pctLabel + '</progress>' +
+        '<span class="gauge-threshold" title="70% — seuil de relais / handoff threshold"></span>' +
       '</div>' +
       badge +
     '</div>'

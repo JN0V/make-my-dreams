@@ -32,7 +32,9 @@ A pure `detectMmdSetup(targetDir) → {ready, missing[]}` probe (fs reads only, 
 - **`MMD_SKIP_SETUP=1`** → bypass with a warning (escape hatch, mirrors `MMD_SKIP_GROUNDING`).
 - **Already ready** → no-op; the run proceeds exactly as before.
 
-The two outside-world touches — asking the user and spawning the installer — are **injected** (DIP) into `runFirstRunSetup`, so the whole decision tree is unit/integration-tested without a TTY or a shell. `bin/mmd.js` supplies the real readline prompt + the real `spawnSync('bash', [install-mmd.sh, target])`.
+The two outside-world touches — asking the user and spawning the installer — are **injected** (DIP) into `runFirstRunSetup`, so the whole decision tree is unit/integration-tested without a TTY or a shell. `bin/mmd.js` supplies the real readline prompt + the real `spawnSync('bash', [install-mmd.sh, target])` (overridable by `MMD_SETUP_CMD`, a testing seam mirroring `MMD_AUTODEV_CMD`).
+
+**The setup is committed before the clean-tree check.** `install-mmd.sh` *writes* the constitution + workflow + `.gitignore` edits but does not commit them; the very next `--here` step (`validateHereTarget`) requires a clean working tree and would otherwise abort with exit 4 — defeating the whole mission. So after a successful setup `runHereMode` runs `git add -A && git commit -m "chore: MMD first-run setup …"` on the **base branch** (the setup is repo infrastructure; the slice branch is then created from a base that already includes it; commit-git §III — a successful setup is a recoverable unit). A commit failure is reported honestly → exit 8 (never a dirty, half-set-up tree). The guard only fires on a not-ready (fresh, un-onboarded) repo, so the `add -A` captures the setup's output.
 
 ### 3. An onboarding cheat-sheet (pure builder)
 

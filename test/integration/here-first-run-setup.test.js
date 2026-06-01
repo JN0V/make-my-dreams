@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { runFirstRunSetup, EXIT_SETUP } from '../../lib/onboarding/setup.js';
 
 // A capturing harness: records out/err writes and whether the runner ran.
-function harness({ ready, confirm, runnerCode = 0, runnerThrows = false } = {}) {
+function harness({ ready, confirm, runnerCode = 0, runnerThrows = false, runnerSignal = null } = {}) {
   const calls = { runner: 0, confirm: 0 };
   const out = [];
   const err = [];
@@ -30,7 +30,7 @@ function harness({ ready, confirm, runnerCode = 0, runnerThrows = false } = {}) 
       runnerFn: async () => {
         calls.runner += 1;
         if (runnerThrows) throw new Error('spawn ENOENT');
-        return { code: runnerCode };
+        return runnerSignal ? { code: runnerCode, signal: runnerSignal } : { code: runnerCode };
       },
       cheatsheetFn: () => 'CHEATSHEET-MARKER',
       out: (s) => out.push(s),
@@ -87,6 +87,14 @@ test('@integration guard: non-TTY + runner fails (non-zero) → exit 8, never pr
   assert.equal(r.action, 'failed');
   assert.equal(r.exitCode, 8);
   assert.match(h.err.join(''), /exited with code 2/);
+});
+
+test('@integration guard: runner killed by a signal → exit 8, signal surfaced (F3)', async () => {
+  const h = harness({ ready: false, runnerCode: 1, runnerSignal: 'SIGTERM' });
+  const r = await runFirstRunSetup({ ...h.opts, tty: false, env: {} });
+  assert.equal(r.ok, false);
+  assert.equal(r.exitCode, 8);
+  assert.match(h.err.join(''), /terminated by SIGTERM/);
 });
 
 test('@integration guard: runner throws → exit 8, reported honestly', async () => {

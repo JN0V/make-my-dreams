@@ -304,18 +304,52 @@ async function confirmFirstRunSetup() {
 }
 
 /**
- * v0.6.a — spawn install-mmd.sh against the target repo for the first-run setup
- * guard (AC-3). Synchronous + blocking with inherited stdio so the user sees the
- * installer's progress. Returns { code } for runFirstRunSetup to branch on; a
- * spawn error (e.g. bash missing) propagates so the guard reports it honestly.
+ * v0.6.a — spawn the first-run setup against the target repo (AC-3). Normally
+ * install-mmd.sh; `MMD_SETUP_CMD` overrides the script (testing seam, mirrors
+ * MMD_AUTODEV_CMD) so the full runHereMode guard path is driveable without
+ * shelling out to the real installer. Synchronous + blocking with inherited
+ * stdio so the user sees progress. Returns { code, signal? } for
+ * runFirstRunSetup to branch on; a spawn error (e.g. bash missing) propagates so
+ * the guard reports it honestly. A signal kill (status null) surfaces the signal
+ * rather than masquerading as a plain exit code (universal §VI).
  */
 function runInstallMmd(targetDir) {
-  const r = spawnSync('bash', [INSTALL_SCRIPT, targetDir], {
+  const script = env.MMD_SETUP_CMD || INSTALL_SCRIPT;
+  const r = spawnSync('bash', [script, targetDir], {
     cwd: targetDir,
     stdio: 'inherit',
   });
   if (r.error) throw r.error;
-  return { code: r.status == null ? 1 : r.status };
+  if (r.status == null) return { code: 1, signal: r.signal || null };
+  return { code: r.status };
+}
+
+/**
+ * v0.6.a — commit the artifacts a successful first-run setup materialized
+ * (constitution + auto-dev workflow + .gitignore edits) so the working tree is
+ * clean before the --here clean-tree check (validateHereTarget). The setup is
+ * repo infrastructure, so it lands on the base branch; the slice branch is then
+ * created from a base that already includes it. commit-git §III: a successful
+ * setup is a recoverable unit and MUST be committed. Returns { ok, message? }.
+ *
+ * Note: the guard only fires on a NOT-ready (fresh, un-onboarded) repo, so a
+ * `git add -A` here captures the setup output; on the normal first-run path the
+ * tree was clean before setup ran.
+ */
+function commitFirstRunSetup(targetDir) {
+  const add = spawnSync('git', ['add', '-A'], { cwd: targetDir, encoding: 'utf8' });
+  if (add.status !== 0) {
+    return { ok: false, message: (add.stderr || 'git add failed').trim() };
+  }
+  const commit = spawnSync(
+    'git',
+    ['commit', '-m', 'chore: MMD first-run setup (constitution + auto-dev workflow)'],
+    { cwd: targetDir, encoding: 'utf8' },
+  );
+  if (commit.status !== 0) {
+    return { ok: false, message: (commit.stderr || commit.stdout || 'git commit failed').trim() };
+  }
+  return { ok: true };
 }
 
 /**
@@ -415,6 +449,22 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
   });
   if (!setupResult.ok) {
     return setupResult.exitCode;
+  }
+  // The setup wrote files but did not commit them; commit now so the clean-tree
+  // check below (validateHereTarget) doesn't abort on the setup's own output.
+  // Without this the headline mission (AC-6: a green --here on a fresh repo)
+  // would fail with exit 4. A commit failure is reported honestly → exit 8.
+  if (setupResult.action === 'setup-ran') {
+    const committed = commitFirstRunSetup(absTargetDir);
+    if (!committed.ok) {
+      stderr.write(
+        `error: first-run setup completed but its files could not be committed: ` +
+          `${committed.message}. MMD will not proceed with a dirty, half-set-up tree. ` +
+          `Commit the setup manually, then re-run. (exit 8)\n`,
+      );
+      return 8;
+    }
+    stdout.write('First-run setup committed on the base branch — continuing.\n');
   }
 
   // v0.2c AC-7: Project Onboarder validation gate. Block --here when the

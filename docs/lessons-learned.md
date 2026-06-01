@@ -476,3 +476,21 @@ This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanline
 **Category**: testing, ai-coding, oracle-independence, verification, honesty
 **Applies to**: mmd --sealed, mmd --here, any-claude-spawn, any "the agent verified it" claim
 **Keywords for matching**: judge, LLM-as-judge, behavioral oracle, P-09, sealed, buildJudgePrompt, parseJudgeVerdict, met, not-met, uncertain, sacred fallback, exit 7, exit 6, behavioral gap, tests pass, asked-for behavior, five-whys, escalate, non-determinism, judge-advisory, multi-judge
+
+---
+
+## L-026 — A detached run needs a push signal; polling is the symptom of a missing fan-out
+
+**Status**: active (1 occurrence — surfaced building the v0.5.a Conductor notifications, 2026-06-01)
+**Date**: 2026-06-01
+**Origin**: MMD runs auto-dev detached (`setsid … mmd --here "<dream>"`) for 30–90 minutes. The recurring user feedback — "I keep having to ask where things are" — was really a missing *push*: the user kept polling `git log` / `status.json` / `pgrep` to discover an end-state the run already knew. v0.5.a (ADR-029) added an opt-in, best-effort webhook fan-out (`lib/conductor/notify.js`) that POSTs a ✅/❌ payload on run done/failed when `MMD_NOTIFY_URL` is set.
+**The pattern**: when one side of a system knows an event and the other side is reduced to polling for it, the fix is a **push from the knower**, not a better poller. A long-running detached process is exactly that asymmetry — it owns the completion moment; make it announce it. The same shape recurs anywhere a producer's terminal state is being polled (CI, deploys, queues).
+**Rule**:
+  1. **Push the terminal event from the side that owns it.** A detached/long-running run must emit its own done/failed signal; do not make the user reconstruct it from side artifacts. Polling is the smell.
+  2. **A side channel must be opt-in and best-effort — never part of the outcome.** Gate it on an explicit env/config (no surprise egress; default byte-for-byte unchanged), and make a delivery failure degrade to a logged line — never change the run's exit code or status. The sender never throws and never blocks beyond a short bounded timeout (`AbortController` + race).
+  3. **Egress carries metadata only.** The payload is user-configured egress to the user's own sink — slice/state/summary/ts, no secrets/env/file contents (security.md, least disclosure). Never fabricate a summary you don't have; use a neutral phrase (universal §VI).
+  4. **Ship the cleanest/safest brick of a big layer first.** Of the v0.5 Conductor pieces, notifications are purely additive (they don't touch the spawn), so they shipped before the riskier `stream-json` context monitor. When a layer has several candidate slices, the additive/opt-in/best-effort one is the lowest-risk first step.
+**To promote if**: 3 reuses validated (counter: 0) — candidate for `architecture.md` or `observability.md` as "push terminal events from the owner; side channels are opt-in, best-effort, metadata-only." Until then it sits here as the Conductor-notifications lesson.
+**Category**: observability, architecture, error-handling, security, ai-coding
+**Applies to**: mmd --here, mmd greenfield, any detached/long-running run, any "where is it / is it done" poll
+**Keywords for matching**: notification, notify, MMD_NOTIFY_URL, webhook, ntfy, push, fan-out, Conductor, Layer 6, detached, run_done, run_failed, best-effort, opt-in, shouldNotify, buildNotification, sendNotification, AbortController, timeout, polling, proactive feedback, egress, least disclosure

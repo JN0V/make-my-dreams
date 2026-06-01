@@ -71,7 +71,7 @@ See [ADR-023](./docs/adr/023-dream-catcher-cli-and-profile.md) and [L-022](./doc
 
 **`MMD_PROFILE` — the profile reaches the build — *new in v0.3.b, composer added in v0.3.c*.** The audience profile chosen in the dialogue (`Kid` / `Curious` / `Pro`, default `Curious`) is exported as `MMD_PROFILE` into the auto-dev subprocess on **both** surfaces (CLI greenfield and the web `/api/catch/confirm`). The auto-dev prompt then **states the profile** and injects the **constitution modules bound to it** via the **Layer C composer** (`lib/constitution-compose.js`): `MMD_PROFILE` resolves through `.specify/memory/constitution-bindings.yaml` to `defaults.always ∪ profiles[profile]`, and each `.specify/memory/constitution/<name>.md` is read and concatenated into the prompt under per-module headers. So a **`Kid`** build now carries the full `safe-by-default.md` + `kid.md` text (no network, no third-party services, hardware permission on gesture only, no commerce/social, accessibility, age-appropriate), a **`Curious`** build carries `safe-by-default.md`, and a **`Pro`** build carries `pro.md`. If the bindings file or a module is unreadable the composer returns `null` and `buildPrompt` falls back to v0.3.b's minimal Kid line — graceful, never a crash (universal §VI). An unset `MMD_PROFILE` leaves the prompt unchanged (back-compat). The composer uses a hand-rolled YAML-lite parser (no `yaml` dependency, vanilla stack); it composes by **profile** only for now (engine/context/skill dimensions are a future slice — the resolver is built to extend). The profile is no longer a dead `status.json` field — see [ADR-024](./docs/adr/024-constitution-composer-layer-c.md) and [L-022](./docs/lessons-learned.md).
 
-Env vars: `MMD_AUTODEV_CMD` (override subprocess for testing), `MMD_AUTODEV_MODE` (`cli` | `test` — explicit, replaces the v0.1 path heuristic), `MMD_QUIET=1` (suppress subprocess output on the terminal; log file preserved), `MMD_TIMEOUT_MS` (default 1800000), `MMD_REALITY_CHECK_BACKEND` (`mcp` | `playwright` | `skip`), `MMD_DREAM_MAX_LEN` (default 500), `MMD_PROFILE` (`Kid` | `Curious` | `Pro` — audience profile threaded into the build; usually set by the dialogue, `Kid` → safe-by-default prompt).
+Env vars: `MMD_AUTODEV_CMD` (override subprocess for testing), `MMD_AUTODEV_MODE` (`cli` | `test` — explicit, replaces the v0.1 path heuristic), `MMD_QUIET=1` (suppress subprocess output on the terminal; log file preserved), `MMD_TIMEOUT_MS` (default 1800000), `MMD_REALITY_CHECK_BACKEND` (`mcp` | `playwright` | `skip`), `MMD_DREAM_MAX_LEN` (default 500), `MMD_PROFILE` (`Kid` | `Curious` | `Pro` — audience profile threaded into the build; usually set by the dialogue, `Kid` → safe-by-default prompt), `MMD_NOTIFY_URL` (opt-in Conductor notification sink — *new in v0.5.a*; when set, MMD POSTs a ✅/❌ payload on run done/failed; unset = no network call).
 
 ### FAST mode — *new in v0.2*
 
@@ -165,6 +165,24 @@ The TESTER → SEAL → VERIFY → re-run → JUDGE → BLAST steps are **surfac
 Honesty is non-negotiable (constitution §VI): a tester that fails or writes nothing, an empty seal, a coder error, a tamper, a failing sealed test, or a judge that finds a behavioral gap each surface **explicitly** — never a silent "sealed OK". `--sealed` composes with the engine flags and `--here` (`mmd --here --sealed --fast "<change>"`). The **default path (no `--sealed`) is byte-for-byte unchanged** on both surfaces. With v0.4.d, Bundle B has **both** oracles: the deterministic sealed-test gate (P-04) *and* the behavioral judge against what-was-asked (P-09).
 
 Deferred to a follow-up: `--sealed` as a Standard-engine default (see [ADR-026](./docs/adr/026-sealed-test-oracle.md)); a **`--judge-advisory`** warn-only judge mode and a **multi-judge majority vote** to dampen the single judge's non-determinism (see [ADR-028](./docs/adr/028-llm-judge-behavioral-oracle.md)). The blast radius graduated from grep stub to import-graph accurate in v0.4.c ([ADR-027](./docs/adr/027-import-graph-blast-radius.md)) with **zero new dependencies** (vanilla-stack); its documented residual gap is computed/runtime specifiers, re-export aliasing, and non-JS importers. Enforcement lives entirely at the **MMD layer** because the BMAD auto-dev workflow is gitignored — see the ADRs for why.
+
+### Conductor notifications (`MMD_NOTIFY_URL`) — *new in v0.5.a*
+
+MMD runs auto-dev **detached** (`setsid … mmd --here "<dream>"`), so a run can churn for 30–90 minutes while you do something else. The cost was **silence** — you came back and polled `git log` / `status.json` to find out it had finished. v0.5.a adds an **opt-in, best-effort notification fan-out**: set `MMD_NOTIFY_URL` and MMD **POSTs** a small JSON payload to your own sink when a run ends.
+
+```bash
+# ntfy (zero-setup): pick any topic, subscribe on your phone, then —
+export MMD_NOTIFY_URL=https://ntfy.sh/my-mmd-runs-8f3a
+setsid mmd --here "add a dark-mode toggle" &   # walk away
+#  … 40 minutes later your phone buzzes:
+#  ✅ slice/here-add-dark-mode-toggle-… finished (here-add-dark-mode-toggle-… (v0.5.0))
+#  …or on failure:
+#  ❌ slice/here-… failed (auto-dev exited with code 6)
+```
+
+The payload body is `{ event, slice, state, summary, ts, message }` — `event ∈ {run_done, run_failed}`, and a `message` one-liner so **ntfy** (which renders the request body) reads nicely. It also suits generic webhooks (Slack/Discord/custom). It carries **run metadata only** — slice id, state, a short summary, a timestamp — **never** secrets, env, code, or file contents (this is egress to *your* sink, so least-disclosure applies). It works on **both** the greenfield and `--here` completion paths, on `done` and `failed`.
+
+It is **opt-in and best-effort, by design**: with `MMD_NOTIFY_URL` **unset** there is **no payload and no network call** (zero overhead, the default, byte-for-byte unchanged behavior); with it set, a **delivery failure** (dead URL, non-2xx, timeout, network down) logs one stderr line and is **dropped** — the run's exit code and `status.json` are **never** affected, and the send is bounded by a short timeout (default 5 s) so a slow sink can't delay the run's exit. This is the **first brick of the v0.5 Conductor** (the orchestration/observability layer) and the direct fix for the "I keep having to ask where things are" feedback. The `stream-json` live context monitor + the 70% auto-handoff are the **v0.5.b** follow-up (they change the auto-dev spawn — riskier). See [ADR-029](./docs/adr/029-conductor-notifications.md) and [L-026](./docs/lessons-learned.md).
 
 ### Bench mode (`mmd bench`) — *new in v0.2b*
 

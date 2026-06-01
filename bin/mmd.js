@@ -118,6 +118,12 @@ Environment variables:
   MMD_HERE_PROTECTED_BRANCHES          Comma-separated list (default: main,master)
                                        — slice branch is always created from HEAD,
                                        even when on a protected branch (v0.2a AC-2)
+  MMD_NOTIFY_URL                       Opt-in Conductor notification sink (v0.5.a). When set,
+                                       MMD POSTs a small JSON {event,slice,state,summary,ts,message}
+                                       on run done/failed to this URL (ntfy/Slack/Discord/custom).
+                                       Best-effort: a delivery failure never changes the run's
+                                       outcome. Unset = no network call (the default).
+                                       Example: MMD_NOTIFY_URL=https://ntfy.sh/<your-topic>
 `;
 
 function nowIso() {

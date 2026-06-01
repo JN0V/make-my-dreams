@@ -56,7 +56,8 @@ Usage:
   mmd --fast "<dream>"                 Trimmed auto-dev pipeline (target <=10 min)
   mmd --sealed "<dream>"               Sealed-test oracle: a tester writes blind acceptance
                                        tests, MMD seals them (hash), auto-dev implements, then
-                                       MMD verifies the seal (tamper = fail) + re-runs them (v0.4.a)
+                                       MMD verifies the seal (tamper = fail) + re-runs them (v0.4.a;
+                                       composes with --here since v0.4.b)
   mmd --here "<change>"                Modify the current git repo in place (v0.2a)
   mmd bench [--dry-run]                Run the dream-bench v0 harness (v0.2b)
   mmd ship [<branch>] [--dry-run]      Invoke gStack ship skill on the current slice (v0.2.f)
@@ -80,9 +81,11 @@ Engine flags (mutually exclusive):
   --deep                               DEEP engine — full BMAD process (v0.2d)
 
 Mode flags (orthogonal to engine):
-  --sealed                             Opt-in sealed-test oracle for greenfield: independent tester
-                                       writes acceptance tests, MMD seals them, auto-dev implements,
-                                       MMD verifies the seal is intact + re-runs the tests (v0.4.a)
+  --sealed                             Opt-in sealed-test oracle: an independent tester writes
+                                       acceptance tests, MMD seals them, auto-dev implements, MMD
+                                       verifies the seal is intact + re-runs the tests (v0.4.a).
+                                       Works on greenfield AND with --here (v0.4.b) — so an MMD
+                                       slice can seal-test its own change.
   --here                               Self / brownfield-in-place: modify cwd, no demo/<slug>/ scaffold (v0.2a)
   --label <name>                       Human-readable branch name for --here (e.g. --label wip-salvage); else derived from the dream
   --skip-onboarding                    Bypass the v0.2c Project Onboarder gate (NOT RECOMMENDED)

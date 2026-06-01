@@ -56,6 +56,27 @@ test('@unit parseArgv (v0.4.a AC-1): --sealed composes with engine + mode flags 
   assert.deepEqual(r.positional, ['a counter app']);
 });
 
+test('@unit parseArgv (v0.4.b AC-2): --here and --sealed compose (no mutex)', () => {
+  // Both orderings parse cleanly with both flags true and the dream preserved.
+  const a = parseArgv(['--here', '--sealed', 'add a dark-mode toggle']);
+  assert.equal(a.error, null, `expected no error; got ${a.error && a.error.message}`);
+  assert.equal(a.flags.here, true);
+  assert.equal(a.flags.sealed, true);
+  assert.deepEqual(a.positional, ['add a dark-mode toggle']);
+
+  const b = parseArgv(['--sealed', '--here', 'add a dark-mode toggle']);
+  assert.equal(b.error, null, `expected no error; got ${b.error && b.error.message}`);
+  assert.equal(b.flags.here, true);
+  assert.equal(b.flags.sealed, true);
+
+  // And the trio --here --sealed --fast still composes (no mutex anywhere).
+  const c = parseArgv(['--here', '--sealed', '--fast', 'add a dark-mode toggle']);
+  assert.equal(c.error, null, `expected no error; got ${c.error && c.error.message}`);
+  assert.equal(c.flags.here, true);
+  assert.equal(c.flags.sealed, true);
+  assert.equal(resolveEngine(c.flags), 'fast');
+});
+
 test('@unit parseArgv (AC-1): --catch / --no-catch are recognized boolean flags', () => {
   const c = parseArgv(['--catch', 'dessine une appli']);
   assert.equal(c.flags.catch, true);

@@ -1,0 +1,7 @@
+Blank fixture
+=============
+
+A genuinely empty / unstructured repo: no manifest, no code, no SDD methodology.
+This file has no extension on purpose, so the language scan finds no stack and
+`mmd discover` reports case = blank (NOT brownfield-app — that needs a real
+package.json / pyproject.toml / go.mod / Cargo.toml or source files).

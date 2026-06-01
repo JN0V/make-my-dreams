@@ -1,0 +1,6 @@
+{
+  "name": "brownfield-node-fixture",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A real Node app with no SDD methodology — mmd discover should report brownfield-app."
+}

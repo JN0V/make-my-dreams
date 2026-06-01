@@ -60,11 +60,12 @@ test('@unit classify: malformed stories_count is treated as 0 (defensive)', () =
   assert.equal(classify({ methodologies: { stories_count: NaN } }), 'blank');
 });
 
-test('@unit DISCOVERY_CASES is frozen and contains exactly the 4 known cases', () => {
+test('@unit DISCOVERY_CASES is frozen and contains exactly the 5 known cases', () => {
+  // v0.6.a added 'brownfield-app' (a recognized stack with no SDD methodology).
   assert.ok(Object.isFrozen(DISCOVERY_CASES));
   assert.deepEqual(
     [...DISCOVERY_CASES].sort(),
-    ['already-onboarded', 'blank', 'bmad-alone', 'rich'],
+    ['already-onboarded', 'blank', 'bmad-alone', 'brownfield-app', 'rich'],
   );
 });
 

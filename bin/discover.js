@@ -20,7 +20,7 @@
 
 import { cwd as processCwd, stdout, stderr } from 'node:process';
 import { readFileSync } from 'node:fs';
-import { stat, writeFile } from 'node:fs/promises';
+import { stat, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -82,6 +82,66 @@ async function resolveTargetPath(maybeRel) {
     return { ok: false, exitCode: 3, message: `mmd discover: target is not a directory: '${abs}'` };
   }
   return { ok: true, abs };
+}
+
+/**
+ * SPEC_V06B AC-2 — read the project's constitution text so the report can offer
+ * non-destructive suggestions. READ ONLY ("elle reste"): discover never writes
+ * `constitution.md`. Returns the text, or null when no constitution exists (the
+ * section is then omitted; the first-run setup materializes a default instead).
+ *
+ * @param {string} targetDir
+ * @returns {Promise<string|null>}
+ */
+async function readConstitutionText(targetDir) {
+  const p = path.join(targetDir, '.specify', 'memory', 'constitution.md');
+  try {
+    return await readFile(p, 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+// SPEC_V06B AC-3 — the marked, idempotent gitignore block for discover's own
+// scratch outputs. The marker line is how we detect an already-present block on
+// re-run (idempotent), so it must stay byte-stable.
+const GITIGNORE_MARKER = '# MMD discovery scratch (auto-added by mmd discover)';
+const GITIGNORE_BLOCK = [
+  GITIGNORE_MARKER,
+  '.mmd/',
+  'mmd-discovery-report.md',
+].join('\n');
+
+/**
+ * SPEC_V06B AC-3 — ensure discover's scratch outputs are `.gitignore`d in the
+ * target, so the documented discover→`mmd --here` flow leaves a tree the
+ * first-run guard treats as clean (no manual stash). Idempotent (the marker
+ * guards against duplicate blocks), creates `.gitignore` if absent, and ONLY
+ * appends — it never reorders or clobbers existing entries, and never touches
+ * `constitution.md` or any user file.
+ *
+ * @param {string} targetDir
+ * @returns {Promise<'created'|'appended'|'present'>}
+ */
+async function ensureScratchGitignored(targetDir) {
+  const gitignorePath = path.join(targetDir, '.gitignore');
+  await assertSafeWritePath(targetDir, gitignorePath);
+  let existing = null;
+  try {
+    existing = await readFile(gitignorePath, 'utf8');
+  } catch {
+    existing = null;
+  }
+  if (existing === null) {
+    await writeFile(gitignorePath, `${GITIGNORE_BLOCK}\n`, 'utf8');
+    return 'created';
+  }
+  if (existing.includes(GITIGNORE_MARKER)) {
+    return 'present';
+  }
+  const sep = existing.endsWith('\n') ? '\n' : '\n\n';
+  await writeFile(gitignorePath, `${existing}${sep}${GITIGNORE_BLOCK}\n`, 'utf8');
+  return 'appended';
 }
 
 /**
@@ -176,6 +236,9 @@ export async function runDiscover(rawArgs) {
   stdout.write('mmd discover: INFER complete\n');
 
   const caseLabel = classify(scanData);
+  // AC-2 — read the project's constitution (if any) so the report can offer
+  // non-destructive suggestions. READ ONLY: constitution.md is never written.
+  const constitutionText = await readConstitutionText(targetDir);
   const report = buildReport({
     targetDir,
     scanData,
@@ -183,12 +246,25 @@ export async function runDiscover(rawArgs) {
     inferredMd,
     caseLabel,
     version: VERSION,
+    constitutionText,
   });
   const written = await writeReport(targetDir, report, { skipRootReport: parsed.noReportUpdate });
   if (written.rootPath) {
     stdout.write(`mmd discover: REPORT written to ${written.rootPath}\n`);
   } else {
     stdout.write(`mmd discover: REPORT snapshot written to ${written.lastPath} (root unchanged: --no-report-update)\n`);
+  }
+
+  // AC-3 — ensure discover's own scratch (.mmd/, mmd-discovery-report.md) is
+  // gitignored so the documented discover→`mmd --here` flow needs no manual
+  // stash. Idempotent + append-only; only ever touches .gitignore.
+  try {
+    const gi = await ensureScratchGitignored(targetDir);
+    if (gi === 'created') stdout.write('mmd discover: created .gitignore with the MMD scratch block\n');
+    else if (gi === 'appended') stdout.write('mmd discover: added the MMD scratch block to .gitignore\n');
+  } catch (err) {
+    // Non-fatal: a gitignore write failure must not lose the discovery work.
+    stderr.write(`mmd discover: could not update .gitignore (${err.message}) — gitignore the scratch manually if needed.\n`);
   }
   stdout.write(`mmd discover: detected case = ${caseLabel}\n`);
   if (!parsed.noReportUpdate) {

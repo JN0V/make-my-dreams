@@ -45,6 +45,7 @@ import { runCliDreamCatcher } from '../lib/dream-catcher/cli-driver.js';
 import { runElicit } from '../lib/dream-catcher/elicit.js';
 import { shouldNotify, buildNotification, sendNotification } from '../lib/conductor/notify.js';
 import { runFirstRunSetup } from '../lib/onboarding/setup.js';
+import { isTreeCleanIgnoringMmd } from '../lib/onboarding/mmd-managed.js';
 
 // F30 — version sourced once from package.json (shared with GET /api/health).
 const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
@@ -449,7 +450,13 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
     // commit. A non-git target → let validateHereTarget report it (exit 3/4).
     preflightFn: () => {
       const s = spawnSync('git', ['status', '--porcelain'], { cwd: absTargetDir, encoding: 'utf8' });
-      if (s.status === 0 && s.stdout.trim() !== '') {
+      // v0.6.b AC-3 — discover-then---here friction fix: a tree dirtied ONLY by
+      // MMD-managed scratch (`.mmd/`, `mmd-discovery-report.md`, `.gitignore`)
+      // counts as clean, so the documented "run discover, read the suggestions,
+      // then mmd --here" flow needs no manual stash. ANY non-MMD dirty path
+      // still refuses (exit 4) — F7 intact: the post-setup `git add -A` can
+      // never sweep a user's real uncommitted work into the setup commit.
+      if (s.status === 0 && !isTreeCleanIgnoringMmd(s.stdout)) {
         return {
           ok: false,
           exitCode: 4,

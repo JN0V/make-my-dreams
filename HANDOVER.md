@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.7.4`
+- **Latest tag**: `v0.7.5`
 - **Branch**: `main`
-- **Version**: `0.7.4` (package.json)
+- **Version**: `0.7.5` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 38 (ADR-001..ADR-038)
-- **Tests**: 1657 passing
+- **ADRs**: 39 (ADR-001..ADR-039)
+- **Tests**: 1670 passing
 - **Recent commits**:
-  - `8a9d7a4 docs(v0.7.e): refresh README + HANDOVER mechanical blocks to 0.7.4 / 1657 tests`
-  - `6305a66 docs(v0.7.e): ADR-038 + CLAUDE.md + bump to 0.7.4 for the hub-source cap`
-  - `26b3039 test(v0.7.e): pin the hub-source note wording + assert non-hub output is unchanged`
-  - `00d1be1 feat(v0.7.e): cap hub-source neighbor floods in the coherence-graph staleness report`
-  - `1e1255b docs(v0.7.3): refresh changelog now that v0.7.3 is tagged`
+  - `9731e84 fix(v0.7.5): add the MMD_SLASH_COMMAND_MATERIALIZE sentinels the install test extracts`
+  - `b7c4ef1 chore: bump version to 0.7.5 (/mmd operator slash command slice)`
+  - `99d1a10 feat: materialize /mmd slash command via install-mmd.sh (idempotent)`
+  - `90f083d feat: add /mmd slash-command operator playbook (tracked source + unit anchors)`
+  - `29ab8f9 docs: regenerate coherence-review dashboard at v0.7.4 (current designed-vs-built + doc-health)`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

@@ -174,6 +174,28 @@ test('@integration AC-3: --here done POSTs a run_done notification', { skip: SKI
   }
 });
 
+// AC-3 — --here failure fires run_failed; the run's failing exit is unchanged.
+test('@integration AC-3: --here failure POSTs run_failed and keeps the failing exit', { skip: SKIP_ON_WINDOWS }, async () => {
+  const srv = await startCaptureServer();
+  const tmp = makeTmp();
+  try {
+    initCleanRepo(tmp);
+    const r = await runMmd(['--here', 'add a comment line at the top of README.md'], {
+      cwd: tmp,
+      autodevCmd: FIXTURE_FAIL,
+      env: { MMD_NOTIFY_URL: srv.url },
+    });
+    assert.notEqual(r.status, 0, 'the run still fails');
+    assert.equal(srv.requests.length, 1);
+    assert.equal(srv.requests[0].body.event, 'run_failed');
+    assert.equal(srv.requests[0].body.state, 'failed');
+    assert.match(srv.requests[0].body.slice, /^slice\/here-/);
+  } finally {
+    await srv.close();
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 // AC-3 — unset MMD_NOTIFY_URL → NO notification code runs (no request received).
 test('@integration AC-3: with MMD_NOTIFY_URL unset, no notification is sent', { skip: SKIP_ON_WINDOWS }, async () => {
   const srv = await startCaptureServer();

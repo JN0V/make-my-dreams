@@ -33,6 +33,8 @@ A notification is a **side channel**, never part of the run's outcome. A deliver
 
 The payload is user-configured egress to the **user's own sink** (ntfy / Pushover / Slack/Discord webhook / Telegram bridge / any URL). It carries **run metadata only** — slice id, state, a short summary, a timestamp. **No secrets, no env, no code, no file contents** (security.md — least disclosure on an outbound channel). The opt-in `MMD_NOTIFY_URL` is the user's explicit consent to that egress.
 
+Note: `MMD_NOTIFY_URL` itself (which *may* embed a token for some sinks, e.g. a Telegram bridge) reaches the auto-dev child via the existing `MMD_*` env allowlist in `lib/invoke-autodev.js` — consistent with how every other `MMD_*` var is forwarded. The child runs the BMAD workflow, not `bin/mmd.js`'s completion paths, so it never fires a notification (no double-send). The URL is **never logged** — the best-effort failure line prints only the event name + the status/error, never the URL or the body.
+
 ### 5. Why notifications first (cleanest + safest)
 
 - **Purely additive** — it does **not** touch the auto-dev spawn. The `stream-json` context monitor *does* (it changes how the child is launched and parsed), so it is riskier and deferred.

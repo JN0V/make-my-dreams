@@ -259,9 +259,9 @@ The deeper "whose constitution governs the build" question, deferred from v0.6.a
 3. **Drift-detector precision**: historical/rejected context-awareness so archival "Files created" lists + "rejected alternative" mentions (today's 2 false positives) aren't flagged.
 - Then: Diataxis generation (§6.3 "produce" face), event-driven triggering, full autolearning reuse-counter (§6.5).
 
-**Hors-roadmap concepts Sébastien raised (NOT in MAKE_MY_DREAMS §9 — to invent, not just build). Captured here so they stop getting re-lost:**
-- **Test rationalization** — a concept DISTINCT from the Documentalist (Sébastien was emphatic: the Documentalist does NOT consolidate tests). Keep the suite healthy as it grows: dedup redundant tests, make `@smoke` a real fast-feedback subset (only ~8 today), anti-bloat / coherence pass. Not urgent (1657 tests, ~15-20 s) but unscheduled. Needs its own concept design.
-- **`/mmd` slash command in Claude Code** — `mmd` is CLI-only today (no `.claude/commands/mmd.md`); the only materialized command is `bmad-adv-auto-dev`. A `/mmd` would let a Claude session drive mmd. Thin (mmd is built for detached long runs) but a real convenience gap. Decide whether MMD wants it.
+**Hors-roadmap concepts Sébastien raised (NOT in MAKE_MY_DREAMS §9) — BOTH now shipped (he asked to bring them early):**
+- ✅ **`/mmd` slash command (v0.7.5)** — the operator playbook as a Claude Code command (`assets/claude-commands/mmd.md`, materialized by install-mmd.sh into `.claude/commands/mmd.md`). Drive MMD by intent from a session. Live in this repo (materialized).
+- ✅ **Test rationalization → the Test Curator (v0.7.6)** — `mmd test-health`, a role DISTINCT from qa/TEA/Documentalist: test-CORPUS health (stratification, untagged violations, @smoke band, oversized files), detect-and-report. **Applied**: tagged 71 untagged `@integration` tests (74→3, the 3 are curator-own fixture strings). Correction: @smoke (8) is actually within testing.md §V's 5–10 band — fine. Future Curator work: a `--fix` act-mode (auto-tag by directory stratum), dedup/coverage-overlap detection.
 
 **Full designed-vs-built roadmap audit:** run `mmd document-review` → `docs/coherence-review.md` (heuristic; corrected-by-judgment synthesis of "what remains to finalize MMD" lives in the session log: core gaps = full autolearning, Bundle A security, polymorphic Reality Check, auto-handoff@70%, Bundle C/HITL; reach = Plan-Review, Mockup, Dream Expander, Dream Delivery/Retro, parallel Conductor; far = voice/game/web-UI/gbrain).
 

@@ -538,52 +538,63 @@ function invokeSealedTester({ demoDir, prompt, logPath, timeoutMs }) {
 }
 
 /**
- * The `mmd --sealed` greenfield orchestration (SPEC_V04A AC-4):
- *   TESTER → SEAL → CODER (auto-dev) → VERIFY → re-run sealed tests → BLAST.
+ * Surface-agnostic sealed-test pipeline (v0.4.b, SPEC_V04B AC-1):
+ *   TESTER → SEAL (+ empty-seal AND incomplete-seal integrity guards)
+ *          → CODER (injected callback) → VERIFY → re-run sealed tests → BLAST.
+ *
+ * The ONLY thing that differs between the greenfield (`mmd --sealed`) and the
+ * self/brownfield (`mmd --here --sealed`) surfaces is the CODER step — so the
+ * coder is injected as an async callback `coder(sealedDir) -> invokeResult`
+ * ({ code }). Everything else (the blind tester, the hash seal, both integrity
+ * guards, tamper enforcement, the independent re-run, blast radius, and the
+ * honest failStatus/exit-6 handling at every branch) is shared here so the two
+ * surfaces never drift (universal §III DRY).
  *
  * Honest at every step (universal §VI): a tester that fails or writes nothing,
- * an empty seal, a tampered/removed sealed file, or a failing sealed test each
- * surface explicitly and mark the slice NOT done — never a silent "sealed OK".
- * A tamper/removal is the whole point (anti-P-04): MMD exits non-zero naming the
- * files and refuses to treat the slice as complete.
+ * an empty seal, a partially-hashed seal, a coder error, a tampered/removed
+ * sealed file, or a failing sealed test each surface explicitly and mark the
+ * slice NOT done — never a silent "sealed OK". A tamper/removal is the whole
+ * point (anti-P-04): MMD exits non-zero naming the files and refuses to treat
+ * the slice as complete.
  *
- * Returns an exit code (0 clean; 6 for any sealed-pipeline failure).
+ * The two surface-specific status writers are injected so each surface keeps its
+ * own status.json shape and reporting:
+ *   - failStatus(reason, elapsedSeconds): persist the `failed` state.
+ *   - onClean({ sealedCount, verdict, blastRadius, elapsedSeconds }): persist the
+ *     `done` state + emit the surface's success reporting.
+ *
+ * @param {{
+ *   targetDir: string,            // cwd for the re-run + blast-radius walk (demoDir | absTargetDir)
+ *   sealedDir: string,            // absolute path of the sealed oracle dir
+ *   dream: string,
+ *   slug: string,
+ *   slice: string|null,           // optional spec text to ground the tester (greenfield slice.md; null in --here)
+ *   logPath: string,
+ *   coder: (sealedDir: string) => Promise<{ code: number|null }>,
+ *   failStatus: (reason: string, elapsedSeconds: number) => Promise<void>,
+ *   onClean: (info: { sealedCount: number, verdict: object, blastRadius: object, elapsedSeconds: number }) => Promise<void>,
+ * }} opts
+ * @returns {Promise<number>} exit code (0 clean; 6 for any sealed-pipeline failure)
  */
-async function runSealedGreenfield({
-  demoDir, dream, slug, engine, logPath, inProgressStatus, initialEngineRecord, catchProfile,
+async function runSealedPipeline({
+  targetDir, sealedDir, dream, slug, slice = null, logPath, coder, failStatus, onClean,
 }) {
-  const sealedDir = path.join(demoDir, '.mmd', 'shared', 'sealed-tests');
   const startNs = process.hrtime.bigint();
-
-  const failStatus = async (reason) => {
-    const elapsed = Number(process.hrtime.bigint() - startNs) / 1e9;
-    await writeStatus(demoDir, {
-      ...inProgressStatus,
-      state: 'failed',
-      updated_at: nowIso(),
-      reason,
-      ...withDuration(initialEngineRecord, elapsed),
-    });
-  };
+  const elapsed = () => Number(process.hrtime.bigint() - startNs) / 1e9;
 
   stdout.write('Mode: --sealed (sealed-test oracle — tester writes blind tests, MMD seals them)\n');
 
   // ── 1. TESTER ────────────────────────────────────────────────────────────
   mkdirSync(sealedDir, { recursive: true });
-  let slice = null;
-  try {
-    slice = readFileSync(path.join(demoDir, '.mmd', 'shared', 'slice.md'), 'utf8');
-  } catch { /* no slice spec — the dream alone grounds the tester */ }
-
   const testerPrompt = buildTesterPrompt({ dream, slice, sealedDir });
   const testerLog = logPath.replace(/\.log$/, '.tester.log');
   stdout.write('Sealed step 1/5 — TESTER: deriving acceptance tests (blind to the implementation)...\n');
   const tester = invokeSealedTester({
-    demoDir, prompt: testerPrompt, logPath: testerLog,
+    demoDir: targetDir, prompt: testerPrompt, logPath: testerLog,
     timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
   });
   if (!tester.ok) {
-    await failStatus(`tester failed: ${tester.message}`);
+    await failStatus(`tester failed: ${tester.message}`, elapsed());
     stderr.write(`error: --sealed ${tester.message}. See ${testerLog}\n`);
     return 6;
   }
@@ -595,7 +606,7 @@ async function runSealedGreenfield({
   const sealedCount = Object.keys(manifest).length;
   if (sealedCount === 0) {
     // Empty seal: the tester exited 0 but wrote no tests. NOT a silent pass.
-    await failStatus('empty seal: tester wrote no acceptance tests');
+    await failStatus('empty seal: tester wrote no acceptance tests', elapsed());
     stderr.write(
       `error: --sealed empty seal — the tester wrote no test files into ${sealedDir}. ` +
         `Refusing to proceed (an empty oracle proves nothing). See ${testerLog}\n`,
@@ -609,7 +620,7 @@ async function runSealedGreenfield({
   // than seal a partial oracle (universal §VI: never a silent sealed-OK).
   const sealedOnDisk = listFilesRelSync(sealedDir).length;
   if (sealedOnDisk !== sealedCount) {
-    await failStatus(`seal incomplete: ${sealedOnDisk - sealedCount} sealed file(s) could not be hashed`);
+    await failStatus(`seal incomplete: ${sealedOnDisk - sealedCount} sealed file(s) could not be hashed`, elapsed());
     stderr.write(
       `error: --sealed seal incomplete — ${sealedOnDisk} file(s) on disk but only ${sealedCount} hashed; ` +
         `an unhashed sealed file would be unprotected. Refusing to proceed. See ${testerLog}\n`,
@@ -618,27 +629,18 @@ async function runSealedGreenfield({
   }
   stdout.write(`Sealed step 2/5 — SEAL: ${sealedCount} test file(s) hashed (read-only oracle).\n`);
 
-  // ── 3. CODER (existing auto-dev, told the sealed dir is read-only) ─────────
+  // ── 3. CODER (injected — greenfield auto-dev or --here auto-dev) ───────────
   stdout.write('Sealed step 3/5 — CODER: running auto-dev against the sealed oracle...\n');
-  const coderPrompt = buildCoderPrompt({ dream, slug, demoDir, sealedDir, engine });
   let invokeResult;
   try {
-    invokeResult = await invokeAutodev({
-      demoDir,
-      dream,
-      slug,
-      promptParts: { dream, slug, demoDir, prompt: coderPrompt },
-      logPath,
-      timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
-      engine,
-    });
+    invokeResult = await coder(sealedDir);
   } catch (err) {
-    await failStatus(`coder invocation failed: ${err.message}`);
+    await failStatus(`coder invocation failed: ${err.message}`, elapsed());
     stderr.write(`auto-dev (coder) invocation failed: ${err.message}. See ${logPath}\n`);
     return err.mmdExitCode ?? 6;
   }
   if (invokeResult.code !== 0) {
-    await failStatus(`coder exited ${invokeResult.code}`);
+    await failStatus(`coder exited ${invokeResult.code}`, elapsed());
     stderr.write(`auto-dev (coder) exited with code ${invokeResult.code}. See ${logPath}\n`);
     return 6;
   }
@@ -649,7 +651,7 @@ async function runSealedGreenfield({
     const tampered = verdict.tampered.map((f) => `tampered: ${f}`);
     const removed = verdict.removed.map((f) => `removed:  ${f}`);
     const named = [...tampered, ...removed].join('\n  ');
-    await failStatus(`SEAL BROKEN — ${verdict.tampered.length} tampered, ${verdict.removed.length} removed`);
+    await failStatus(`SEAL BROKEN — ${verdict.tampered.length} tampered, ${verdict.removed.length} removed`, elapsed());
     stderr.write(
       `error: --sealed SEAL BROKEN — the coder modified the read-only oracle (P-04).\n` +
         `  ${named}\n` +
@@ -665,18 +667,18 @@ async function runSealedGreenfield({
   // ── 4b. Re-run the sealed tests as the independent oracle ──────────────────
   const sealedFiles = listFilesRelSync(sealedDir).map((rel) => path.join(sealedDir, rel));
   const run = spawnSync('node', ['--test', ...sealedFiles], {
-    cwd: demoDir,
+    cwd: targetDir,
     env: buildSubprocessEnv(process.env),
     encoding: 'utf8',
     timeout: 120_000,
   });
   if (run.error) {
-    await failStatus(`could not run sealed tests: ${run.error.message}`);
+    await failStatus(`could not run sealed tests: ${run.error.message}`, elapsed());
     stderr.write(`error: --sealed could not run the sealed tests: ${run.error.message}\n`);
     return 6;
   }
   if (run.status !== 0) {
-    await failStatus(`sealed tests failed (exit ${run.status})`);
+    await failStatus(`sealed tests failed (exit ${run.status})`, elapsed());
     stderr.write(
       `error: --sealed the sealed tests FAILED (exit ${run.status}) — the implementation does ` +
         `not satisfy the independent oracle. The slice is flagged.\n` +
@@ -687,11 +689,11 @@ async function runSealedGreenfield({
   stdout.write('Sealed step 4/5 — ORACLE re-run: sealed tests PASS (independent verification).\n');
 
   // ── 5. BLAST RADIUS (stub, advisory) → status.json.blast_radius ────────────
-  const changedFiles = listFilesRelSync(demoDir, { skipDirs: ['.mmd', 'node_modules', '.git'] });
+  const changedFiles = listFilesRelSync(targetDir, { skipDirs: ['.mmd', 'node_modules', '.git'] });
   const blastRadius = computeBlastRadius(changedFiles, {
-    listFiles: () => listFilesRelSync(demoDir, { skipDirs: ['.mmd', 'node_modules', '.git'] }),
+    listFiles: () => listFilesRelSync(targetDir, { skipDirs: ['.mmd', 'node_modules', '.git'] }),
     readFile: (rel) => {
-      try { return readFileSync(path.join(demoDir, rel), 'utf8'); } catch { return ''; }
+      try { return readFileSync(path.join(targetDir, rel), 'utf8'); } catch { return ''; }
     },
   });
   stdout.write(
@@ -699,23 +701,76 @@ async function runSealedGreenfield({
       `${blastRadius.importers.length} direct importer(s) (stub; AST in v0.5).\n`,
   );
 
-  const elapsedSeconds = Number(process.hrtime.bigint() - startNs) / 1e9;
-  await writeStatus(demoDir, {
-    slice_id: slug,
-    dream,
-    state: 'done',
-    created_at: inProgressStatus.created_at,
-    updated_at: nowIso(),
-    tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
-    ...(catchProfile ? { profile: catchProfile } : {}),
-    sealed: { sealed_files: sealedCount, added: verdict.added },
-    blast_radius: blastRadius,
-    ...withDuration(initialEngineRecord, elapsedSeconds),
-  });
-  stdout.write(
-    `[OK] Sealed run delivered at ${demoDir}. The sealed oracle was intact and passed.\n`,
-  );
+  await onClean({ sealedCount, verdict, blastRadius, elapsedSeconds: elapsed() });
   return 0;
+}
+
+/**
+ * The `mmd --sealed` greenfield orchestration (SPEC_V04A AC-4): a thin wrapper
+ * over runSealedPipeline (v0.4.b AC-1) that injects the greenfield CODER
+ * (buildCoderPrompt + invokeAutodev on demoDir) and the greenfield status
+ * writers. Behaviour is byte-for-byte unchanged from v0.4.a — the v0.4.a
+ * greenfield `--sealed` integration tests are the regression guard.
+ *
+ * Returns an exit code (0 clean; 6 for any sealed-pipeline failure).
+ */
+async function runSealedGreenfield({
+  demoDir, dream, slug, engine, logPath, inProgressStatus, initialEngineRecord, catchProfile,
+}) {
+  const sealedDir = path.join(demoDir, '.mmd', 'shared', 'sealed-tests');
+  // Greenfield grounds the tester on slice.md when present (the dream alone
+  // otherwise). The --here surface has no slice.md and passes null.
+  let slice = null;
+  try {
+    slice = readFileSync(path.join(demoDir, '.mmd', 'shared', 'slice.md'), 'utf8');
+  } catch { /* no slice spec — the dream alone grounds the tester */ }
+
+  return runSealedPipeline({
+    targetDir: demoDir,
+    sealedDir,
+    dream,
+    slug,
+    slice,
+    logPath,
+    coder: (sealedDirArg) => {
+      const coderPrompt = buildCoderPrompt({ dream, slug, demoDir, sealedDir: sealedDirArg, engine });
+      return invokeAutodev({
+        demoDir,
+        dream,
+        slug,
+        promptParts: { dream, slug, demoDir, prompt: coderPrompt },
+        logPath,
+        timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+        engine,
+      });
+    },
+    failStatus: async (reason, elapsedSeconds) => {
+      await writeStatus(demoDir, {
+        ...inProgressStatus,
+        state: 'failed',
+        updated_at: nowIso(),
+        reason,
+        ...withDuration(initialEngineRecord, elapsedSeconds),
+      });
+    },
+    onClean: async ({ sealedCount, verdict, blastRadius, elapsedSeconds }) => {
+      await writeStatus(demoDir, {
+        slice_id: slug,
+        dream,
+        state: 'done',
+        created_at: inProgressStatus.created_at,
+        updated_at: nowIso(),
+        tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
+        ...(catchProfile ? { profile: catchProfile } : {}),
+        sealed: { sealed_files: sealedCount, added: verdict.added },
+        blast_radius: blastRadius,
+        ...withDuration(initialEngineRecord, elapsedSeconds),
+      });
+      stdout.write(
+        `[OK] Sealed run delivered at ${demoDir}. The sealed oracle was intact and passed.\n`,
+      );
+    },
+  });
 }
 
 async function main() {

@@ -276,6 +276,24 @@ mmd discover --approve .
 mmd --here "your first small change"
 ```
 
+### Using MMD on your own repo — *new in v0.6.a*
+
+You don't have to run the installer by hand. On a real app that MMD has never touched, `mmd discover` now **names the stack it scanned** — a Node/Python/Go/Rust project comes back as **`brownfield-app`** (not the old, misleading `blank`; a genuinely empty repo still reports `blank`). And the first time you run `mmd --here` on a repo that isn't set up yet, MMD **offers to set it up for you**:
+
+```bash
+cd /your/project
+mmd discover .                       # detected case = brownfield-app
+mmd discover --approve .
+mmd --here "your first small change"
+#  MMD isn't set up in this repo yet. Missing:
+#    • the project constitution (.specify/memory/constitution.md)
+#    • the MMD auto-dev workflow (…)
+#  Run setup now? [o/N] o          ← one confirmation; then it runs install-mmd.sh,
+#                                     prints the env-var cheat-sheet, and continues
+```
+
+In a terminal you confirm once; under `mmd serve` / CI (no TTY) the setup runs automatically with a logged line. Declining (or a setup failure) aborts with **exit 8** and a pointer to `install-mmd.sh .` — MMD never launches inert. **If your repo already has a `.specify/memory/constitution.md`, MMD leaves it untouched** — it never overwrites your project's own rules. After setup you'll see the cheat-sheet of the non-obvious operational rules (`MMD_TIMEOUT_MS=0` for real slices, the "spec is frozen, go directly to implementation" dream directive, commit-per-AC, and the opt-in `--sealed` / `--monitor` / `MMD_NOTIFY_URL` switches). Bypass the guard with `MMD_SKIP_SETUP=1`. See [ADR-032](./docs/adr/032-transparent-first-run-setup.md).
+
 ### Ship mode (`mmd ship`) — *new in v0.2.f*
 
 `mmd ship` invokes the gStack [`ship`](https://github.com/garrytan/gstack) skill on the current slice branch via `claude -p`. It replaces the manual `git merge --ff-only && git tag && git push --tags && git push --tags` chain that has been used for v0.1.0 → v0.2.2 releases with a richer workflow: merge-base verify, semver bump from diff, CHANGELOG update, squash WIP commits, push, PR creation, analytics persist.

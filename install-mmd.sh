@@ -1132,6 +1132,7 @@ ok "Generated: .claude/commands/bmad-${ADV_CODE}-auto-dev.md"
 # uses). If the source is missing (e.g. the script was curl'd standalone, away
 # from a full checkout) we skip with an honest warning rather than fabricate the
 # file (universal §VI).
+# >>> MMD_SLASH_COMMAND_MATERIALIZE_BEGIN
 MMD_CMD_SRC="$MMD_SRC_DIR/assets/claude-commands/mmd.md"
 MMD_CMD_DST="$TARGET/.claude/commands/mmd.md"
 if [ -f "$MMD_CMD_SRC" ]; then
@@ -1142,6 +1143,7 @@ else
     warn "/mmd source not found at $MMD_CMD_SRC — skipping .claude/commands/mmd.md."
     info "Run install-mmd.sh from a full MMD checkout to materialize the /mmd slash command."
 fi
+# >>> MMD_SLASH_COMMAND_MATERIALIZE_END
 
 # ============================================================================
 # PHASE 4: gStack functional verify (v0.2.f — AC-2; moved ahead of the pillar

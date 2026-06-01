@@ -19,13 +19,13 @@
 - **Version**: `0.7.1` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 35 (ADR-001..ADR-035)
-- **Tests**: 1616 passing
+- **Tests**: 1597 passing
 - **Recent commits**:
+  - `c4b12e8 docs(v0.7.1): refresh changelog + mechanical blocks at v0.7.1 / 1616 tests`
   - `25d0c68 test(v0.7.b): add F4 coverage (by/until vX is a current claim) + refresh blocks to 1597`
   - `c4c88ee docs(v0.7.b): refresh mechanical blocks to 1596 tests + regenerate coherence dashboard`
   - `a68bb85 fix(v0.7.b): Phase-4 adversarial review fixes — precision guard + honest result docs`
   - `0684c91 docs(v0.7.b): ADR-035 + README/CLAUDE/HANDOVER drift docs, bump 0.7.1 (AC-5)`
-  - `da268b7 test(v0.7.b): integration coverage for the Drift section — recall + precision + read-only (AC-4)`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

@@ -15,9 +15,9 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
-import { mkdtempSync, rmSync, readdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir, platform } from 'node:os';
 import path from 'node:path';
 
@@ -99,6 +99,25 @@ function readRunLog(tmp) {
   return logs.map((f) => readFileSync(path.join(runs, f), 'utf8')).join('\n');
 }
 
+function git(args, cwd) {
+  const r = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  if (r.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${r.stderr}`);
+  return r.stdout;
+}
+
+function initCleanRepo(dir) {
+  mkdirSync(dir, { recursive: true });
+  git(['init', '-q', '-b', 'main'], dir);
+  writeFileSync(path.join(dir, 'README.md'), '# tmp repo\n');
+  git(['add', 'README.md'], dir);
+  git(['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-m', 'init', '-q'], dir);
+  return dir;
+}
+
+function readStatusAt(dir) {
+  return JSON.parse(readFileSync(path.join(dir, '.mmd', 'shared', 'status.json'), 'utf8'));
+}
+
 const DREAM = 'a tiny counter app with two buttons';
 
 // AC-3 + AC-5 — monitor writes status.json.context and re-renders readable progress.
@@ -175,6 +194,38 @@ test('@integration AC-4: custom MMD_HANDOFF_THRESHOLD=0.79 is honored', { skip: 
     assert.equal(status.ready_for_handoff.tokens, 800000);
     const context70 = srv.requests.filter((q) => q.body && q.body.event === 'context_70');
     assert.equal(context70.length, 1, 'still fires exactly once under a custom threshold');
+  } finally {
+    await srv.close();
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+// AC-3/AC-4 — the monitor also works on --here (not only greenfield). The
+// --here wiring mirrors the greenfield one, so prove it end-to-end too.
+test('@integration AC-3/AC-4: --here --monitor writes status.json.context and fires context_70 once', { skip: SKIP_ON_WINDOWS }, async () => {
+  const srv = await startCaptureServer();
+  const tmp = makeTmp();
+  try {
+    initCleanRepo(tmp);
+    const r = await runMmd(['--here', '--monitor', 'add a comment line at the top of README.md'], {
+      cwd: tmp,
+      env: {
+        MMD_NOTIFY_URL: srv.url,
+        GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t',
+        GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t',
+      },
+    });
+    assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}`);
+
+    const status = readStatusAt(tmp);
+    assert.ok(status.context, '--here status.json.context is present');
+    assert.equal(status.context.window, 1_000_000);
+    assert.equal(status.context.tokens, 800000, 'running MAX on --here too');
+    assert.ok(status.ready_for_handoff, '--here READY_FOR_HANDOFF marker written');
+
+    const context70 = srv.requests.filter((q) => q.body && q.body.event === 'context_70');
+    assert.equal(context70.length, 1, 'context_70 fired exactly once on --here');
+    assert.match(status.slice_id, /counter|comment|readme/i); // sanity: a slice id exists
   } finally {
     await srv.close();
     rmSync(tmp, { recursive: true, force: true });

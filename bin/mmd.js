@@ -89,6 +89,10 @@ Mode flags (orthogonal to engine):
                                        Works on greenfield AND with --here (v0.4.b) — so an MMD
                                        slice can seal-test its own change.
   --here                               Self / brownfield-in-place: modify cwd, no demo/<slug>/ scaffold (v0.2a)
+  --monitor                            Opt-in live context monitor (v0.5.b): spawn auto-dev in stream-json,
+                                       report the orchestrator's context % to status.json.context, and at
+                                       MMD_HANDOFF_THRESHOLD (default 0.70) emit a READY_FOR_HANDOFF signal +
+                                       a context_70 notification. Default spawn is unchanged when absent.
   --label <name>                       Human-readable branch name for --here (e.g. --label wip-salvage); else derived from the dream
   --skip-onboarding                    Bypass the v0.2c Project Onboarder gate (NOT RECOMMENDED)
 
@@ -124,6 +128,8 @@ Environment variables:
                                        Best-effort: a delivery failure never changes the run's
                                        outcome. Unset = no network call (the default).
                                        Example: MMD_NOTIFY_URL=https://ntfy.sh/<your-topic>
+  MMD_HANDOFF_THRESHOLD                Context % that triggers the --monitor READY_FOR_HANDOFF signal +
+                                       context_70 notification (v0.5.b). Default 0.70; honored when in (0,1].
 `;
 
 function nowIso() {
@@ -1259,6 +1265,18 @@ async function main() {
   if (dream.length > dreamMaxLen) {
     stderr.write(`error: dream string too long (max ${dreamMaxLen} chars)\n`);
     return 2;
+  }
+
+  // v0.5.b — the sealed pipeline short-circuits before the monitor is wired on
+  // both surfaces, so --monitor + --sealed silently does no monitoring. The
+  // flags parse together (no mutex), so say so out loud rather than ignore the
+  // user's request in silence (universal.md §VI; ADR-030 §Consequences).
+  if (flags.monitor && flags.sealed) {
+    stderr.write(
+      'note: --monitor is not active under --sealed in v0.5.b (the sealed ' +
+        'pipeline owns its own spawn); the run proceeds sealed, without the ' +
+        'context monitor. See ADR-030.\n',
+    );
   }
 
   let slug;

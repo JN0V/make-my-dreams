@@ -542,6 +542,19 @@ mmd document-compact --help
 
 New SPECs still land at the repo root per slice; a later `mmd document-compact` archives the shipped ones (the periodic-consolidation model). Shipped SPECs therefore live under `docs/specs/`. See [ADR-036](./docs/adr/036-documentalist-active-compaction.md).
 
+### Coherence graph — staleness-on-diff (`mmd document-review --since <ref>`) — *new in v0.7.d*
+
+The structural answer to "change one of doc/code/ADR, and the other two silently go stale." `mmd document-review --since <ref>` takes your slice's diff, walks a **derived** coherence graph from the changed files, and tells you the **coupled neighbors to review** — *"change one node, know which neighbors need a look."*
+
+```bash
+mmd document-review --since main       # what else does my branch's diff touch?
+mmd document-review --since HEAD~1      # couple the last commit's changes
+```
+
+The golden rule is **derive, never maintain** — a hand-kept "these relate" map rots the day you write it. The graph is composed from edges that **already exist for free**: `computeBlastRadius` (the resolved import graph, ADR-027) supplies code↔code import edges, the v0.7.b `doc-refs` extractor supplies doc→code references, and a new doc-links extractor supplies doc↔doc links (`[[wiki]]`, `ADR-NNN`, relative `.md` links). Two new **pure** modules — `lib/documentalist/doc-links.js` and `lib/documentalist/coherence-graph.js` — build one **file-level, bidirectional** graph (each edge keeps its kind) and walk it: `coupledNeighbors` returns, per changed file, its neighbors **ranked strong (a direct import/ref/link) before weak (a 2-hop transitive neighbor)**, deduped, excluding the changed set.
+
+It is a **READ-ONLY query**: `--since` prints the "Coupled changes" report to stdout and **writes nothing** — it does NOT rewrite `docs/coherence-review.md` (an integration test pins the clean tree), and the no-flag dashboard is byte-for-byte unchanged. A bad/unknown ref or a non-git repo → an honest non-zero exit, never a crash. **Precision-first** (a graph that cries wolf is useless): edges are kept only to real tracked files (no phantom neighbors), and **hub suppression** stops the walk from transiting *through* a high-degree doc (CLAUDE.md/HANDOVER.md reference dozens of ADRs) so a change near one doesn't weak-flag the whole repo. **Advisory + ranked, never a hard gate** (coupling ≠ certainty — review, don't obey). This is exactly what would have caught the v0.7.c coupled-test break (the moved SPECs ↔ the inventory test) *before* it went red. Symbol-level granularity, the semantic `@mmd:link` anchor, the Mermaid mind-map render, and git co-change edges are deliberately deferred (file-level + the diff check is ~80% of the value). See [ADR-037](./docs/adr/037-coherence-graph-staleness.md).
+
 ### Web mode (no terminal — for non-technical users)  — *new in v0.2.5*
 
 ```bash

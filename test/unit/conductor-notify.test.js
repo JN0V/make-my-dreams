@@ -192,3 +192,24 @@ test('@unit AC-2: timeout aborts the in-flight request (AbortController wired)',
   assert.deepEqual(r, { ok: false, error: 'timeout' });
   assert.equal(abortSeen, true, 'the request was aborted on timeout');
 });
+
+// ── v0.5.b — the context_70 early-warning event (SPEC_V05B AC-4) ────────────
+test('@unit AC-4: context_70 builds a ⚠️ READY_FOR_HANDOFF message, keeps the metadata-only shape', () => {
+  const n = buildNotification({
+    event: 'context_70',
+    slice: 'slice/here-live-context-monitor-123',
+    state: 'in_progress',
+    summary: '72.0% (720000/1000000)',
+    env: { MMD_NOTIFY_URL: 'http://x' },
+  });
+  const parsed = JSON.parse(n.body);
+  assert.equal(parsed.event, 'context_70', 'context_70 is a recognized event (not coerced to run_done)');
+  assert.match(parsed.message, /⚠️/);
+  assert.match(parsed.message, /READY_FOR_HANDOFF/);
+  assert.match(parsed.message, /72\.0%/);
+  // Same metadata-only body keys as run_done/run_failed (no secrets/env leak).
+  assert.deepEqual(
+    Object.keys(parsed).sort(),
+    ['event', 'message', 'slice', 'state', 'summary', 'ts'].sort(),
+  );
+});

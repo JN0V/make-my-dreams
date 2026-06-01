@@ -158,6 +158,91 @@ async function maybeNotify({ event, slice, state, summary }) {
 }
 
 /**
+ * v0.5.b — resolve the context handoff threshold (SPEC_V05B AC-4). Default 0.70;
+ * a custom MMD_HANDOFF_THRESHOLD in (0, 1] is honored. Anything out of range or
+ * non-numeric falls back to the default (never a fabricated/garbage threshold).
+ *
+ * @param {Record<string,string|undefined>} [envObj]
+ * @returns {number}
+ */
+function handoffThreshold(envObj = env) {
+  const raw = Number(envObj.MMD_HANDOFF_THRESHOLD);
+  return Number.isFinite(raw) && raw > 0 && raw <= 1 ? raw : 0.70;
+}
+
+/**
+ * v0.5.b — wire the live context monitor (SPEC_V05B AC-3/AC-4). Returns an
+ * `onContext` callback for invokeAutodev plus `drain()` / `finalFields()` for
+ * the caller's completion path.
+ *
+ *  - `onContext({model, window, tokens, pct, estimated})` is invoked on each new
+ *    running-max context reading. It accumulates the latest `context` (and, once
+ *    the threshold is first crossed, a `ready_for_handoff` marker) and writes
+ *    them to status.json live via the caller's `writeIntermediate(fields)`.
+ *  - At the threshold (first crossing only — debounced), it logs a READY_FOR_
+ *    HANDOFF line and fires the `context_70` notification ONCE (no-op unless
+ *    MMD_NOTIFY_URL is set). It does NOT stop the run (no auto-handoff yet).
+ *  - `drain()` awaits the chained best-effort writes/notify so the caller can
+ *    flush them before its final writeStatus.
+ *  - `finalFields()` returns `{ context?, ready_for_handoff? }` to spread into
+ *    the final done/failed status so the live state is not lost on overwrite.
+ *
+ * All side effects are best-effort: a status-write or notify fault is swallowed
+ * and NEVER changes the run's exit code (error-handling.md; mirrors maybeNotify).
+ *
+ * @param {{ slice: string, writeIntermediate: (fields: object) => Promise<void> }} a
+ */
+function makeContextMonitor({ slice, writeIntermediate }) {
+  const threshold = handoffThreshold();
+  const accumulated = {};
+  let notified = false;
+  let pending = Promise.resolve();
+
+  const onContext = (ctx) => {
+    accumulated.context = ctx;
+
+    if (ctx.pct >= threshold && !notified) {
+      notified = true;
+      accumulated.ready_for_handoff = {
+        at: nowIso(),
+        threshold,
+        pct: ctx.pct,
+        tokens: ctx.tokens,
+        window: ctx.window,
+        model: ctx.model,
+        estimated: ctx.estimated,
+      };
+      stdout.write(
+        `[monitor] READY_FOR_HANDOFF — orchestrator context ` +
+          `${(ctx.pct * 100).toFixed(1)}% (${ctx.tokens}/${ctx.window}) ` +
+          `≥ ${(threshold * 100).toFixed(0)}% threshold. Run continues (no auto-handoff yet).\n`,
+      );
+      pending = pending
+        .then(() =>
+          maybeNotify({
+            event: 'context_70',
+            slice,
+            state: 'in_progress',
+            summary: `${(ctx.pct * 100).toFixed(1)}% (${ctx.tokens}/${ctx.window})`,
+          }),
+        )
+        .catch(() => {});
+    }
+
+    // Live status.json update (best-effort). Snapshot accumulated so a later
+    // context-only update never drops a ready_for_handoff written earlier.
+    const fields = { ...accumulated };
+    pending = pending.then(() => writeIntermediate(fields)).catch(() => {});
+  };
+
+  return {
+    onContext,
+    drain: () => pending,
+    finalFields: () => ({ ...accumulated }),
+  };
+}
+
+/**
  * v0.5.a — the repo's most recent tag, or null if there is none / git is
  * unavailable. Used only to enrich the `done` notification summary; best-effort,
  * never throws (a missing tag is the common case for a fresh greenfield app).
@@ -247,7 +332,7 @@ async function resolveExistingChoice(flags) {
  *   - Reality Check is short-circuited (AC-6).
  *   - status.json carries mode/target_dir/slice_branch/base_branch/base_sha (AC-5).
  */
-async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, engine, skipOnboarding, sealed = false }) {
+async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, engine, skipOnboarding, sealed = false, monitor = false }) {
   // F2 (Phase 4 review): canonicalize the target dir via fs.realpath so we
   // do NOT record a symlinked path in status.json (audit trail integrity)
   // while git operates on the real path. path.resolve alone does not follow
@@ -484,6 +569,17 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
   // AC-4 — build the in-place prompt for auto-dev (no demo/ scaffold).
   const herePrompt = buildHerePrompt({ dream, sliceBranch, targetDir: absTargetDir, engine });
 
+  // v0.5.b — opt-in live context monitor (SPEC_V05B). When --monitor is set the
+  // spawn switches to stream-json and onContext writes status.json.context live
+  // + fires the 70% signal. Absent → null and the spawn is unchanged.
+  const hereMonitor = monitor
+    ? makeContextMonitor({
+        slice: sliceBranch,
+        writeIntermediate: (fields) =>
+          writeStatus(absTargetDir, { ...inProgressStatus, updated_at: nowIso(), ...fields }),
+      })
+    : null;
+
   const startNs = process.hrtime.bigint();
   let invokeResult;
   try {
@@ -495,13 +591,17 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
       logPath,
       timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
       engine,
+      monitor,
+      onContext: hereMonitor ? hereMonitor.onContext : undefined,
     });
   } catch (err) {
     const elapsedFail = Number(process.hrtime.bigint() - startNs) / 1e9;
+    if (hereMonitor) await hereMonitor.drain();
     await writeStatus(absTargetDir, {
       ...inProgressStatus,
       state: 'failed',
       updated_at: nowIso(),
+      ...(hereMonitor ? hereMonitor.finalFields() : {}),
       ...withDuration(initialEngineRecord, elapsedFail),
     });
     stderr.write(`auto-dev invocation failed: ${err.message}. See ${logPath}\n`);
@@ -529,11 +629,13 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
   }
 
   const { code } = invokeResult;
+  if (hereMonitor) await hereMonitor.drain();
   if (code !== 0) {
     await writeStatus(absTargetDir, {
       ...inProgressStatus,
       state: 'failed',
       updated_at: nowIso(),
+      ...(hereMonitor ? hereMonitor.finalFields() : {}),
       ...finalEngineRecord,
     });
     stderr.write(`auto-dev exited with code ${code}. See ${logPath}\n`);
@@ -563,6 +665,7 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
     state: 'done',
     updated_at: nowIso(),
     tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
+    ...(hereMonitor ? hereMonitor.finalFields() : {}),
     ...finalEngineRecord,
   });
   const hereTag = latestTagOrNull(absTargetDir);
@@ -1178,7 +1281,7 @@ async function main() {
   // No demo/<slug>/ is created; state files live under <cwd>/.mmd/shared/.
   // The greenfield path below is unchanged when --here is absent.
   if (flags.here) {
-    return runHereMode({ cwd: cwd(), dream, slug, branchSlug, engine, skipOnboarding, sealed: flags.sealed });
+    return runHereMode({ cwd: cwd(), dream, slug, branchSlug, engine, skipOnboarding, sealed: flags.sealed, monitor: flags.monitor });
   }
 
   // v0.3.b AC-3: `--catch` forces the interactive Dream Catcher dialogue, which
@@ -1362,6 +1465,17 @@ async function main() {
   // AC-5 + AC-6: time the auto-dev invocation for engine_metrics.duration_seconds
   // and the FAST soft-budget warning. Use a monotonic clock so wall-clock drift
   // can't produce nonsense durations.
+  // v0.5.b — opt-in live context monitor on the greenfield path (SPEC_V05B).
+  // Mirrors the --here wiring: stream-json spawn + live status.json.context +
+  // 70% signal when --monitor is set; null (and an unchanged spawn) otherwise.
+  const greenfieldMonitor = flags.monitor
+    ? makeContextMonitor({
+        slice: slug,
+        writeIntermediate: (fields) =>
+          writeStatus(demoDir, { ...inProgressStatus, updated_at: nowIso(), ...fields }),
+      })
+    : null;
+
   const startNs = process.hrtime.bigint();
   let invokeResult;
   try {
@@ -1373,13 +1487,17 @@ async function main() {
       logPath,
       timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
       engine,
+      monitor: flags.monitor,
+      onContext: greenfieldMonitor ? greenfieldMonitor.onContext : undefined,
     });
   } catch (err) {
     const elapsedFail = Number(process.hrtime.bigint() - startNs) / 1e9;
+    if (greenfieldMonitor) await greenfieldMonitor.drain();
     await writeStatus(demoDir, {
       ...inProgressStatus,
       state: 'failed',
       updated_at: nowIso(),
+      ...(greenfieldMonitor ? greenfieldMonitor.finalFields() : {}),
       ...withDuration(initialEngineRecord, elapsedFail),
     });
     stderr.write(`auto-dev invocation failed: ${err.message}. See ${logPath}\n`);
@@ -1409,11 +1527,13 @@ async function main() {
   }
 
   const { code } = invokeResult;
+  if (greenfieldMonitor) await greenfieldMonitor.drain();
   if (code !== 0) {
     await writeStatus(demoDir, {
       ...inProgressStatus,
       state: 'failed',
       updated_at: nowIso(),
+      ...(greenfieldMonitor ? greenfieldMonitor.finalFields() : {}),
       ...finalEngineRecord,
     });
     stderr.write(`auto-dev exited with code ${code}. See ${logPath}\n`);
@@ -1447,6 +1567,7 @@ async function main() {
     updated_at: nowIso(),
     tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
     ...(catchProfile ? { profile: catchProfile } : {}),
+    ...(greenfieldMonitor ? greenfieldMonitor.finalFields() : {}),
     ...finalEngineRecord,
   });
   const greenfieldTag = latestTagOrNull(cwd());

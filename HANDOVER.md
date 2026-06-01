@@ -19,13 +19,13 @@
 - **Version**: `0.6.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 32 (ADR-001..ADR-032)
-- **Tests**: 1490 passing
+- **Tests**: 1496 passing
 - **Recent commits**:
+  - `b4690b3 fix(v0.6.a): refuse first-run setup on a dirty tree before writing (Phase-4 F7)`
+  - `96452c9 fix(v0.6.a): commit first-run setup before the clean-tree check (Phase-4 F1)`
+  - `f6eb252 docs(v0.6.a): refresh README + HANDOVER mechanical blocks (AC-5)`
   - `c20ac35 test(v0.6.a): re-bless version-pinned assertions for 0.6.0`
   - `fc7d535 docs(v0.6.a): ADR-032 + README/CLAUDE "Using MMD on your own repo" + bump 0.6.0 (AC-5)`
-  - `e036fbf feat(v0.6.a): wire the first-run setup guard into mmd --here (AC-3)`
-  - `4ecda80 feat(v0.6.a): runFirstRunSetup — the transparent first-run guard (AC-3, lib)`
-  - `4f97867 feat(v0.6.a): onboarding cheat-sheet — surface the operational tribal knowledge (AC-4)`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -162,17 +162,21 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 
 ---
 
-## NEXT PRIORITY (scoped 2026-06-01) — third-party readiness (install + onboarding)
+## JUST LANDED — v0.6.0 (v0.6.a): third-party readiness (transparent first-run setup + brownfield detection)
 
-**The real missing link toward "usable on any project"** (MMD is proven on exactly ONE brownfield repo: itself). Build this in a FRESH session (context was full when scoped). Empirically probed on a throwaway Node repo (`git init` + package.json + index.js):
+**MMD now works on a repo other than itself, with no new command to learn.** Implemented per SPEC_V06A.md (frozen), 6 ACs, via the 27th reflexive `mmd --here`. What shipped:
+- **AC-1 — `classify` names the scanned stack.** New `brownfield-app` case in `lib/discover/classify.js` (recognized stack via `frameworks.language` OR `languages` non-empty, no SDD methodology), distinct from `blank` (genuinely empty/unstructured). Priority below `rich`/`bmad-alone`, above `blank`; malformed input still → `blank`. The `blank` fixture was gutted to a truly stackless repo; a new `brownfield-node` fixture covers the positive case.
+- **AC-2/3/4 — transparent first-run setup guard** (`lib/onboarding/{detect,setup,cheatsheet}.js`, wired into `runHereMode` before the gate): pure `detectMmdSetup` probe → `runFirstRunSetup` (injected confirm/runner/preflight) → TTY confirm / non-TTY auto / decline-or-failure → **exit 8** (never inert) / `MMD_SKIP_SETUP=1` bypass / already-ready no-op (constitution never overwritten). A successful setup is committed on the base branch before the clean-tree check; a dirty tree is refused first (exit 4). The cheat-sheet surfaces the operational tribal knowledge once after setup.
+- **AC-5 — docs:** ADR-032, README "Using MMD on your own repo", CLAUDE.md working-agreement bullet; mechanical blocks refreshed; bumped to 0.6.0.
 
-**Confirmed gaps:**
-1. **`mmd discover` mis-detects project type.** On a repo with `package.json` + `index.js` it reported `detected case = blank` (should be "Node/brownfield app"). The discover entry WORKS + writes the report + no crash (good), but the inference is wrong for real projects → fix the project-type detection in the discover INFER step.
-2. **Structural setup is absent in a fresh repo (known):** no `.specify/memory/` (constitution + `constitution-bindings.yaml`), no per-repo auto-dev wiring. So `mmd --here` there → the Layer-C composer falls back to the minimal line (graceful, v0.3.c) but the profile→constitution binding is INERT (no modules to bind). `install-mmd.sh` must run IN the target repo first — but that's undocumented friction.
-3. **Operational gotchas are tribal knowledge:** `MMD_TIMEOUT_MS=0`, the spec-frozen dream directive, commit-incrementally, `--sealed`/`--monitor`/`MMD_NOTIFY_URL` — a third-party user has zero guidance.
+**Phase-4 adversarial review (2 iterations):** found + fixed F1 (CRITICAL — setup wrote files but didn't commit → the next clean-tree check aborted exit 4, defeating AC-6), F3 (signal-kill reporting), F7 (MEDIUM — `git add -A` could sweep a user's uncommitted work; now refused on a dirty tree before writing). Exit condition reached: **0 Critical / 0 High** (F8/F9 documented as accepted LOW limits in ADR-032). Full suite **1496/1496** green.
 
-**Proposed slice (v0.6.0 candidate — "third-party readiness"), design conversation FIRST then SPEC:**
-- Fix `mmd discover` INFER project-type (Node/Python/etc. from manifests) so the gate + report are accurate.
-- A first-run path: when `mmd --here`/`mmd <dream>` runs on a repo lacking `.specify/memory/`, detect it and either auto-set-up (run the constitution-install step) or warn + point to `install-mmd.sh .` — never silently run with an inert constitution.
-- Consider an `mmd init` (or fold into `discover`) that bundles install + onboarding for a new project, and surfaces the key env vars/flags.
-- **Validate by actually running the full flow on a REAL non-MMD repo** (the dream-bench cross-project test the roadmap never ran). This slice's DoD MUST include a green end-to-end on a third-party repo, not just MMD itself.
+**AC-6 status (honest — universal §VI / L-004).** The cross-project flow is proven **green by an automated scripted end-to-end** (`test/integration/here-setup-commit-flow.test.js`): on a fresh non-MMD repo (`git init` + package.json + index.js, no `.specify/`, no `_bmad/`), `mmd --here` auto-runs the first-run setup (via the `MMD_SETUP_CMD` seam standing in for `install-mmd.sh`), commits it, prints the cheat-sheet, and the run proceeds to a `slice/here-…` branch with a fake auto-dev — and an already-set-up repo is a no-op with the constitution byte-for-byte untouched. **What is NOT yet executed in this environment:** the same flow with the REAL toolchain — real `install-mmd.sh` (which shells to `npx bmad-method`) + a real `claude -p` auto-dev run. That real-toolchain run is the remaining manual validation step (it needs network + the BMAD installer + minutes of a real LLM run); the wiring it depends on is proven, but until it's run on a real repo with real `claude`, treat the "real green end-to-end" as **proven-by-wiring, not yet by a live run**. Do not claim the live cross-project run passed until it has actually been executed and its commands/result captured here.
+
+## NEXT PRIORITY — v0.6.b: the composer reads the PROJECT's constitution
+
+The deeper "whose constitution governs the build" fix, deferred from v0.6.a (see SPEC_V06A §4 Out of scope):
+- **Layer-C composer reads the project's constitution modules** instead of MMD's bundled ones (`lib/constitution-compose.js` currently hardcodes `REPO_ROOT` = MMD's own install dir).
+- **Non-destructive "suggest improvements" mode** on an existing constitution (the user's "on peut faire des suggestions d'amélioration, mais sinon elle reste").
+- **Run the AC-6 real-toolchain end-to-end** (install-mmd.sh + real claude -p) on a throwaway non-MMD repo and capture it here — close the honest gap above.
+- Consider content/version-aware readiness in `detectMmdSetup` (today it only checks presence).

@@ -89,6 +89,8 @@ function runMmd(args, opts = {}) {
     ...buildSubprocessEnv(process.env),
     MMD_AUTODEV_CMD: opts.autodevCmd ?? FIXTURE_OK,
     MMD_REALITY_CHECK_BACKEND: 'skip',
+    // v0.6.a: bypass the first-run setup guard (this suite tests notifications).
+    MMD_SKIP_SETUP: '1',
     GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t',
     GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t',
     ...(opts.env || {}),

@@ -40,6 +40,9 @@ function runMmd(args, cwd) {
       // Defensive: keep test isolated from any real claude / autodev invocation.
       MMD_AUTODEV_CMD: '/bin/false',
       MMD_REALITY_CHECK_BACKEND: 'skip',
+      // v0.6.a: bypass the first-run setup guard so the GATE (exit 5) is what's
+      // exercised here, not the setup spawn (the guard runs before the gate).
+      MMD_SKIP_SETUP: '1',
     },
   });
 }

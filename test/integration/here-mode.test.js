@@ -66,6 +66,9 @@ function runMmd(args, opts = {}) {
     ...baseEnv,
     MMD_AUTODEV_CMD: opts.autodevCmd ?? FIXTURE_HERE,
     MMD_REALITY_CHECK_BACKEND: 'skip',
+    // v0.6.a: bypass the first-run setup guard — these temp repos aren't
+    // MMD-set-up and the guard is exercised separately (here-first-run-setup).
+    MMD_SKIP_SETUP: '1',
     // Provide git identity defensively for repos created without a global config.
     GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t',
     GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t',

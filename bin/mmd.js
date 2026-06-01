@@ -44,10 +44,15 @@ import { checkGate } from '../lib/discover/gate.js';
 import { runCliDreamCatcher } from '../lib/dream-catcher/cli-driver.js';
 import { runElicit } from '../lib/dream-catcher/elicit.js';
 import { shouldNotify, buildNotification, sendNotification } from '../lib/conductor/notify.js';
+import { runFirstRunSetup } from '../lib/onboarding/setup.js';
 
 // F30 — version sourced once from package.json (shared with GET /api/health).
 const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
+
+// v0.6.a — install-mmd.sh ships beside package.json at MMD's own install root;
+// the first-run setup guard spawns it against the target repo (AC-3).
+const INSTALL_SCRIPT = fileURLToPath(new URL('../install-mmd.sh', import.meta.url));
 
 const USAGE = `mmd ${VERSION} — Make My Dreams CLI
 
@@ -281,6 +286,39 @@ async function promptRfc() {
 }
 
 /**
+ * v0.6.a — TTY yes/no confirm for the first-run setup guard (AC-3). Returns true
+ * ONLY on an explicit yes (o/oui/y/yes); the default (empty, N, EOF, anything
+ * else) is false, so an ambiguous answer never silently triggers setup.
+ */
+async function confirmFirstRunSetup() {
+  if (!input.isTTY) return false;
+  const rl = createInterface({ input, output });
+  try {
+    const ans = (await rl.question('Run setup now? [o/N] ')).trim().toLowerCase();
+    return ['o', 'oui', 'y', 'yes'].includes(ans);
+  } catch {
+    return false;
+  } finally {
+    rl.close();
+  }
+}
+
+/**
+ * v0.6.a — spawn install-mmd.sh against the target repo for the first-run setup
+ * guard (AC-3). Synchronous + blocking with inherited stdio so the user sees the
+ * installer's progress. Returns { code } for runFirstRunSetup to branch on; a
+ * spawn error (e.g. bash missing) propagates so the guard reports it honestly.
+ */
+function runInstallMmd(targetDir) {
+  const r = spawnSync('bash', [INSTALL_SCRIPT, targetDir], {
+    cwd: targetDir,
+    stdio: 'inherit',
+  });
+  if (r.error) throw r.error;
+  return { code: r.status == null ? 1 : r.status };
+}
+
+/**
  * v0.3.b — build a readline-backed io channel for the CLI Dream Catcher driver
  * (AC-3). Reuses the `node:readline/promises` + `input.isTTY` pattern from
  * promptRfc(). `ask` resolves to the trimmed answer, or `null` on EOF / abort
@@ -356,6 +394,27 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
   stdout.write(`Mode: --here (modifying current repo: ${absTargetDir})\n`);
   if (engine === 'fast') {
     stdout.write('Engine: FAST (trimmed auto-dev — target <=10 min)\n');
+  }
+
+  // v0.6.a AC-3 — transparent first-run setup guard. Runs BEFORE the onboarding
+  // gate and the git checks: a repo with no MMD setup (constitution + auto-dev
+  // workflow) can't pass them meaningfully anyway. The decision lives in
+  // runFirstRunSetup (lib/onboarding/setup.js); here we inject the real prompt +
+  // the real install-mmd.sh spawn and map the result onto the exit ladder.
+  // TTY → confirm-then-run; non-TTY → auto-run + log; decline/failure → exit 8
+  // (never an inert launch); MMD_SKIP_SETUP=1 bypasses; already-ready → no-op
+  // (an existing constitution is never overwritten — "elle reste").
+  const setupResult = await runFirstRunSetup({
+    targetDir: absTargetDir,
+    tty: !!stdin.isTTY,
+    env,
+    confirmFn: confirmFirstRunSetup,
+    runnerFn: runInstallMmd,
+    out: (s) => stdout.write(s),
+    err: (s) => stderr.write(s),
+  });
+  if (!setupResult.ok) {
+    return setupResult.exitCode;
   }
 
   // v0.2c AC-7: Project Onboarder validation gate. Block --here when the

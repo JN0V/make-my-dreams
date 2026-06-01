@@ -64,6 +64,8 @@ function runMmd(args, opts = {}) {
     ...buildSubprocessEnv(process.env),
     MMD_AUTODEV_CMD: opts.autodevCmd ?? FIXTURE_STREAM,
     MMD_REALITY_CHECK_BACKEND: 'skip',
+    // v0.6.a: bypass the first-run setup guard (this suite tests the monitor).
+    MMD_SKIP_SETUP: '1',
     MMD_QUIET: '1',
     ...(opts.env || {}),
   };

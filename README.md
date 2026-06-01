@@ -573,6 +573,25 @@ Driving MMD correctly means remembering a stack of operational rules — disable
 
 The single source of truth is the **tracked** template at [`assets/claude-commands/mmd.md`](./assets/claude-commands/mmd.md) (not under the gitignored `.claude/`); `install-mmd.sh` materializes it idempotently into `.claude/commands/mmd.md` alongside the `bmad-adv-auto-dev` command, so opening a session on any installed repo gives you `/mmd`. It is a prompt template — no change to the `mmd` CLI. See [ADR-039](./docs/adr/039-mmd-operator-slash-command.md).
 
+### Test-corpus health (`mmd test-health`) — *new in v0.7.6*
+
+The **Test Curator**: the test analog of the Documentalist, but for tests not docs. Where `mmd qa` reviews a *single change* and the BMAD TEA designs test *architecture* for a feature, `mmd test-health` answers a fourth, distinct question — *is the test **corpus** healthy as it grows?* It is **detect-and-report only**: strictly read-only, it **never modifies a test**.
+
+```bash
+mmd test-health              # write docs/test-health.md + print a summary
+mmd test-health --dry-run    # print the report to stdout, write nothing
+mmd test-health --help
+```
+
+It writes one regenerable dashboard, `docs/test-health.md` (the test analog of `docs/coherence-review.md`), surfacing:
+
+- The **stratification distribution** — counts per `@smoke`/`@unit`/`@integration`/`@e2e` (read from each test's title, the project convention testing.md §V mandates).
+- The **untagged tests** — every test whose title carries none of the four strata (a §V violation), listed with `file:line`. (On MMD itself the first run flagged **73** — real debt in older files no per-change review would catch.)
+- A **smoke-health line** — the `@smoke` count vs the §V 5–10 fast-feedback band (thin / usable / over-budget).
+- **Oversized files** — over `MMD_TEST_FILE_MAX_LINES` (default 500) or `MMD_TEST_FILE_MAX_TESTS` (default 60), listed as split candidates (env-overridable, graceful fallback).
+
+It is **deterministic** (no LLM — the corpus signal is exactly computable) and a clearly-labelled **heuristic**, not an audit. Pure scanner + render in `lib/test-curator/{scan,report}.js`; the thin read-only bin in `bin/test-curator/test-health.js`. See [ADR-040](./docs/adr/040-test-curator-test-health.md).
+
 ### Web mode (no terminal — for non-technical users)  — *new in v0.2.5*
 
 ```bash

@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.7.1`
-- **Branch**: `slice/here-documentalist-compact-spec-archival-1780333351`
+- **Latest tag**: `v0.7.2`
+- **Branch**: `main`
 - **Version**: `0.7.2` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 36 (ADR-001..ADR-036)
 - **Tests**: 1626 passing
 - **Recent commits**:
+  - `7b5c2c2 docs(v0.7.2): AC-4 — archive the 35 root SPEC_V*.md into docs/specs/ (live operator run)`
+  - `085ece1 docs(v0.7.c): capture the v0.7.c slice + the AC-4 post-merge operator step in HANDOVER`
+  - `d68e3c3 docs(v0.7.c): refresh mechanical blocks to 1626 tests after Phase-4 fixes`
   - `e74a486 fix(v0.7.c): Phase-4 review — correct version parse for multi-digit patch + honest dry-run/failures`
   - `772da87 docs(v0.7.c): refresh mechanical blocks + coherence dashboard at v0.7.2 / 1622 tests`
-  - `0bb931f docs(v0.7.c): ADR-036 + README/CLAUDE for mmd document-compact; bump 0.7.2 (AC-5)`
-  - `007e208 feat(v0.7.c): mmd document-compact subcommand — archive root SPEC sprawl (AC-2, AC-3)`
-  - `6da472d feat(v0.7.c): pure compaction planner + idempotent reference-rewrite (AC-1, AC-3)`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -172,16 +172,8 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 
 **Full suite 1626/1626 green** (1597 baseline + 29 new). **Phase-4 adversarial review: 1 pass found 1 critical** (the version parser fabricated "v0.25" for the real `docs/specs/SPEC_V025.md` and sorted it above v0.7.c) **+ 3 medium + 3 low — all fixed**; a 2nd review confirmed 0/0/0/0.
 
-**AC-4 status — POST-MERGE OPERATOR STEP, NOT YET RUN (deliberately).** The slice must NOT run `mmd document-compact` against the live MMD repo: it would move this slice's own in-flight `docs/specs/SPEC_V07C.md` mid-build (so the logic is validated on **fixture** git repos in the tests). **After this slice is merged ff-only + tagged `v0.7.2`, the operator runs, from the repo root:**
-```bash
-mmd document-compact --dry-run   # preview: ~35 root SPEC_V*.md → docs/specs/, N refs across K files
-mmd document-compact             # git mv all root SPECs → docs/specs/ + write the index + rewrite refs
-npm test                         # full suite must stay green
-git log --follow -- docs/specs/SPEC_V01.md   # history preserved (reaches the original commit)
-mmd document-review              # must report NO dangling SPEC refs + drop the sprawl flag
-git add -A && git commit -m "chore(v0.7.2): archive root SPEC sprawl into docs/specs/ (mmd document-compact)"
-```
-Then update this section's AC-4 status to ✅ with the observed counts. New SPECs keep landing at the repo root per slice; a later `mmd document-compact` archives them (the §6.4 periodic-consolidation model).
+**AC-4 status — LIVE OPERATOR ARCHIVAL DONE ✅ (executed 2026-06-01, post-merge, commit `7b5c2c2`).** After ff-merge + tag `v0.7.2`, the operator ran `mmd document-compact` on MMD itself: **35 root `SPEC_V*.md` → `docs/specs/`** via `git mv` (history preserved — `git log --follow docs/specs/SPEC_V06A.md` reaches its original creation commit `d358131`), wrote `docs/specs/INDEX.md` (newest-first), and **rewrote 102 references across 32 tracked markdown files**. `--dry-run` previewed it as a true no-op first. The root SPEC sprawl is **gone** (root `SPEC_V*.md` count = 0; `docs/specs/` = 35 SPECs + index).
+**Validated by the v0.7.b Drift detector (the designed synergy):** post-archival `mmd document-review` reports **zero dangling SPEC references** (the rewrite was complete; only the 2 pre-existing historical/rejected false positives remain) and no root `](SPEC_V` link survives. **One coupled change surfaced + fixed** (exactly the kind v0.7.d's coherence graph would flag): `test/integration/documentalist-inventory.test.js` asserted root SPEC sprawl `>= 20`; that signal is now correctly `0`, so the assertion became "`specCount` is a valid non-negative integer". Full suite **1626/1626 green**. New SPECs keep landing at the repo root per slice; a later `mmd document-compact` archives them (the §6.4 periodic-consolidation model).
 
 ## JUST LANDED — v0.7.0 (v0.7.a): the Documentalist's coherence review (`mmd document-review`)
 

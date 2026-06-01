@@ -86,6 +86,45 @@ test('@unit scanTestCorpus: a commented-out test call is NOT counted (precision)
   assert.equal(tests[0].line, 2);
 });
 
+test('@unit scanTestCorpus: a METHOD call like re.test(...) is NOT counted (Phase-4 F1)', () => {
+  const content = [
+    "const re = /x/;",
+    "if (re.test('@unit not a test, a regex match')) {}",
+    "obj.it('@unit also not a test');",
+    "test('@unit a real one', () => {});",
+  ].join('\n');
+  const { tests } = scanTestCorpus([{ path: 'mc.test.js', content }]);
+  assert.equal(tests.length, 1);
+  assert.equal(tests[0].title, '@unit a real one');
+});
+
+test('@unit scanTestCorpus: a longer identifier (subtest/awaitit) is NOT counted', () => {
+  const content = [
+    "subtest('@unit nope', () => {});",
+    "awaitit('@unit also nope');",
+    "test('@unit yes', () => {});",
+  ].join('\n');
+  const { tests } = scanTestCorpus([{ path: 'id.test.js', content }]);
+  assert.equal(tests.length, 1);
+  assert.equal(tests[0].title, '@unit yes');
+});
+
+test('@unit scanTestCorpus: a single-line /* */ or *-prefixed block comment test() is NOT counted', () => {
+  const content = [
+    "/* test('@unit commented in a one-line block', () => {}); */",
+    "/**",
+    " * test('@unit jsdoc-body example', () => {});",
+    " */",
+    "test('@unit real', () => {});",
+  ].join('\n');
+  const { tests } = scanTestCorpus([{ path: 'bc.test.js', content }]);
+  // The realistic comment forms (`/* … */`, `*`-prefixed jsdoc bodies) are skipped.
+  // A block comment whose inner line starts with neither is a documented residual
+  // (would need a real parser — KISS, out of scope for an advisory scanner).
+  assert.equal(tests.length, 1);
+  assert.equal(tests[0].title, '@unit real');
+});
+
 test('@unit scanTestCorpus: describe() is not counted as a test', () => {
   const content = [
     "describe('@unit a group', () => {",

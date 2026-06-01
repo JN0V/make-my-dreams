@@ -19,13 +19,13 @@
 - **Version**: `0.7.6` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 40 (ADR-001..ADR-040)
-- **Tests**: 1705 passing
+- **Tests**: 1708 passing
 - **Recent commits**:
+  - `363812a chore(v0.7.6): refresh mechanical blocks, re-bless version pins, capture live corpus in HANDOVER`
   - `03e57d0 docs(v0.7.6): ADR-040 + README + CLAUDE for the Test Curator; bump to 0.7.6`
   - `4a70102 feat(v0.7.6): mmd test-health subcommand + dispatch (Test Curator AC-3/AC-4)`
   - `d3ac318 feat(v0.7.6): pure test-health report builder (Test Curator AC-2)`
   - `045d8f6 feat(v0.7.6): pure test-corpus scanner (Test Curator AC-1)`
-  - `9805249 docs(v0.7.6): SPEC for the Test Curator (mmd test-health) — corpus-health detect/report role`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -170,7 +170,7 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 - **AC-3 — `mmd test-health`** (`bin/test-curator/test-health.js`): gather git-tracked test files (`git ls-files '*.test.js'`, **excluding `test/fixtures/`**), scan, build, write EXACTLY `docs/test-health.md` (read-only contract asserted — only that path changes), print a summary. Env-overridable thresholds (`MMD_TEST_FILE_MAX_LINES`/`MMD_TEST_FILE_MAX_TESTS`) with graceful honest fallback; `--dry-run`/`--help`; exit 5 when not a git repo. Dispatch + USAGE + `SUBCOMMANDS` mirror the document-* contract. 9 `@integration` tests.
 - **AC-5 — docs**: ADR-040 (the role + its boundaries + detect-before-act + deterministic-over-LLM), README + CLAUDE.md, mechanical blocks refreshed, bumped to 0.7.6.
 
-**AC-4 status — LIVE CORPUS STATE CAPTURED ✅ (executed 2026-06-01 on MMD itself).** `mmd test-health` reports: **1686 tests across 183 files** (git-tracked, fixtures excluded; heuristic count of `test(`/`it(` calls) — **1254 `@unit` · 350 `@integration` · 7 `@smoke` · 2 `@e2e` · 73 UNTAGGED**. The smoke subset (7) sits **within the testing.md §V 5–10 fast-feedback band** (usable). The headline finding is **73 untagged tests** — real §V stratification debt accumulated in older files (`test/integration/mmd.test.js`, `parse-dream.test.js`, `invoke-autodev.test.js`, `camera-secure-context.test.js`, …), each listed with `file:line` in `docs/test-health.md`. These are pre-existing (NOT introduced by this slice) and the Curator **does not fix them** — detect-before-act: a wrong stratum is worse than an absent one (it would corrupt the fast lane), so retagging is a separate human-reviewed action. **2 oversized files** flagged at the default 500-line / 60-test thresholds. The read-only contract held (only `docs/test-health.md` written). `docs/test-health.md` is committed as the regenerable dashboard (the test analog of `docs/coherence-review.md`). Future (deferred, YAGNI): auto-retag suggestions, per-stratum runtime budgets, duplicate-test detection, an opt-in `--with-claude` semantic pass.
+**AC-4 status — LIVE CORPUS STATE CAPTURED ✅ (executed 2026-06-01 on MMD itself).** `mmd test-health` reports: **1708 tests across 184 files** (git-tracked, fixtures excluded; heuristic count of `test(`/`it(` calls) — **1265 `@unit` · 359 `@integration` · 8 `@smoke` · 2 `@e2e` · 74 UNTAGGED**. The smoke subset (8) sits **within the testing.md §V 5–10 fast-feedback band** (usable). The headline finding is the **~74 untagged tests** — real §V stratification debt accumulated in older files (`test/integration/mmd.test.js`, `parse-dream.test.js`, `invoke-autodev.test.js`, `camera-secure-context.test.js`, …), each listed with `file:line` in `docs/test-health.md`. These are pre-existing (NOT introduced by this slice) and the Curator **does not fix them** — detect-before-act: a wrong stratum is worse than an absent one (it would corrupt the fast lane), so retagging is a separate human-reviewed action. **2 oversized files** flagged at the default 500-line / 60-test thresholds. The read-only contract held (only `docs/test-health.md` written). `docs/test-health.md` is committed as the regenerable dashboard (the test analog of `docs/coherence-review.md`). Known heuristic residual (documented, Phase-4 F1): a `test('…')` written *inside a string literal* in a test file is counted (≈1 of the 74 is such a fixture string) — fully stripping string contexts needs a real parser (KISS, out of scope). Future (deferred, YAGNI): tighter parsing, auto-retag suggestions, per-stratum runtime budgets, duplicate-test detection, an opt-in `--with-claude` semantic pass.
 
 ## JUST LANDED — v0.7.3 (v0.7.d): the coherence graph — staleness-on-diff (`mmd document-review --since`)
 

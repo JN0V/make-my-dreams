@@ -36,9 +36,11 @@ test('@unit buildTestHealthReport: renders the stratification distribution count
     ],
   });
   const md = buildTestHealthReport(s, { maxLines: 500, maxTests: 60 });
-  assert.match(md, /unit/);
-  assert.match(md, /2/); // unit count
-  assert.match(md, /integration/);
+  // Assert the ACTUAL table rows, not just that the digits appear somewhere
+  // (Phase-4 F3 — a bare /2/ matched the version string and proved nothing).
+  assert.match(md, /\|\s*`@unit`\s*\|\s*2\s*\|/);
+  assert.match(md, /\|\s*`@integration`\s*\|\s*1\s*\|/);
+  assert.match(md, /\|\s*`@smoke`\s*\|\s*1\s*\|/);
   assert.match(md, /heuristic/i); // honest advisory framing
 });
 

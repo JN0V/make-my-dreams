@@ -34,6 +34,8 @@ import {
   buildTestHealthReport,
   DEFAULT_MAX_LINES,
   DEFAULT_MAX_TESTS,
+  SMOKE_BAND_MIN,
+  SMOKE_BAND_MAX,
 } from '../../lib/test-curator/report.js';
 
 const PKG_PATH = fileURLToPath(new URL('../../package.json', import.meta.url));
@@ -245,7 +247,11 @@ export async function runTestHealth(rawArgs) {
   const untagged = byTag.untagged || 0;
   const oversized = scan.files.filter((f) => f.lineCount > ml.value || f.testCount > mt.value).length;
   const smoke = byTag.smoke || 0;
-  const smokeNote = smoke === 0 ? 'none' : (smoke < 5 ? 'looks thin' : (smoke <= 10 ? 'within §V band' : 'above §V band'));
+  // Reuse the SAME band as the written report (Phase-4 F4 — single source).
+  const smokeNote = smoke === 0
+    ? 'none'
+    : (smoke < SMOKE_BAND_MIN ? 'looks thin'
+      : (smoke <= SMOKE_BAND_MAX ? 'within §V band' : 'above §V band'));
   stdout.write(
     `Test-health report written to ${REPORT_REL_PATH}\n` +
     `  Corpus: ${scan.totals.testCount} tests across ${scan.totals.fileCount} files (git-tracked, fixtures excluded; heuristic).\n` +

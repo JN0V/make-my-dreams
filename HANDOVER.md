@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.5.1`
+- **Latest tag**: `v0.5.2`
 - **Branch**: `main`
-- **Version**: `0.5.1` (package.json)
+- **Version**: `0.5.2` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 30 (ADR-001..ADR-030)
-- **Tests**: 1423 passing
+- **ADRs**: 31 (ADR-001..ADR-031)
+- **Tests**: 1444 passing
 - **Recent commits**:
-  - `2189b4a fix(v0.5.b): address Phase-4 adversarial review (F1–F4)`
-  - `f3f84c3 docs(v0.5.b): ADR-030 + L-027 + README/CLAUDE.md + bump to 0.5.1 (AC-6)`
-  - `4ac5e2a feat(v0.5.b): wire --monitor into bin (status.json.context + 70% signal/notify) (AC-3/AC-4)`
-  - `b8db5a7 feat(v0.5.b): opt-in monitored stream-json spawn + readable re-render (AC-3/AC-5)`
-  - `353e556 feat(v0.5.b): add the opt-in --monitor boolean flag (AC-1)`
+  - `ce289a4 docs(handover): capture the in-flight v0.5.c run + resume steps (context-switch safety)`
+  - `5fba787 refactor(v0.5.c): reuse buildMmdAutodevArgs in the fake-cmd spawn branch (DRY)`
+  - `d2f970a docs(v0.5.c): ADR-031 + README/CLAUDE.md serve-gauge notes + bump 0.5.2 (AC-5)`
+  - `6b9273d fix(v0.5.c): make renderGauge markup CSP-safe (no inline styles)`
+  - `dffa4eb feat(v0.5.c): surface context monitor in mmd serve (AC-1/AC-2/AC-4)`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -159,10 +159,3 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 
 ---
 
-## ⚠️ IN-FLIGHT at handover (2026-06-01) — resume this first
-
-A slice was RUNNING when this handover was written:
-- **v0.5.c — serve-UI context gauge** on branch `slice/here-serve-context-gauge-1780316649` (label `serve-context-gauge`), launched via `mmd --here` (auto-dev), watcher log `/tmp/v05c-here.log`.
-- State at handover: all ACs committed (~4-5 commits incl. a CSP-safe renderGauge fix + ADR-031, bump to 0.5.2), orchestrator in **Phase-4 adversarial review** (not yet "Changes applied").
-- **To resume:** wait for `/tmp/v05c-here.log` to show `[OK] Changes applied` (or `pgrep -f "bin/mmd.js --here"` empty), then the standard close-out: independent `npm run test:full` + verify `renderGauge` (pure) + assert the DEFAULT web spawn args carry NO `--monitor` (bootstrap/back-compat) → `git checkout main && git merge --ff-only <branch>` → tag `v0.5.2` → push → `npm install -g .` → `mmd document-readme --tests <N>` + `mmd handover --tests <N>` → update the intent rows. See SPEC_V05C.md DoD.
-- **Watcher discipline (learned this session):** arm a per-run watcher on the UNIQUE log (`until grep -qE "Changes applied|^error:" /tmp/v05X-here.log`), NEVER the shared `pgrep "bin/mmd.js --here"` (that pattern can't tell one run from the next — it left ~12 zombie watchers). See memory `proactive-run-status`.

@@ -109,6 +109,44 @@ test('@unit parseSpecVersion: filename → display version + comparable tuple', 
   assert.equal(parseSpecVersion('not-a-spec.md').display, '');
 });
 
+test('@unit parseSpecVersion: REAL MMD filenames — multi-digit patch is NOT fabricated', () => {
+  // The exact filenames the live archival (AC-4) will face. The earlier grammar
+  // mis-read V025 as "v0.25" and sorted it above v0.7.c — a fabricated version.
+  assert.equal(parseSpecVersion('SPEC_V02.md').display, 'v0.2');
+  assert.equal(parseSpecVersion('SPEC_V025.md').display, 'v0.2.5');   // NOT v0.25
+  assert.equal(parseSpecVersion('SPEC_V03A1.md').display, 'v0.3.a1');
+  assert.equal(parseSpecVersion('SPEC_V03A2.md').display, 'v0.3.a2');
+  assert.equal(parseSpecVersion('SPEC_V10.md').display, 'v1.0');
+});
+
+test('@unit planCompaction: V025 (v0.2.5) sorts within the 0.2 band, NOT above v0.7.c', () => {
+  const specs = [
+    { name: 'SPEC_V025.md', title: '# v0.2.5' },
+    { name: 'SPEC_V07C.md', title: '# v0.7.c' },
+    { name: 'SPEC_V01.md', title: '# v0.1' },
+  ];
+  const idx = planCompaction({ specs }).indexMarkdown;
+  const o7 = idx.indexOf('SPEC_V07C.md');
+  const o25 = idx.indexOf('SPEC_V025.md');
+  const o1 = idx.indexOf('SPEC_V01.md');
+  assert.ok(o7 < o25 && o25 < o1, `expected v0.7.c > v0.2.5 > v0.1 newest-first:\n${idx}`);
+  // And the display is the honest v0.2.5, never the fabricated v0.25.
+  assert.match(idx, /\*\*v0\.2\.5\*\* — \[`SPEC_V025\.md`\]/);
+  assert.doesNotMatch(idx, /v0\.25\b/);
+});
+
+test('@unit planCompaction: index bullet count equals the number of specs (count honesty)', () => {
+  const specs = [
+    { name: 'SPEC_V01.md', title: '# a' },
+    { name: 'SPEC_V02.md', title: '# b' },
+    { name: 'SPEC_V025.md', title: '# c' },
+    { name: 'SPEC_V07C.md', title: '# d' },
+  ];
+  const idx = planCompaction({ specs, existingArchive: [] }).indexMarkdown;
+  const bullets = idx.split('\n').filter((l) => /^- \*\*v/.test(l)).length;
+  assert.equal(bullets, specs.length);
+});
+
 // ── AC-3: applyReferenceRewrites (idempotent, all textual forms) ────────────
 
 const REWRITES = [

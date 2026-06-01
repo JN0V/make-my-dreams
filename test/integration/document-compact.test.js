@@ -41,6 +41,9 @@ async function makeRepo() {
   await writeFile(path.join(dir, 'SPEC_V01.md'), '# Make My Dreams — v0.1 Spec: the walking skeleton\n\nbody one\n');
   await writeFile(path.join(dir, 'SPEC_V03B.md'), '# Make My Dreams — v0.3.b Spec: the Dream Catcher\n\nbody two\n');
   await writeFile(path.join(dir, 'SPEC_V06A.md'), '# Make My Dreams — v0.6.a Spec: third-party readiness\n\nbody three\n');
+  // A multi-digit-minor SPEC like MMD's real SPEC_V025.md (v0.2.5) — guards the
+  // version parse against fabricating "v0.25" and mis-sorting it to the top.
+  await writeFile(path.join(dir, 'SPEC_V025.md'), '# Make My Dreams — v0.2.5 Spec: mmd serve\n\nbody serve\n');
 
   // README references the SPECs as a link, an anchored link, and bare prose.
   await writeFile(
@@ -72,7 +75,9 @@ test('@integration document-compact --dry-run: prints the plan, changes NOTHING'
   try {
     const r = runMmd(dir, ['--dry-run']);
     assert.equal(r.status, 0, r.stderr);
-    assert.match(r.stdout, /Would archive 3 SPEC_V\*\.md → docs\/specs\//);
+    assert.match(r.stdout, /Would archive 4 SPEC_V\*\.md → docs\/specs\//);
+    // F3: dry-run reports the real rewrite blast radius (N refs across K files).
+    assert.match(r.stdout, /rewrite \d+ references? across \d+ files?/);
     assert.match(r.stdout, /SPEC_V01\.md → docs\/specs\/SPEC_V01\.md/);
     assert.match(r.stdout, /Nothing changed \(dry-run\)/);
 
@@ -88,8 +93,8 @@ test('@integration document-compact: real run moves + indexes + rewrites (histor
   try {
     const r = runMmd(dir, []);
     assert.equal(r.status, 0, r.stderr);
-    assert.match(r.stdout, /Archived 3 SPEC_V\*\.md → docs\/specs\//);
-    assert.match(r.stdout, /Wrote docs\/specs\/INDEX\.md \(3 entries, newest-first\)/);
+    assert.match(r.stdout, /Archived 4 SPEC_V\*\.md → docs\/specs\//);
+    assert.match(r.stdout, /Wrote docs\/specs\/INDEX\.md \(4 entries, newest-first\)/);
     assert.match(r.stdout, /Rewrote \d+ references .* across \d+ file/);
 
     // Files physically moved.
@@ -98,16 +103,19 @@ test('@integration document-compact: real run moves + indexes + rewrites (histor
     const archived = await readdir(path.join(dir, 'docs', 'specs'));
     assert.deepEqual(
       archived.filter((f) => f.startsWith('SPEC_')).sort(),
-      ['SPEC_V01.md', 'SPEC_V03B.md', 'SPEC_V06A.md'],
+      ['SPEC_V01.md', 'SPEC_V025.md', 'SPEC_V03B.md', 'SPEC_V06A.md'],
     );
 
-    // INDEX newest-first.
+    // INDEX newest-first: v0.6.a > v0.3.b > v0.2.5 > v0.1 (V025 must NOT lead).
     const index = await readFile(path.join(dir, 'docs', 'specs', 'INDEX.md'), 'utf8');
     assert.match(index, /# Archived SPECs/);
+    assert.match(index, /\*\*v0\.2\.5\*\*/); // honest version, not "v0.25"
+    assert.doesNotMatch(index, /v0\.25\b/);
     const o6 = index.indexOf('SPEC_V06A.md');
     const o3 = index.indexOf('SPEC_V03B.md');
+    const o25 = index.indexOf('SPEC_V025.md');
     const o1 = index.indexOf('SPEC_V01.md');
-    assert.ok(o6 < o3 && o3 < o1, `index not newest-first:\n${index}`);
+    assert.ok(o6 < o3 && o3 < o25 && o25 < o1, `index not newest-first:\n${index}`);
 
     // References rewritten in README, in every form, anchor preserved.
     const readme = await readFile(path.join(dir, 'README.md'), 'utf8');
@@ -149,7 +157,7 @@ test('@integration document-compact: second run is a clean no-op (idempotent)', 
     const r2 = runMmd(dir, []);
     assert.equal(r2.status, 0, r2.stderr);
     assert.match(r2.stdout, /Nothing to archive — no SPEC_V\*\.md at the repo root\. \(no-op\)/);
-    assert.match(r2.stdout, /3 SPEC\(s\) already under docs\/specs\//);
+    assert.match(r2.stdout, /4 SPEC\(s\) already under docs\/specs\//);
     // No-op → clean tree.
     assert.equal(git(dir, ['status', '--porcelain']).trim(), '', 'second run must change nothing');
   } finally {
@@ -192,6 +200,32 @@ test('@integration document-compact: rewrite is idempotent across two real runs'
     const after2 = await readFile(path.join(dir, 'README.md'), 'utf8');
     // The previously-rewritten refs are unchanged (no docs/specs/docs/specs/).
     assert.equal(after2, after1, 'already-prefixed refs must be untouched on re-run');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('@integration document-compact: a moved SPEC keeps its BARE sibling cross-reference', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'mmd-compact-xref-'));
+  try {
+    // SPEC_V07C references its predecessor SPEC_V07B as a bare sibling link.
+    await writeFile(path.join(dir, 'SPEC_V07B.md'), '# Make My Dreams — v0.7.b Spec: drift\n');
+    await writeFile(
+      path.join(dir, 'SPEC_V07C.md'),
+      '# Make My Dreams — v0.7.c Spec: compaction\n\nThis extends [the drift detector](SPEC_V07B.md).\n',
+    );
+    git(dir, ['init', '-q']);
+    git(dir, ['config', 'user.email', 't@t.t']);
+    git(dir, ['config', 'user.name', 'T']);
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-qm', 'baseline']);
+
+    assert.equal(runMmd(dir, []).status, 0);
+    // After the move, BOTH specs sit in docs/specs/. The cross-ref must stay
+    // bare (sibling-relative still resolves) — NOT rewritten to docs/specs/.
+    const moved = await readFile(path.join(dir, 'docs', 'specs', 'SPEC_V07C.md'), 'utf8');
+    assert.match(moved, /\[the drift detector\]\(SPEC_V07B\.md\)/);
+    assert.doesNotMatch(moved, /docs\/specs\/SPEC_V07B/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

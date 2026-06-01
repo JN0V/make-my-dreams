@@ -174,6 +174,53 @@ function readSpec(root, rel, name) {
 }
 
 /**
+ * The git-tracked markdown files OUTSIDE the archive folder — the docs whose
+ * references to the moved SPECs must be rewritten. A spec moved into docs/specs/
+ * keeps BARE sibling cross-references (they still resolve), so files now under
+ * the archive are deliberately excluded. Best-effort: a git failure → [].
+ *
+ * @param {string} root
+ * @returns {string[]} repo-root-relative paths
+ */
+function trackedMarkdownOutsideArchive(root) {
+  const mdList = git(root, ['ls-files', '-z', '*.md']);
+  return (mdList.ok ? mdList.stdout.split('\0').map((s) => s.trim()).filter(Boolean) : [])
+    .filter((rel) => !rel.startsWith(`${ARCHIVE_DIR}/`));
+}
+
+/**
+ * Count how many references across how many files WOULD be rewritten — a pure,
+ * read-only preview (no writes), so `--dry-run` can report the real blast radius
+ * the SPEC example promises ("rewrite N references across K files"). Returns
+ * { known:false } when the tracked-file set can't be read (e.g. not a git repo),
+ * so dry-run never fabricates a count (§VI).
+ *
+ * @param {string} root
+ * @param {Array<{ from: string }>} referenceRewrites
+ * @returns {{ refs: number, files: number, known: boolean }}
+ */
+function previewRewriteStats(root, referenceRewrites) {
+  const inside = git(root, ['rev-parse', '--is-inside-work-tree']);
+  if (!inside.ok || inside.stdout.trim() !== 'true') return { refs: 0, files: 0, known: false };
+  let refs = 0;
+  let files = 0;
+  for (const rel of trackedMarkdownOutsideArchive(root)) {
+    let text;
+    try {
+      text = readFileSync(path.join(root, rel), 'utf8');
+    } catch {
+      continue;
+    }
+    const hits = countReferences(text, referenceRewrites);
+    if (hits > 0) {
+      refs += hits;
+      files += 1;
+    }
+  }
+  return { refs, files, known: true };
+}
+
+/**
  * Entry point invoked by bin/mmd.js when argv[0] === 'document-compact'.
  *
  * @param {string[]} rawArgs everything AFTER 'document-compact'
@@ -215,9 +262,13 @@ export async function runDocumentCompact(rawArgs) {
 
   // ── --dry-run: print the plan, change NOTHING ──────────────────────────────
   if (parsed.dryRun) {
+    const stats = previewRewriteStats(root, plan.referenceRewrites);
+    const rewritePhrase = stats.known
+      ? `rewrite ${stats.refs} reference${stats.refs === 1 ? '' : 's'} across ${stats.files} file${stats.files === 1 ? '' : 's'}`
+      : 'rewrite references across tracked markdown (count unavailable — not a git repo)';
     stdout.write(
       `Would archive ${plan.moves.length} SPEC_V*.md → ${ARCHIVE_DIR}/ (git mv), `
-      + `write ${ARCHIVE_DIR}/${INDEX_NAME}, and rewrite references across tracked markdown.\n`,
+      + `write ${ARCHIVE_DIR}/${INDEX_NAME}, and ${rewritePhrase}.\n`,
     );
     for (const mv of plan.moves) stdout.write(`  ${mv.src} → ${mv.dst}\n`);
     stdout.write('Nothing changed (dry-run).\n');
@@ -274,26 +325,32 @@ export async function runDocumentCompact(rawArgs) {
     moved.push(mv);
   }
 
+  // NOTE on "never half-applied": the PRECONDITIONS (non-git repo, untracked
+  // SPEC) are checked above, BEFORE any mutation — that is the all-or-nothing
+  // guarantee. Once the git mv's succeed, the index write + the per-file rewrites
+  // below are sequential I/O; a rare failure there (disk full, read-only file)
+  // leaves the renames staged + some docs rewritten. That residual is fully
+  // git-reversible, and the error messages below say so explicitly (we never
+  // pretend it was clean — §VI). True multi-file atomicity is out of scope (KISS).
+
   // c. Write the archive INDEX.md (newest-first; from the pure planner).
   try {
     const indexBody = plan.indexMarkdown.endsWith('\n') ? plan.indexMarkdown : `${plan.indexMarkdown}\n`;
     writeFileSync(path.join(root, ARCHIVE_DIR, INDEX_NAME), indexBody, 'utf8');
   } catch (err) {
-    stderr.write(`error: cannot write ${ARCHIVE_DIR}/${INDEX_NAME}: ${err.message}\n`);
+    stderr.write(
+      `error: cannot write ${ARCHIVE_DIR}/${INDEX_NAME}: ${err.message}\n`
+      + `  The ${moved.length} SPEC rename(s) are already STAGED. Undo with 'git reset --hard' `
+      + `(or re-run after fixing the cause). Nothing was committed.\n`,
+    );
     return 3;
   }
 
-  // d. Rewrite references in tracked markdown OUTSIDE the archive. A spec moved
-  //    into docs/specs/ keeps BARE sibling cross-references (they still resolve),
-  //    so we deliberately skip files now under docs/specs/ — only EXTERNAL docs
-  //    (root + elsewhere) that linked to the moved specs need the prefix.
-  const mdList = git(root, ['ls-files', '-z', '*.md']);
-  const mdFiles = (mdList.ok ? mdList.stdout.split('\0').map((s) => s.trim()).filter(Boolean) : [])
-    .filter((rel) => !rel.startsWith(`${ARCHIVE_DIR}/`));
-
+  // d. Rewrite references in tracked markdown OUTSIDE the archive (a moved spec
+  //    keeps its bare sibling cross-references — see trackedMarkdownOutsideArchive).
   let filesChanged = 0;
   let refsRewritten = 0;
-  for (const rel of mdFiles) {
+  for (const rel of trackedMarkdownOutsideArchive(root)) {
     const abs = path.join(root, rel);
     let text;
     try {
@@ -308,7 +365,11 @@ export async function runDocumentCompact(rawArgs) {
     try {
       writeFileSync(abs, rewritten, 'utf8');
     } catch (err) {
-      stderr.write(`error: cannot write rewritten references to ${rel}: ${err.message}\n`);
+      stderr.write(
+        `error: cannot write rewritten references to ${rel}: ${err.message}\n`
+        + `  Partial state: ${moved.length} SPEC(s) moved + ${filesChanged} doc(s) rewritten before this. `
+        + `Undo with 'git reset --hard' (nothing was committed).\n`,
+      );
       return 3;
     }
     filesChanged += 1;

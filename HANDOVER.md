@@ -19,13 +19,13 @@
 - **Version**: `0.7.2` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 36 (ADR-001..ADR-036)
-- **Tests**: 1622 passing
+- **Tests**: 1626 passing
 - **Recent commits**:
+  - `e74a486 fix(v0.7.c): Phase-4 review — correct version parse for multi-digit patch + honest dry-run/failures`
+  - `772da87 docs(v0.7.c): refresh mechanical blocks + coherence dashboard at v0.7.2 / 1622 tests`
   - `0bb931f docs(v0.7.c): ADR-036 + README/CLAUDE for mmd document-compact; bump 0.7.2 (AC-5)`
   - `007e208 feat(v0.7.c): mmd document-compact subcommand — archive root SPEC sprawl (AC-2, AC-3)`
   - `6da472d feat(v0.7.c): pure compaction planner + idempotent reference-rewrite (AC-1, AC-3)`
-  - `b9f9f6d docs(v0.7.c): SPEC for the Documentalist's active compaction (mmd document-compact)`
-  - `0c81264 fix(docs): correct ADR-007's stale invoke-claude.js path + gitignore greenfield scratch`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

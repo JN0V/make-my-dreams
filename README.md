@@ -197,7 +197,18 @@ With `--monitor`, MMD spawns auto-dev as `claude -p … --output-format stream-j
 
 When the context first crosses **`MMD_HANDOFF_THRESHOLD`** (default `0.70`; a custom value in `(0,1]` is honored), MMD writes a `READY_FOR_HANDOFF` marker into `status.json`, logs a line, and — if `MMD_NOTIFY_URL` is set — fires a **`context_70`** notification **exactly once** (debounced), reusing the v0.5.a fan-out. It does **not** stop the run: this is observability + early warning, not an action (auto-handoff is still future — auto-dev is a monolithic BMAD call).
 
-**Opt-in is deliberate and safety-critical.** The default text-spawn path is the one `mmd --here` uses to build everything *including MMD itself* (the reflexive bootstrap) — so `--monitor` leaves it **byte-for-byte untouched** (the default args carry no `--output-format`, pinned by a test). It is **the orchestrator's** context, not per-sub-agent (the Phase 1–4 sub-agents run in their own fresh contexts the top-level stream can't see). Deferred: the actual auto-handoff/resume, making `--monitor` the default, per-sub-agent accounting, and a serve-UI gauge driven by `status.json.context`. See [ADR-030](./docs/adr/030-live-context-monitor.md) and [L-027](./docs/lessons-learned.md).
+**Opt-in is deliberate and safety-critical.** The default text-spawn path is the one `mmd --here` uses to build everything *including MMD itself* (the reflexive bootstrap) — so `--monitor` leaves it **byte-for-byte untouched** (the default args carry no `--output-format`, pinned by a test). It is **the orchestrator's** context, not per-sub-agent (the Phase 1–4 sub-agents run in their own fresh contexts the top-level stream can't see). Deferred: the actual auto-handoff/resume, making `--monitor` the default, and per-sub-agent accounting. The serve-UI gauge that displays `status.json.context` landed in **v0.5.c** (below). See [ADR-030](./docs/adr/030-live-context-monitor.md) and [L-027](./docs/lessons-learned.md).
+
+### Context gauge in `mmd serve` (opt-in "Monitor context" toggle) — *new in v0.5.c*
+
+The monitor above is great in a terminal, but `mmd serve` exists for the non-technical user — who never sees a JSON file. v0.5.c makes it **visible**: the dream form gains a **"Monitor context (advanced)"** checkbox, and when it's ticked the progress view shows a live **context gauge** — a bar (% of the model's context window), the humanized token count (`337k / 1.0M`), the model, a 70% threshold marker, and a "⚠️ ready for handoff" badge once the threshold is crossed.
+
+```
+☐ Monitor context (advanced)      ← tick before "Let's go!"
+   ▓▓▓▓▓░░░░░  34%  (337k / 1.0M tokens · claude-opus-4-8[1m])   ┊70%
+```
+
+Ticking the box appends `--monitor` to the web launch; the page then polls `GET /api/status/<slug>` every ~3 s and re-draws the gauge from the response's `.context`. Polling (not SSE-push) keeps the gauge **decoupled** from the progress feed — a failed/slow poll is swallowed and **never breaks the page or the SSE stream**. **Unticked is the default and byte-for-byte today's web run**: no `--monitor`, no gauge, no extra polling, and the SSE progress is unchanged (even ticked, the monitored run re-renders readable text to stdout, so the SSE contract is untouched). The gauge markup is CSP-safe (a native `<progress>` bar + an external-CSS 70% marker — the page runs under `style-src 'self'`). See [ADR-031](./docs/adr/031-serve-ui-context-gauge.md) and [L-027](./docs/lessons-learned.md).
 
 ### Bench mode (`mmd bench`) — *new in v0.2b*
 

@@ -3,7 +3,7 @@
 
 > Generated on demand by `mmd document-review` — the Documentalist's **detection** face: a designed-vs-built reconciliation of the roadmap against MMD's real surface, plus doc-health flags. It is a **dashboard, not a hand-maintained doc** — regenerate it after any material change (new subcommand, ADR, tag, or `MAKE_MY_DREAMS.md` edit) with `mmd document-review`. The designed-vs-built table is a **heuristic** (name-matching), not an authoritative audit; run `mmd document-review --with-claude` to layer LLM judgment on top.
 
-_MMD 0.7.2._
+_MMD 0.7.4._
 
 ## Designed vs built (roadmap §9 reconciliation — heuristic)
 
@@ -39,24 +39,24 @@ Legend: ✅ built · 🟡 partial · ❌ unbuilt · ❓ unknown.
 ## Doc health
 
 - ⚠️ MAKE_MY_DREAMS.md: 1722 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ README.md: 692 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ HANDOVER.md: 245 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
+- ⚠️ README.md: 708 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
+- ⚠️ HANDOVER.md: 255 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ PROBLEMS.md: 241 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ BOOTSTRAP.md: 393 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ docs/lessons-learned.md: 516 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 
-## Inventory  (14 subcommands · 36 ADRs · 21 lessons · tags v0.1.0..v0.7.2)
+## Inventory  (14 subcommands · 38 ADRs · 21 lessons · tags v0.1.0..v0.7.4)
 
 - **Subcommands** (14): serve, bench, ship, discover, qa, cso, document-release, unblock, document-lessons, handover, document-readme, document-review, document-compact, lessons
 - **lib/ modules** (25): argv-parser, bench, composer, conductor, constitution-compose, discover, documentalist, dream-catcher, engine, handover, here-mode, here-mode, invoke-autodev, onboarding, parse-dream, rate-limit, readme-sync, reality-check, sealed-tests, security-headers, server, skills, spec-derive, sse, state
-- **ADRs** (36): latest ADR-036 — The Documentalist ACTS: active compaction by archiving the SPEC sprawl (act on the safe thing first)
+- **ADRs** (38): latest ADR-038 — Cap the hub-SOURCE neighbor flood in the coherence-graph staleness report
 - **Active lessons**: 21
-- **Root SPEC files**: 0
-- **Tags**: 35 (v0.1.0..v0.7.2)
+- **Root SPEC files**: 2
+- **Tags**: 37 (v0.1.0..v0.7.4)
 
 ## Drift / conformance  (does the doc still match reality?)
 
-_Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edit your docs (detect-before-correct). Scanned 40 truth docs._
+_Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edit your docs (detect-before-correct). Scanned 42 truth docs._
 
 ### Dangling references (a doc claims an artifact that does not exist)
 
@@ -65,5 +65,4 @@ _Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edi
 
 ### Stale facts (a prose claim disagrees with the live inventory)
 
-- ⚠️ README.md:613 says "current version v0.7.1" — inventory has v0.7.2
-- ⚠️ HANDOVER.md:17 says "current version v0.7.1" — inventory has v0.7.2
+- ✅ No stale facts — bounded counts / current-version claims match the inventory.

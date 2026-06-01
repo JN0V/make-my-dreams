@@ -81,6 +81,13 @@ header() { printf "\n${CYAN}━━━ %s ━━━${NC}\n" "$1"; }
 TARGET="${1:-$(pwd)}"
 TARGET="$(cd "$TARGET" && pwd)"
 
+# --- Source directory (where this script + its tracked assets live) ---------
+# Resolved from BASH_SOURCE so we can copy tracked assets (e.g. the /mmd
+# slash-command template) into the target. When the script is curl'd standalone
+# the assets won't be next to it — callers that need them must run from a full
+# MMD checkout; the materialization steps degrade gracefully if absent.
+MMD_SRC_DIR="${MMD_SRC_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
 echo "║  Make My Dreams — Self-Contained Installer           ║"
@@ -1113,6 +1120,28 @@ IT IS CRITICAL THAT YOU FOLLOW THIS COMMAND: LOAD the FULL @{project-root}/_bmad
 COMMAND_EOF
 
 ok "Generated: .claude/commands/bmad-${ADV_CODE}-auto-dev.md"
+
+# --- 3d. /mmd operator slash command (v0.7.5) ------------------------------
+# The /mmd Claude Code slash command encodes the MMD operator playbook so a
+# user (or Claude) can drive MMD with the right discipline from a session
+# without remembering the CLI incantations. Its single source of truth is the
+# TRACKED file assets/claude-commands/mmd.md (NOT under the gitignored
+# .claude/). We copy it into .claude/commands/mmd.md idempotently (cp overwrites
+# on re-run; mkdir -p is a no-op when the dir exists). MMD_SRC_DIR is resolved
+# at the top of this script (overridable via env — the DI seam the install test
+# uses). If the source is missing (e.g. the script was curl'd standalone, away
+# from a full checkout) we skip with an honest warning rather than fabricate the
+# file (universal §VI).
+MMD_CMD_SRC="$MMD_SRC_DIR/assets/claude-commands/mmd.md"
+MMD_CMD_DST="$TARGET/.claude/commands/mmd.md"
+if [ -f "$MMD_CMD_SRC" ]; then
+    mkdir -p "$(dirname "$MMD_CMD_DST")"
+    cp "$MMD_CMD_SRC" "$MMD_CMD_DST"
+    ok "Generated: .claude/commands/mmd.md (/mmd operator playbook)"
+else
+    warn "/mmd source not found at $MMD_CMD_SRC — skipping .claude/commands/mmd.md."
+    info "Run install-mmd.sh from a full MMD checkout to materialize the /mmd slash command."
+fi
 
 # ============================================================================
 # PHASE 4: gStack functional verify (v0.2.f — AC-2; moved ahead of the pillar

@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.6.0`
-- **Branch**: `slice/here-constitution-suggestions-discover-friction-1780324655`
+- **Latest tag**: `v0.6.1`
+- **Branch**: `main`
 - **Version**: `0.6.1` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 33 (ADR-001..ADR-033)
 - **Tests**: 1523 passing
 - **Recent commits**:
+  - `0ac2714 docs(v0.6.b): HANDOVER — v0.6.b landed + AC-5 real-repo validation captured`
+  - `e710b24 docs(v0.6.b): refresh README + HANDOVER mechanical blocks at v0.6.1 / 1523 tests`
   - `b4931e9 docs(v0.6.b): ADR-033 + README/CLAUDE constitution-suggestions notes, bump to 0.6.1`
   - `bb254c2 feat(v0.6.b): wire suggestions into discover + the discover-then-here friction fix`
   - `e877893 feat(v0.6.b): pure constitution-suggestions checklist + MMD-managed dirty-path predicate`
-  - `ba42a57 docs(v0.6.b): SPEC for constitution suggestions + discover-then-here friction fix`
-  - `ccdf47f docs(v0.6.0): AC-6 live green + refresh mechanical blocks at v0.6.0`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

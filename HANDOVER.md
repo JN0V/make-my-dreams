@@ -19,13 +19,13 @@
 - **Version**: `0.7.1` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 35 (ADR-001..ADR-035)
-- **Tests**: 1595 passing
+- **Tests**: 1596 passing
 - **Recent commits**:
+  - `a68bb85 fix(v0.7.b): Phase-4 adversarial review fixes — precision guard + honest result docs`
+  - `0684c91 docs(v0.7.b): ADR-035 + README/CLAUDE/HANDOVER drift docs, bump 0.7.1 (AC-5)`
   - `da268b7 test(v0.7.b): integration coverage for the Drift section — recall + precision + read-only (AC-4)`
   - `d693026 feat(v0.7.b): wire the Drift scan into mmd document-review (AC-3/AC-4)`
   - `c983730 feat(v0.7.b): render the Drift / conformance section (AC-3, render half)`
-  - `27e4adc feat(v0.7.b): pure conformance checks — dangling refs + bounded stale facts (AC-2)`
-  - `5ed92c1 feat(v0.7.b): pure line-aware doc-ref extractor — what a doc claims exists (AC-1)`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

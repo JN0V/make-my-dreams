@@ -164,6 +164,21 @@ test('@unit conformance(fact): historical narrative is IGNORED (no false positiv
   assert.deepEqual(out, [], 'clearly-historical claims are not drift');
 });
 
+test('@unit conformance(fact): "by/until vX" is NOT a historical marker — current claim still checked', () => {
+  // F4: "by v0.5 standards" frames a CURRENT requirement, not a past state, so
+  // it must NOT suppress the count check. Past-tense framings still suppress.
+  const current = [
+    { doc: 'README.md', text: 'The CLI must expose 9 subcommands by v0.5 standards.' },
+  ];
+  const out = checkFactConformance({ docs: current, inventory: INVENTORY });
+  assert.ok(out.some((f) => /subcommands/.test(f.claim) && f.actual === 4), '"by vX" no longer suppresses');
+
+  const historical = [
+    { doc: 'README.md', text: 'Shipped in v0.2 with 9 subcommands.' },
+  ];
+  assert.deepEqual(checkFactConformance({ docs: historical, inventory: INVENTORY }), [], 'past-tense still suppresses');
+});
+
 test('@unit conformance(fact): PURE + never throws on empty/odd input', () => {
   assert.deepEqual(checkFactConformance({}), []);
   assert.deepEqual(checkFactConformance(null), []);

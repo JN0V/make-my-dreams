@@ -103,6 +103,68 @@ test('@unit report: no llm requested → no enrichment section', () => {
   assert.ok(!md.includes('LLM enrichment'));
 });
 
+// --- Drift / conformance section (SPEC_V07B AC-3) --------------------------
+
+const DRIFT = {
+  scannedDocs: 7,
+  dangling: [
+    { doc: 'README.md', line: 88, ref: 'ADR-099', kind: 'adr', reason: 'no docs/adr/099-*.md for ADR-099' },
+    { doc: 'CLAUDE.md', line: 12, ref: 'lib/gone.js', kind: 'file', reason: 'file not found (renamed/removed?)' },
+  ],
+  staleFacts: [
+    { doc: 'README.md', line: 31, claim: '30 ADRs', actual: 35 },
+  ],
+  semantic: { requested: false, text: null, note: null },
+};
+
+test('@unit report(drift): renders the Drift section with dangling refs + stale facts', () => {
+  const md = renderCoherenceReport({ inventory: INVENTORY, reconciliation: RECONCILIATION, drift: DRIFT });
+  assert.match(md, /## Drift \/ conformance/);
+  assert.match(md, /flags\*\* drift, it does \*\*NOT\*\* edit your docs/);
+  assert.match(md, /Scanned 7 truth docs/);
+  assert.match(md, /### Dangling references/);
+  assert.match(md, /⚠️ README\.md:88 → `ADR-099` — no docs\/adr\/099/);
+  assert.match(md, /⚠️ CLAUDE\.md:12 → `lib\/gone\.js` — file not found/);
+  assert.match(md, /### Stale facts/);
+  assert.match(md, /⚠️ README\.md:31 says "30 ADRs" — inventory has 35/);
+});
+
+test('@unit report(drift): a clean repo renders the green "no drift" lines', () => {
+  const md = renderCoherenceReport({
+    inventory: INVENTORY,
+    reconciliation: RECONCILIATION,
+    drift: { scannedDocs: 5, dangling: [], staleFacts: [], semantic: { requested: false } },
+  });
+  assert.match(md, /✅ No dangling references/);
+  assert.match(md, /✅ No stale facts/);
+});
+
+test('@unit report(drift): --with-claude semantic drift renders when present', () => {
+  const md = renderCoherenceReport({
+    inventory: INVENTORY,
+    reconciliation: RECONCILIATION,
+    drift: { ...DRIFT, semantic: { requested: true, text: 'ADR-029 describes a 70% auto-handoff that never shipped.', note: null } },
+  });
+  assert.match(md, /### Semantic drift/);
+  assert.match(md, /never shipped/);
+});
+
+test('@unit report(drift): --with-claude unavailable → honest fallback, no fabricated verdict', () => {
+  const md = renderCoherenceReport({
+    inventory: INVENTORY,
+    reconciliation: RECONCILIATION,
+    drift: { ...DRIFT, semantic: { requested: true, text: null, note: 'claude not on PATH' } },
+  });
+  assert.match(md, /### Semantic drift/);
+  assert.match(md, /LLM drift check unavailable: claude not on PATH/);
+  assert.match(md, /no semantic-conformance verdict was fabricated/);
+});
+
+test('@unit report(drift): no drift payload → no Drift section (v0.7.a back-compat)', () => {
+  const md = renderCoherenceReport({ inventory: INVENTORY, reconciliation: RECONCILIATION });
+  assert.ok(!md.includes('## Drift / conformance'), 'back-compat: no drift arg → no section');
+});
+
 test('@unit report: empty/garbage args never throw, produce a minimal report', () => {
   assert.doesNotThrow(() => renderCoherenceReport());
   assert.doesNotThrow(() => renderCoherenceReport({}));

@@ -82,6 +82,7 @@ Usage:
   mmd document-review [--with-claude] [--dry-run]
                                        Documentalist coherence review — designed-vs-built + doc-health (v0.7.a)
   mmd document-compact [--dry-run]     Documentalist active compaction — archive root SPEC_V*.md into docs/specs/ (v0.7.c)
+  mmd test-health [--dry-run]          Test Curator — test-corpus health (stratification/untagged/oversized) → docs/test-health.md (v0.7.6)
   mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
   mmd --help, -h                       Print this usage and exit
@@ -1383,6 +1384,15 @@ async function main() {
     // references. Move-only, idempotent, reversible; never edits doc content.
     const { runDocumentCompact } = await import('./documentalist/document-compact.js');
     return runDocumentCompact(rawArgs.slice(1));
+  }
+  if (rawArgs[0] === 'test-health') {
+    // v0.7.6 AC-3: `mmd test-health` subcommand. Dispatched here (before
+    // checkGate / argv parsing) for the same reason as the document-* family —
+    // it must not parse as a dream string equal to "test-health". The Test
+    // Curator: gather the git-tracked test files → scan for stratification tags
+    // → build → write docs/test-health.md (read-only beyond that one file).
+    const { runTestHealth } = await import('./test-curator/test-health.js');
+    return runTestHealth(rawArgs.slice(1));
   }
   if (rawArgs.includes('--version')) {
     stdout.write(`${VERSION}\n`);

@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import {
   planCompaction,
   applyReferenceRewrites,
+  countReferences,
   parseSpecVersion,
   ARCHIVE_DIR,
 } from '../../lib/documentalist/compact.js';
@@ -185,4 +186,14 @@ test('@unit applyReferenceRewrites: empty / malformed input never throws', () =>
   assert.equal(applyReferenceRewrites('text', []), 'text');
   assert.equal(applyReferenceRewrites('text', null), 'text');
   assert.doesNotThrow(() => applyReferenceRewrites(null, REWRITES));
+});
+
+// ── countReferences (honest "N references" summary count) ───────────────────
+
+test('@unit countReferences: counts every rewritable token, ignores already-prefixed', () => {
+  const text = 'see [a](SPEC_V06A.md) and SPEC_V06A.md again, plus docs/specs/SPEC_V05C.md (already)';
+  // Two bare SPEC_V06A.md tokens; the docs/specs/-prefixed one is not counted.
+  assert.equal(countReferences(text, REWRITES), 2);
+  assert.equal(countReferences('', REWRITES), 0);
+  assert.equal(countReferences('text', null), 0);
 });

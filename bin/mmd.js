@@ -81,6 +81,7 @@ Usage:
                                        Refresh README.md's Status + Changelog blocks; report doc drift (v0.3.d)
   mmd document-review [--with-claude] [--dry-run]
                                        Documentalist coherence review — designed-vs-built + doc-health (v0.7.a)
+  mmd document-compact [--dry-run]     Documentalist active compaction — archive root SPEC_V*.md into docs/specs/ (v0.7.c)
   mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
   mmd --help, -h                       Print this usage and exit
@@ -1372,6 +1373,16 @@ async function main() {
     // roadmap → render → write docs/coherence-review.md (read-only beyond that).
     const { runDocumentReview } = await import('./documentalist/document-review.js');
     return runDocumentReview(rawArgs.slice(1));
+  }
+  if (rawArgs[0] === 'document-compact') {
+    // v0.7.c AC-2: `mmd document-compact` subcommand. Dispatched here (before
+    // checkGate / argv parsing) for the same reason as the document-* family —
+    // it must not parse as a dream string equal to "document-compact". The
+    // Documentalist's first action: archive the root SPEC_V*.md sprawl into
+    // docs/specs/ (git mv — history preserved), write an index, rewrite
+    // references. Move-only, idempotent, reversible; never edits doc content.
+    const { runDocumentCompact } = await import('./documentalist/document-compact.js');
+    return runDocumentCompact(rawArgs.slice(1));
   }
   if (rawArgs.includes('--version')) {
     stdout.write(`${VERSION}\n`);

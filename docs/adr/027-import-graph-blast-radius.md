@@ -43,6 +43,7 @@ It stays **advisory** (logged, never gates a run — same posture as v0.4.a) and
 - **Re-export aliasing through computed names** — a module re-exported under a name built at runtime is invisible to specifier extraction.
 - **Non-JS importers** — an `index.html` that pulls a file via `<script src>`, a bundler config, or a CSS `@import`: these are not JS module imports and are not in the graph (the v0.4.a unit test for the `<script src>` PWA case documents this explicitly).
 - **Exotic syntax** the regexes don't model (e.g. specifiers split across template concatenation).
+- **A regex *literal* containing `//`** (e.g. `/a\/\//`) is treated by the comment scanner as a line comment — rare, line-local (never a whole-file swallow), and JS module specifiers we resolve don't live inside regex literals. (Comments are stripped with a single-pass char scanner that tracks code/string/line-comment/block-comment state — a regex stripper was rejected after it mistook the `/*` inside a `// … lib/*.` line comment for a block-comment opener and ate every import up to the next `*/`.)
 
 These are the **price of zero dependencies**, not bugs. A full AST + a bundler-grade resolver would catch some of them; for an advisory impact map on a hundreds-of-files repo, the trade isn't worth a permanent dependency. A very large monorepo would also warrant caching the graph between runs — out of scope here (SPEC §4).
 

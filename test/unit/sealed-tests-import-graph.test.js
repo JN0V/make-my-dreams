@@ -58,6 +58,32 @@ test('@unit parseSpecifiers: bare and node: specifiers are returned as-is (resol
   assert.ok(specs.includes('./x.js'));
 });
 
+test('@unit parseSpecifiers: a /* inside a line comment or string does NOT swallow later imports', () => {
+  // Regression (v0.4.c Phase-4): a naive block-comment regex saw the `/*` in
+  // `lib/*.` and ate everything up to the next `*/`, dropping real imports. The
+  // char scanner keeps line-comments and strings from opening a block comment.
+  const src = [
+    '// all logic lives in lib/*. (this /* is NOT a block comment opener)',
+    "const glob = 'src/*'; // a string containing /* must not start a block",
+    "import { real } from './real.js';",
+    "import { also } from './also.js';",
+  ].join('\n');
+  const specs = parseSpecifiers(src);
+  assert.ok(specs.includes('./real.js'), 'the import after a /*-in-comment must survive');
+  assert.ok(specs.includes('./also.js'));
+});
+
+test('@unit parseSpecifiers: a real /* … */ block comment IS stripped (multi-line)', () => {
+  const src = [
+    '/*',
+    "  import { stale } from './stale.js';",
+    '*/',
+    "import { fresh } from './fresh.js';",
+  ].join('\n');
+  const specs = parseSpecifiers(src);
+  assert.deepEqual(specs, ['./fresh.js']);
+});
+
 test('@unit parseSpecifiers: never throws on odd input → []', () => {
   assert.deepEqual(parseSpecifiers(undefined), []);
   assert.deepEqual(parseSpecifiers(null), []);

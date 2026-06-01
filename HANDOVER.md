@@ -156,3 +156,13 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 ---
 
 *This file is a session handover. Update it at the end of any context-bridge moment so the next picker-up has the intent, not just the state. If you find yourself updating it often, consider implementing the `mmd handover` subcommand (L-020 candidate).*
+
+---
+
+## ⚠️ IN-FLIGHT at handover (2026-06-01) — resume this first
+
+A slice was RUNNING when this handover was written:
+- **v0.5.c — serve-UI context gauge** on branch `slice/here-serve-context-gauge-1780316649` (label `serve-context-gauge`), launched via `mmd --here` (auto-dev), watcher log `/tmp/v05c-here.log`.
+- State at handover: all ACs committed (~4-5 commits incl. a CSP-safe renderGauge fix + ADR-031, bump to 0.5.2), orchestrator in **Phase-4 adversarial review** (not yet "Changes applied").
+- **To resume:** wait for `/tmp/v05c-here.log` to show `[OK] Changes applied` (or `pgrep -f "bin/mmd.js --here"` empty), then the standard close-out: independent `npm run test:full` + verify `renderGauge` (pure) + assert the DEFAULT web spawn args carry NO `--monitor` (bootstrap/back-compat) → `git checkout main && git merge --ff-only <branch>` → tag `v0.5.2` → push → `npm install -g .` → `mmd document-readme --tests <N>` + `mmd handover --tests <N>` → update the intent rows. See SPEC_V05C.md DoD.
+- **Watcher discipline (learned this session):** arm a per-run watcher on the UNIQUE log (`until grep -qE "Changes applied|^error:" /tmp/v05X-here.log`), NEVER the shared `pgrep "bin/mmd.js --here"` (that pattern can't tell one run from the next — it left ~12 zombie watchers). See memory `proactive-run-status`.

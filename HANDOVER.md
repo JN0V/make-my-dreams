@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.7.5`
-- **Branch**: `slice/here-test-curator-test-health-1780348277`
+- **Latest tag**: `v0.7.6`
+- **Branch**: `main`
 - **Version**: `0.7.6` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 40 (ADR-001..ADR-040)
 - **Tests**: 1708 passing
 - **Recent commits**:
+  - `55d766c fix(v0.7.6): Phase-4 adversarial review findings — scanner precision + DRY + honesty`
   - `363812a chore(v0.7.6): refresh mechanical blocks, re-bless version pins, capture live corpus in HANDOVER`
   - `03e57d0 docs(v0.7.6): ADR-040 + README + CLAUDE for the Test Curator; bump to 0.7.6`
   - `4a70102 feat(v0.7.6): mmd test-health subcommand + dispatch (Test Curator AC-3/AC-4)`
   - `d3ac318 feat(v0.7.6): pure test-health report builder (Test Curator AC-2)`
-  - `045d8f6 feat(v0.7.6): pure test-corpus scanner (Test Curator AC-1)`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

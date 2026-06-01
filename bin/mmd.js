@@ -43,6 +43,7 @@ import { readFile as fsReadFile } from 'node:fs/promises';
 import { checkGate } from '../lib/discover/gate.js';
 import { runCliDreamCatcher } from '../lib/dream-catcher/cli-driver.js';
 import { runElicit } from '../lib/dream-catcher/elicit.js';
+import { shouldNotify, buildNotification, sendNotification } from '../lib/conductor/notify.js';
 
 // F30 — version sourced once from package.json (shared with GET /api/health).
 const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
@@ -121,6 +122,51 @@ Environment variables:
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+/**
+ * v0.5.a — best-effort Conductor notification (SPEC_V05A AC-3). Fired right
+ * after the final writeStatus(done/failed) on both the greenfield and --here
+ * completion paths. OPT-IN: a no-op (no payload, no network) unless
+ * MMD_NOTIFY_URL is set. BEST-EFFORT: a delivery failure logs a single line and
+ * is dropped — it NEVER changes the run's exit code or status. sendNotification
+ * is contracted never to throw; the try/catch is defense-in-depth so a notify
+ * bug can never escape into the run flow.
+ *
+ * @param {{ event: 'run_done'|'run_failed', slice: string, state: string, summary: string }} args
+ */
+async function maybeNotify({ event, slice, state, summary }) {
+  if (!shouldNotify(env)) return;
+  let result;
+  try {
+    result = await sendNotification(buildNotification({ event, slice, state, summary, env }));
+  } catch (err) {
+    result = { ok: false, error: err && err.message ? err.message : 'unexpected error' };
+  }
+  if (!result.ok) {
+    stderr.write(
+      `notify: ${event} not delivered (${result.error ?? `status ${result.status}`}); ` +
+        `run is unaffected (best-effort).\n`,
+    );
+  }
+}
+
+/**
+ * v0.5.a — the repo's most recent tag, or null if there is none / git is
+ * unavailable. Used only to enrich the `done` notification summary; best-effort,
+ * never throws (a missing tag is the common case for a fresh greenfield app).
+ *
+ * @param {string} dir
+ * @returns {string|null}
+ */
+function latestTagOrNull(dir) {
+  try {
+    const r = spawnSync('git', ['describe', '--tags', '--abbrev=0'], { cwd: dir, encoding: 'utf8' });
+    if (r.status === 0 && r.stdout && r.stdout.trim()) return r.stdout.trim();
+  } catch {
+    /* best-effort — no tag in the summary */
+  }
+  return null;
 }
 
 async function promptRfc() {
@@ -453,6 +499,12 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
       ...withDuration(initialEngineRecord, elapsedFail),
     });
     stderr.write(`auto-dev invocation failed: ${err.message}. See ${logPath}\n`);
+    await maybeNotify({
+      event: 'run_failed',
+      slice: sliceBranch,
+      state: 'failed',
+      summary: `auto-dev invocation failed: ${err.message}`,
+    });
     const e = new Error(err.message);
     e.mmdExitCode = err.mmdExitCode ?? 99;
     throw e;
@@ -479,6 +531,12 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
       ...finalEngineRecord,
     });
     stderr.write(`auto-dev exited with code ${code}. See ${logPath}\n`);
+    await maybeNotify({
+      event: 'run_failed',
+      slice: sliceBranch,
+      state: 'failed',
+      summary: `auto-dev exited with code ${code}`,
+    });
     const e = new Error(`auto-dev subprocess exited ${code}`);
     e.mmdExitCode = 6;
     throw e;
@@ -500,6 +558,13 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
     updated_at: nowIso(),
     tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
     ...finalEngineRecord,
+  });
+  const hereTag = latestTagOrNull(absTargetDir);
+  await maybeNotify({
+    event: 'run_done',
+    slice: sliceBranch,
+    state: 'done',
+    summary: `${slug}${hereTag ? ` (${hereTag})` : ''}`,
   });
   stdout.write(
     `[OK] Changes applied on ${sliceBranch}. Review with: git diff ${baseSha}..HEAD\n` +
@@ -1312,6 +1377,12 @@ async function main() {
       ...withDuration(initialEngineRecord, elapsedFail),
     });
     stderr.write(`auto-dev invocation failed: ${err.message}. See ${logPath}\n`);
+    await maybeNotify({
+      event: 'run_failed',
+      slice: slug,
+      state: 'failed',
+      summary: `auto-dev invocation failed: ${err.message}`,
+    });
     const e = new Error(err.message);
     e.mmdExitCode = err.mmdExitCode ?? 99;
     throw e;
@@ -1340,6 +1411,12 @@ async function main() {
       ...finalEngineRecord,
     });
     stderr.write(`auto-dev exited with code ${code}. See ${logPath}\n`);
+    await maybeNotify({
+      event: 'run_failed',
+      slice: slug,
+      state: 'failed',
+      summary: `auto-dev exited with code ${code}`,
+    });
     const e = new Error(`auto-dev subprocess exited ${code}`);
     e.mmdExitCode = 6;
     throw e;
@@ -1365,6 +1442,13 @@ async function main() {
     tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
     ...(catchProfile ? { profile: catchProfile } : {}),
     ...finalEngineRecord,
+  });
+  const greenfieldTag = latestTagOrNull(cwd());
+  await maybeNotify({
+    event: 'run_done',
+    slice: slug,
+    state: 'done',
+    summary: `${slug}${greenfieldTag ? ` (${greenfieldTag})` : ''}`,
   });
   stdout.write(`[OK] Delivered at ${demoDir}\n`);
   return 0;

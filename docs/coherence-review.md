@@ -39,21 +39,21 @@ Legend: ✅ built · 🟡 partial · ❌ unbuilt · ❓ unknown.
 ## Doc health
 
 - ⚠️ MAKE_MY_DREAMS.md: 1722 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ README.md: 674 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
+- ⚠️ README.md: 675 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ HANDOVER.md: 224 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ PROBLEMS.md: 241 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ BOOTSTRAP.md: 393 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ docs/lessons-learned.md: 516 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ 34 SPEC_V*.md at the repo root — sprawl, archive candidate (v0.7.b active compaction)
 
-## Inventory  (13 subcommands · 35 ADRs · 21 lessons · tags v0.1.0..v0.7.0)
+## Inventory  (13 subcommands · 35 ADRs · 21 lessons · tags v0.1.0..v0.7.1)
 
 - **Subcommands** (13): serve, bench, ship, discover, qa, cso, document-release, unblock, document-lessons, handover, document-readme, document-review, lessons
 - **lib/ modules** (25): argv-parser, bench, composer, conductor, constitution-compose, discover, documentalist, dream-catcher, engine, handover, here-mode, here-mode, invoke-autodev, onboarding, parse-dream, rate-limit, readme-sync, reality-check, sealed-tests, security-headers, server, skills, spec-derive, sse, state
 - **ADRs** (35): latest ADR-035 — The Documentalist checks DRIFT: is the doc still TRUE? (conformance over tidiness)
 - **Active lessons**: 21
 - **Root SPEC files**: 34
-- **Tags**: 33 (v0.1.0..v0.7.0)
+- **Tags**: 34 (v0.1.0..v0.7.1)
 
 ## Drift / conformance  (does the doc still match reality?)
 
@@ -62,7 +62,6 @@ _Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edi
 ### Dangling references (a doc claims an artifact that does not exist)
 
 - ⚠️ docs/lessons-learned.md:240 → `bin/ship.js` — file not found (renamed/removed?)
-- ⚠️ docs/adr/007-gstack-effective-via-ship-subcommand.md:70 → `lib/ship/invoke-claude.js` — file not found (renamed/removed?)
 - ⚠️ docs/adr/032-transparent-first-run-setup.md:60 → `mmd init` — 'init' is not a known subcommand (renamed/removed/planned?)
 
 ### Stale facts (a prose claim disagrees with the live inventory)

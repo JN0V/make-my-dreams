@@ -67,7 +67,7 @@ The audit always runs at `mmd ship` time so every release surfaces the pillar ta
 
 - **Larger install footprint**: bun adds ~40 MB to a fresh install. Justified by the gStack dependency; the `y/N` prompt + `MMD_AUTO_INSTALL_BUN=1` env var keep this opt-in.
 - **`claude -p` dependency surface**: `mmd ship` depends on `claude` being on PATH. The bin/mmd shim handles the bun part, but Claude Code itself must be installed separately (documented prerequisite). Failure surfaces as exit 4 with a clear "claude not found" message.
-- **L-006 zombie risk**: per L-006, `claude -p` can stay `S (sleeping)` after finishing its work. `mmd ship` mitigates with `MMD_SHIP_TIMEOUT_MS` (default 30 min) and a SIGTERM/SIGKILL pair. The L-006 invariant ("`pgrep -af \"claude -p\"` before launching") is documented in `lib/ship/invoke-claude.js`.
+- **L-006 zombie risk**: per L-006, `claude -p` can stay `S (sleeping)` after finishing its work. `mmd ship` mitigates with `MMD_SHIP_TIMEOUT_MS` (default 30 min) and a SIGTERM/SIGKILL pair. The L-006 invariant ("`pgrep -af \"claude -p\"` before launching") is documented in `lib/skills/_common/invoke-claude.js` (the shared helper the `ship` skill was later refactored onto; `lib/skills/ship/invoke-claude.js` is now a thin wrapper).
 
 ### Follow-up work
 

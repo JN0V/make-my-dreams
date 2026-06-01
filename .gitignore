@@ -60,3 +60,10 @@ Thumbs.db
 
 # gStack skill outputs (cso, qa, etc. write here when run from MMD; not source)
 .gstack/
+
+# Greenfield build scratch: `mmd "<dream>"` writes generated apps under demo/<slug>/.
+# Throwaway output (a stray `demo/teleport/` once polluted the tree and its untracked
+# test/unit file inflated the suite count). Ignore all of demo/ EXCEPT the intentionally
+# tracked v0.1 walking-skeleton fil-rouge.
+/demo/*
+!/demo/drawing-app-camera-overlay/

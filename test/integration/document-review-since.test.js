@@ -174,8 +174,29 @@ test('@integration document-review --since: a HUB SOURCE caps the flood + prints
     // Capped: exactly 12 "review (strong)" lines for HUB.md, not 20.
     const strongLines = (r.stdout.match(/→ review \(strong\):/g) || []).length;
     assert.equal(strongLines, 12, `expected 12 capped neighbors, got ${strongLines}\n${r.stdout}`);
-    // Honest note naming the suppressed count + the hub-source reason.
-    assert.match(r.stdout, /\+8 more direct neighbors suppressed \(hub source/);
+    // Honest note naming the suppressed count + the hub-source reason (full
+    // wording pinned — no silent truncation, plain-language, universal §VI/§VII).
+    assert.match(
+      r.stdout,
+      /\+8 more direct neighbors suppressed \(hub source — this file couples to much of the repo; the top 12 are shown, reviewing all is noise, not a hint\)\./,
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('@integration document-review --since: a NON-hub change carries NO hub-source note (back-compat with v0.7.d)', async () => {
+  // The headline fixture (a 1-file lib change with 3 strong neighbors) must be
+  // byte-for-byte v0.7.d: ranked neighbors, advisory framing, and NO cap note.
+  const dir = await makeRepo();
+  try {
+    await writeFile(path.join(dir, 'lib', 'a.js'), 'export const a = 2; // changed\n');
+    git(dir, ['commit', '-aqm', 'tweak a']);
+
+    const r = runSince(dir, 'HEAD~1');
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /→ review \(strong\): lib\/b\.js {3}\[imports\]/);
+    assert.doesNotMatch(r.stdout, /suppressed \(hub source/, 'no hub-source note for an ordinary change');
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

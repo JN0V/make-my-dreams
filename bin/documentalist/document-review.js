@@ -521,7 +521,8 @@ export function renderCoupledChanges(ref, coupling) {
     if (hubSuppressed > 0) {
       lines.push(
         `    … +${hubSuppressed} more direct neighbor${hubSuppressed === 1 ? '' : 's'} suppressed ` +
-        `(hub source — this file couples to much of the repo; the top ${neighbors.length} are shown).`,
+        `(hub source — this file couples to much of the repo; the top ${neighbors.length} are shown, ` +
+        'reviewing all is noise, not a hint).',
       );
     }
   }

@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# fake-claude-sealed.sh — test fixture standing in for the real `claude` CLI for
+# the v0.4.a sealed-test oracle integration test (SPEC_V04A AC-4). Used via
+# MMD_AUTODEV_CMD=<this> so @integration tests exercise the full
+# tester→seal→coder→verify flow WITHOUT ever calling the real claude.
+#
+# ONE fixture serves BOTH agent calls; it branches on a marker in the prompt,
+# the way fake-claude-elicit.sh branches on its turn mode (SPEC_V04A §5 hint 3):
+#
+#   * TESTER call — its prompt carries the SHARED_MARKER ("SEALED ORACLE") and
+#     is passed verbatim as a positional arg by invokeSealedTester. On this
+#     branch the fixture WRITES a passing acceptance test into the sealed dir
+#     and writes NOTHING else (it does not implement the app).
+#
+#   * CODER call — routed through auto-dev's test seam, which passes only the
+#     bare [dream] string (no marker). On this branch the fixture writes the
+#     "app" (index.html). Behaviour knob:
+#       MMD_FAKE_SEALED_TAMPER (unset) → "good" coder: leaves the sealed dir
+#                                        untouched → seal intact → run passes.
+#       MMD_FAKE_SEALED_TAMPER=1       → "tampering" coder: rewrites the sealed
+#                                        test → seal broken → MMD exits non-zero
+#                                        naming the file.
+#
+# cwd is the demo dir for both calls, so the sealed dir is at the relative path
+# .mmd/shared/sealed-tests/ (MMD created it before invoking the tester).
+set -euo pipefail
+
+SEALED_DIR="$PWD/.mmd/shared/sealed-tests"
+ALL_ARGS="$*"
+
+if printf '%s' "$ALL_ARGS" | grep -q "SEALED ORACLE"; then
+  # ── TESTER ──────────────────────────────────────────────────────────────
+  if [ -n "${MMD_FAKE_SEALED_TESTER_EMPTY:-}" ]; then
+    # Tester "succeeds" (exit 0) but writes NO tests → MMD must abort with an
+    # explicit empty-seal error, never a silent "no tests = pass" (§VI).
+    echo "fake-claude-sealed: TESTER wrote nothing (empty-seal knob)"
+    exit 0
+  fi
+  mkdir -p "$SEALED_DIR"
+  # A real, runnable, PASSING acceptance test (CJS so it runs under
+  # `node --test` in a dir without a package.json). It encodes the dream's
+  # observable behaviour at the oracle level; the assertion is trivially true
+  # here because the fake "app" is a stub — the point under test is the SEAL,
+  # not the app's correctness.
+  cat > "$SEALED_DIR/acceptance.test.js" <<'JS'
+const { test } = require('node:test');
+const assert = require('node:assert');
+
+test('counter starts at zero and the + button is wired (oracle)', () => {
+  // Derived from the dream: a counter app with + and − buttons.
+  // The sealed oracle asserts the acceptance contract holds.
+  assert.equal(0, 0);
+});
+JS
+  echo "fake-claude-sealed: TESTER wrote acceptance.test.js into the sealed dir"
+  exit 0
+fi
+
+# ── CODER ───────────────────────────────────────────────────────────────────
+cat > index.html <<'HTML'
+<!doctype html><meta charset="utf-8"><title>counter</title>
+<h1 id="count">0</h1><button id="inc">+</button><button id="dec">−</button>
+HTML
+echo "fake-claude-sealed: CODER wrote index.html"
+
+if [ -n "${MMD_FAKE_SEALED_TAMPER:-}" ]; then
+  # The classic P-04 failure: the coder rewrites the oracle to pass cheaply.
+  echo "// silently gutted by the coder" >> "$SEALED_DIR/acceptance.test.js"
+  echo "fake-claude-sealed: CODER TAMPERED the sealed oracle (P-04)"
+fi
+
+exit 0

@@ -16,12 +16,16 @@ import { rm, lstat, writeFile, realpath } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdirSync, existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import { slugify, deriveBranchSlug, initStateFiles, nextAvailableSlug } from '../lib/parse-dream.js';
 import { ensureLayout, readStatus, writeStatus, ensureGitignore } from '../lib/state.js';
-import { invokeAutodev } from '../lib/invoke-autodev.js';
+import { invokeAutodev, buildSubprocessEnv, resolveAutodevMode } from '../lib/invoke-autodev.js';
+import { buildManifest, verifyManifest, sealIntact } from '../lib/sealed-tests/manifest.js';
+import { buildTesterPrompt, buildCoderPrompt } from '../lib/sealed-tests/tester-prompt.js';
+import { computeBlastRadius } from '../lib/sealed-tests/blast-radius.js';
 import { realityCheck } from '../lib/reality-check.js';
 import { parseArgv, resolveEngine, resolveShouldCatch } from '../lib/argv-parser.js';
 import { deriveSpec } from '../lib/spec-derive.js';
@@ -50,6 +54,9 @@ Usage:
                                        (on a TTY: an interactive Dream Catcher
                                        dialogue refines it first — v0.3.b)
   mmd --fast "<dream>"                 Trimmed auto-dev pipeline (target <=10 min)
+  mmd --sealed "<dream>"               Sealed-test oracle: a tester writes blind acceptance
+                                       tests, MMD seals them (hash), auto-dev implements, then
+                                       MMD verifies the seal (tamper = fail) + re-runs them (v0.4.a)
   mmd --here "<change>"                Modify the current git repo in place (v0.2a)
   mmd bench [--dry-run]                Run the dream-bench v0 harness (v0.2b)
   mmd ship [<branch>] [--dry-run]      Invoke gStack ship skill on the current slice (v0.2.f)
@@ -73,6 +80,9 @@ Engine flags (mutually exclusive):
   --deep                               DEEP engine — full BMAD process (v0.2d)
 
 Mode flags (orthogonal to engine):
+  --sealed                             Opt-in sealed-test oracle for greenfield: independent tester
+                                       writes acceptance tests, MMD seals them, auto-dev implements,
+                                       MMD verifies the seal is intact + re-runs the tests (v0.4.a)
   --here                               Self / brownfield-in-place: modify cwd, no demo/<slug>/ scaffold (v0.2a)
   --label <name>                       Human-readable branch name for --here (e.g. --label wip-salvage); else derived from the dream
   --skip-onboarding                    Bypass the v0.2c Project Onboarder gate (NOT RECOMMENDED)
@@ -441,6 +451,256 @@ async function maybeSuggestNpmTest(targetDir) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// v0.4.a — sealed-test oracle (`mmd --sealed "<dream>"`). SPEC_V04A Bundle B.
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Synchronously list FILE paths under `rootDir`, relative to it, skipping the
+ * given top-level directory names. Used both as the sealed-dir lister (fresh
+ * each verify) and as the blast-radius candidate lister. Returns [] for a
+ * missing dir (never throws — universal §VI).
+ */
+function listFilesRelSync(rootDir, { skipDirs = [] } = {}) {
+  const out = [];
+  const skip = new Set(skipDirs);
+  const walk = (rel) => {
+    let entries;
+    try {
+      entries = readdirSync(path.join(rootDir, rel), { withFileTypes: true });
+    } catch {
+      return; // missing / unreadable subtree — skip
+    }
+    for (const e of entries) {
+      const childRel = rel ? path.join(rel, e.name) : e.name;
+      if (e.isDirectory()) {
+        if (rel === '' && skip.has(e.name)) continue;
+        walk(childRel);
+      } else if (e.isFile()) {
+        out.push(childRel);
+      }
+    }
+  };
+  walk('');
+  return out;
+}
+
+/**
+ * Invoke the TESTER sub-agent via `claude -p`, reusing the same env allowlist
+ * and the MMD_AUTODEV_CMD test seam as auto-dev (SPEC_V04A AC-3). Synchronous
+ * (one-shot, blocking) — simpler than the coder's streaming spawn and adequate
+ * for a single prompt.
+ *
+ * In CLI mode the prompt rides as `-p <prompt>`; in test mode the FULL prompt is
+ * passed as a single positional arg so the fake-claude can branch tester-vs-coder
+ * on its SHARED_MARKER (auto-dev's test seam strips to [dream], which is why the
+ * tester needs its own spawn here).
+ *
+ * @returns {{ ok: boolean, status: number|null, message?: string }}
+ */
+function invokeSealedTester({ demoDir, prompt, logPath, timeoutMs }) {
+  const cmd = process.env.MMD_AUTODEV_CMD || 'claude';
+  const mode = resolveAutodevMode(process.env);
+  const args = mode === 'cli' ? ['-p', prompt] : [prompt];
+  const childEnv = buildSubprocessEnv(process.env);
+
+  const r = spawnSync(cmd, args, {
+    cwd: demoDir,
+    env: childEnv,
+    encoding: 'utf8',
+    timeout: timeoutMs && timeoutMs > 0 ? timeoutMs : undefined,
+  });
+
+  // Forensic trail: tee whatever the tester emitted into the run log dir.
+  try {
+    mkdirSync(path.dirname(logPath), { recursive: true });
+    writeFile(
+      logPath,
+      `[tester] cmd=${cmd} mode=${mode} status=${r.status}\n` +
+        `--- stdout ---\n${r.stdout || ''}\n--- stderr ---\n${r.stderr || ''}\n`,
+      'utf8',
+    ).catch(() => {});
+  } catch { /* log is best-effort */ }
+
+  if (r.error) {
+    const code = r.error.code === 'ENOENT'
+      ? `'${cmd}' not found on PATH. Install Claude Code or set MMD_AUTODEV_CMD.`
+      : r.error.message;
+    return { ok: false, status: null, message: `tester could not run: ${code}` };
+  }
+  if (r.status !== 0) {
+    return { ok: false, status: r.status, message: `tester exited with code ${r.status}` };
+  }
+  return { ok: true, status: 0 };
+}
+
+/**
+ * The `mmd --sealed` greenfield orchestration (SPEC_V04A AC-4):
+ *   TESTER → SEAL → CODER (auto-dev) → VERIFY → re-run sealed tests → BLAST.
+ *
+ * Honest at every step (universal §VI): a tester that fails or writes nothing,
+ * an empty seal, a tampered/removed sealed file, or a failing sealed test each
+ * surface explicitly and mark the slice NOT done — never a silent "sealed OK".
+ * A tamper/removal is the whole point (anti-P-04): MMD exits non-zero naming the
+ * files and refuses to treat the slice as complete.
+ *
+ * Returns an exit code (0 clean; 6 for any sealed-pipeline failure).
+ */
+async function runSealedGreenfield({
+  demoDir, dream, slug, engine, logPath, inProgressStatus, initialEngineRecord, catchProfile,
+}) {
+  const sealedDir = path.join(demoDir, '.mmd', 'shared', 'sealed-tests');
+  const startNs = process.hrtime.bigint();
+
+  const failStatus = async (reason) => {
+    const elapsed = Number(process.hrtime.bigint() - startNs) / 1e9;
+    await writeStatus(demoDir, {
+      ...inProgressStatus,
+      state: 'failed',
+      updated_at: nowIso(),
+      reason,
+      ...withDuration(initialEngineRecord, elapsed),
+    });
+  };
+
+  stdout.write('Mode: --sealed (sealed-test oracle — tester writes blind tests, MMD seals them)\n');
+
+  // ── 1. TESTER ────────────────────────────────────────────────────────────
+  mkdirSync(sealedDir, { recursive: true });
+  let slice = null;
+  try {
+    slice = readFileSync(path.join(demoDir, '.mmd', 'shared', 'slice.md'), 'utf8');
+  } catch { /* no slice spec — the dream alone grounds the tester */ }
+
+  const testerPrompt = buildTesterPrompt({ dream, slice, sealedDir });
+  const testerLog = logPath.replace(/\.log$/, '.tester.log');
+  stdout.write('Sealed step 1/5 — TESTER: deriving acceptance tests (blind to the implementation)...\n');
+  const tester = invokeSealedTester({
+    demoDir, prompt: testerPrompt, logPath: testerLog,
+    timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+  });
+  if (!tester.ok) {
+    await failStatus(`tester failed: ${tester.message}`);
+    stderr.write(`error: --sealed ${tester.message}. See ${testerLog}\n`);
+    return 6;
+  }
+
+  // ── 2. SEAL ──────────────────────────────────────────────────────────────
+  const readdirFn = (dir) => listFilesRelSync(dir);
+  const readFileFn = (dir, rel) => readFileSync(path.join(dir, rel));
+  const manifest = buildManifest(sealedDir, readdirFn, readFileFn);
+  const sealedCount = Object.keys(manifest).length;
+  if (sealedCount === 0) {
+    // Empty seal: the tester exited 0 but wrote no tests. NOT a silent pass.
+    await failStatus('empty seal: tester wrote no acceptance tests');
+    stderr.write(
+      `error: --sealed empty seal — the tester wrote no test files into ${sealedDir}. ` +
+        `Refusing to proceed (an empty oracle proves nothing). See ${testerLog}\n`,
+    );
+    return 6;
+  }
+  stdout.write(`Sealed step 2/5 — SEAL: ${sealedCount} test file(s) hashed (read-only oracle).\n`);
+
+  // ── 3. CODER (existing auto-dev, told the sealed dir is read-only) ─────────
+  stdout.write('Sealed step 3/5 — CODER: running auto-dev against the sealed oracle...\n');
+  const coderPrompt = buildCoderPrompt({ dream, slug, demoDir, sealedDir, engine });
+  let invokeResult;
+  try {
+    invokeResult = await invokeAutodev({
+      demoDir,
+      dream,
+      slug,
+      promptParts: { dream, slug, demoDir, prompt: coderPrompt },
+      logPath,
+      timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+      engine,
+    });
+  } catch (err) {
+    await failStatus(`coder invocation failed: ${err.message}`);
+    stderr.write(`auto-dev (coder) invocation failed: ${err.message}. See ${logPath}\n`);
+    return err.mmdExitCode ?? 6;
+  }
+  if (invokeResult.code !== 0) {
+    await failStatus(`coder exited ${invokeResult.code}`);
+    stderr.write(`auto-dev (coder) exited with code ${invokeResult.code}. See ${logPath}\n`);
+    return 6;
+  }
+
+  // ── 4. VERIFY the seal (the anti-P-04 enforcement) ─────────────────────────
+  const verdict = verifyManifest(sealedDir, manifest, readdirFn, readFileFn);
+  if (!sealIntact(verdict)) {
+    const tampered = verdict.tampered.map((f) => `tampered: ${f}`);
+    const removed = verdict.removed.map((f) => `removed:  ${f}`);
+    const named = [...tampered, ...removed].join('\n  ');
+    await failStatus(`SEAL BROKEN — ${verdict.tampered.length} tampered, ${verdict.removed.length} removed`);
+    stderr.write(
+      `error: --sealed SEAL BROKEN — the coder modified the read-only oracle (P-04).\n` +
+        `  ${named}\n` +
+        `The slice is NOT done and will NOT be merged. Re-run, or inspect ${logPath}.\n`,
+    );
+    return 6;
+  }
+  const addedNote = verdict.added.length
+    ? ` (coder added ${verdict.added.length} non-sealed file(s) — allowed)`
+    : '';
+  stdout.write(`Sealed step 4/5 — VERIFY: seal intact${addedNote}.\n`);
+
+  // ── 4b. Re-run the sealed tests as the independent oracle ──────────────────
+  const sealedFiles = listFilesRelSync(sealedDir).map((rel) => path.join(sealedDir, rel));
+  const run = spawnSync('node', ['--test', ...sealedFiles], {
+    cwd: demoDir,
+    env: buildSubprocessEnv(process.env),
+    encoding: 'utf8',
+    timeout: 120_000,
+  });
+  if (run.error) {
+    await failStatus(`could not run sealed tests: ${run.error.message}`);
+    stderr.write(`error: --sealed could not run the sealed tests: ${run.error.message}\n`);
+    return 6;
+  }
+  if (run.status !== 0) {
+    await failStatus(`sealed tests failed (exit ${run.status})`);
+    stderr.write(
+      `error: --sealed the sealed tests FAILED (exit ${run.status}) — the implementation does ` +
+        `not satisfy the independent oracle. The slice is flagged.\n` +
+        `${(run.stdout || '').split('\n').slice(-12).join('\n')}\n`,
+    );
+    return 6;
+  }
+  stdout.write('Sealed step 4/5 — ORACLE: sealed tests PASS (independent verification).\n');
+
+  // ── 5. BLAST RADIUS (stub, advisory) → status.json.blast_radius ────────────
+  const changedFiles = listFilesRelSync(demoDir, { skipDirs: ['.mmd', 'node_modules', '.git'] });
+  const blastRadius = computeBlastRadius(changedFiles, {
+    listFiles: () => listFilesRelSync(demoDir, { skipDirs: ['.mmd', 'node_modules', '.git'] }),
+    readFile: (rel) => {
+      try { return readFileSync(path.join(demoDir, rel), 'utf8'); } catch { return ''; }
+    },
+  });
+  stdout.write(
+    `Sealed step 5/5 — BLAST: ${blastRadius.changed.length} changed, ` +
+      `${blastRadius.importers.length} direct importer(s) (stub; AST in v0.5).\n`,
+  );
+
+  const elapsedSeconds = Number(process.hrtime.bigint() - startNs) / 1e9;
+  await writeStatus(demoDir, {
+    slice_id: slug,
+    dream,
+    state: 'done',
+    created_at: inProgressStatus.created_at,
+    updated_at: nowIso(),
+    tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
+    ...(catchProfile ? { profile: catchProfile } : {}),
+    sealed: { sealed_files: sealedCount, added: verdict.added },
+    blast_radius: blastRadius,
+    ...withDuration(initialEngineRecord, elapsedSeconds),
+  });
+  stdout.write(
+    `[OK] Sealed run delivered at ${demoDir}. The sealed oracle was intact and passed.\n`,
+  );
+  return 0;
+}
+
 async function main() {
   const rawArgs = argv.slice(2);
   // Subcommand dispatch happens FIRST so that `mmd bench --help` routes to
@@ -746,6 +1006,17 @@ async function main() {
   // F11 — pid suffix to avoid same-ms collisions on the log filename.
   const timestamp = `${nowIso().replace(/[:.]/g, '-')}-${process.pid}`;
   const logPath = path.join(demoDir, '.mmd', 'local', 'runs', `${timestamp}.log`);
+
+  // v0.4.a AC-4: the opt-in sealed-test oracle. When --sealed is set, the
+  // greenfield path runs the two-phase tester→seal→coder→verify→re-run→blast
+  // flow instead of the plain auto-dev call below. The default path (no
+  // --sealed) falls through unchanged — byte-for-byte identical (SPEC_V04A §1).
+  if (flags.sealed) {
+    return runSealedGreenfield({
+      demoDir, dream, slug, engine, logPath,
+      inProgressStatus, initialEngineRecord, catchProfile,
+    });
+  }
 
   // AC-5 + AC-6: time the auto-dev invocation for engine_metrics.duration_seconds
   // and the FAST soft-budget warning. Use a monotonic clock so wall-clock drift

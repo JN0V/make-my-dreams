@@ -15,6 +15,8 @@
   var form = document.getElementById('dream-form');
   var input = document.getElementById('dream-input');
   var submitBtn = document.getElementById('submit-btn');
+  var monitorToggle = document.getElementById('monitor-toggle'); // v0.5.c opt-in
+  var contextGauge = document.getElementById('context-gauge');   // v0.5.c gauge
   var stepProfile = document.getElementById('step-profile');
   var profileButtons = document.querySelectorAll('.profile-btn');
   var stepLevel = document.getElementById('step-level');
@@ -51,6 +53,11 @@
 
   // Dream Catcher session state (client side).
   var sessionId = null;
+  // v0.5.c — the "Monitor context" choice is made on the dream form but only
+  // takes effect at launch (confirm), so capture it at submit and carry it.
+  var monitorChosen = false;
+  // v0.5.c — context-gauge poll handle (best-effort; null when not polling).
+  var gaugePollTimer = null;
 
   // SSE / progress state
   var logBuffer = [];
@@ -88,6 +95,8 @@
     e.preventDefault();
     var dream = input.value.trim();
     if (dream.length === 0) return;
+    // Capture the opt-in monitor choice now; it is threaded at confirm (launch).
+    monitorChosen = !!(monitorToggle && monitorToggle.checked);
     startCatch(dream);
   });
 
@@ -262,7 +271,7 @@
     fetch('/api/catch/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: sessionId }),
+      body: JSON.stringify({ sessionId: sessionId, monitor: monitorChosen }),
     })
       .then(readJson)
       .then(function (r) {
@@ -274,6 +283,9 @@
         }
         beginProgress();
         openStream(r.body.streamUrl, r.body.jobId);
+        // v0.5.c — when the user opted into monitoring, poll the context gauge.
+        // Best-effort: a failed poll never breaks the page or the SSE stream.
+        if (monitorChosen && r.body.slug) startGaugePoll(r.body.slug);
       })
       .catch(function (err) {
         scopeGo.disabled = false;
@@ -313,6 +325,7 @@
     phaseLine.textContent = '';
     heartbeat.hidden = true;
     heartbeat.classList.remove('stale');
+    clearGauge(); // v0.5.c — fresh run starts with a hidden gauge
   }
 
   /* ─────────────── SSE engine (unchanged from v0.2.5) ─────────────── */
@@ -350,14 +363,17 @@
       appendLog('[warn] ' + (data.text || ''), 'stderr');
     } else if (data.type === 'done') {
       stopHeartbeatWatch();
+      stopGaugePoll(); // v0.5.c — stop polling on completion (gauge stays visible)
       if (es) { es.close(); es = null; }
       showResult(data);
     } else if (data.type === 'error') {
       stopHeartbeatWatch();
+      stopGaugePoll();
       if (es) { es.close(); es = null; }
       showFailure('Quelque chose n\'a pas marché. / Something didn\'t work.', data.message || data.code);
     } else if (data.type === 'server_shutdown') {
       stopHeartbeatWatch();
+      stopGaugePoll();
       if (es) { es.close(); es = null; }
       showFailure('Le serveur s\'est arrêté. / The server stopped.', '');
     }
@@ -424,6 +440,53 @@
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer);
       heartbeatTimer = null;
+    }
+  }
+
+  /* ─────────────── v0.5.c context gauge (best-effort poll) ─────────────── */
+  // Poll GET /api/status/<slug> every ~3 s while the monitored job runs and
+  // render the gauge from `.context`. Decoupled from the SSE stream on purpose:
+  // a failed/slow poll is swallowed and NEVER breaks the page or the SSE feed.
+
+  function startGaugePoll(slug) {
+    stopGaugePoll();
+    pollGaugeOnce(slug); // immediate first sample, then every 3 s
+    gaugePollTimer = setInterval(function () { pollGaugeOnce(slug); }, 3000);
+  }
+
+  function pollGaugeOnce(slug) {
+    fetch('/api/status/' + encodeURIComponent(slug))
+      .then(function (resp) { return resp.ok ? resp.json() : null; })
+      .then(function (body) {
+        if (body && body.context) renderContextGauge(body.context);
+      })
+      .catch(function () { /* swallow — best-effort poll (AC-4) */ });
+  }
+
+  function renderContextGauge(context) {
+    if (!contextGauge || !window.MMDGauge) return;
+    var html = window.MMDGauge.renderGauge(context);
+    if (html) {
+      contextGauge.innerHTML = html;
+      contextGauge.hidden = false;
+    } else {
+      contextGauge.hidden = true;
+      contextGauge.innerHTML = '';
+    }
+  }
+
+  function stopGaugePoll() {
+    if (gaugePollTimer) {
+      clearInterval(gaugePollTimer);
+      gaugePollTimer = null;
+    }
+  }
+
+  function clearGauge() {
+    stopGaugePoll();
+    if (contextGauge) {
+      contextGauge.hidden = true;
+      contextGauge.innerHTML = '';
     }
   }
 
@@ -516,6 +579,7 @@
   function resetToStart() {
     if (es) { es.close(); es = null; }
     stopHeartbeatWatch();
+    clearGauge(); // v0.5.c — drop the gauge + any in-flight poll
     sessionId = null;
     progressSection.hidden = true;
     resultSection.hidden = true;

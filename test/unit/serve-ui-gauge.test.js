@@ -44,25 +44,27 @@ test('@unit renderGauge: null/undefined/non-object context → empty string', ()
 
 /* ── renderGauge: pct clamp ─────────────────────────────────────────────── */
 
-test('@unit renderGauge: pct fraction rendered as percentage', () => {
+test('@unit renderGauge: pct fraction rendered as percentage + progress value', () => {
   const html = renderGauge({ model: 'claude-opus-4-8', window: 1000000, tokens: 340000, pct: 0.34 });
   assert.match(html, /34%/);
-  assert.match(html, /width:34\.0%/);
+  assert.match(html, /data-pct="34\.0"/);
+  assert.match(html, /<progress[^>]*value="34"/);
 });
 
 test('@unit renderGauge: pct > 1 clamps to 100%', () => {
   const html = renderGauge({ model: 'm', window: 100, tokens: 200, pct: 2 });
   assert.match(html, /100%/);
-  assert.match(html, /width:100\.0%/);
-  assert.doesNotMatch(html, /width:200/);
+  assert.match(html, /data-pct="100\.0"/);
+  assert.match(html, /value="100"/);
+  assert.doesNotMatch(html, /value="200"/);
 });
 
 test('@unit renderGauge: negative/NaN pct clamps to 0%', () => {
   const neg = renderGauge({ model: 'm', window: 100, tokens: 0, pct: -0.5 });
   assert.match(neg, /0%/);
-  assert.match(neg, /width:0\.0%/);
+  assert.match(neg, /data-pct="0\.0"/);
   const nan = renderGauge({ model: 'm', window: 100, tokens: 0, pct: NaN });
-  assert.match(nan, /width:0\.0%/);
+  assert.match(nan, /data-pct="0\.0"/);
 });
 
 /* ── renderGauge: humanized tokens/window + model ───────────────────────── */
@@ -83,7 +85,12 @@ test('@unit renderGauge: estimated window flagged "(est.)"', () => {
 test('@unit renderGauge: always renders the 70% threshold marker', () => {
   const html = renderGauge({ model: 'm', window: 1000, tokens: 100, pct: 0.1 });
   assert.match(html, /gauge-threshold/);
-  assert.match(html, /left:70%/);
+  assert.match(html, /data-threshold="70"/);
+});
+
+test('@unit renderGauge: CSP-safe — no inline style attributes', () => {
+  const html = renderGauge({ model: 'm', window: 1000, tokens: 100, pct: 0.5, ready_for_handoff: true });
+  assert.doesNotMatch(html, /style=/);
 });
 
 /* ── renderGauge: ready-for-handoff badge ───────────────────────────────── */

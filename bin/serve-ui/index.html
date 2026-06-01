@@ -24,6 +24,13 @@
         required
       ></textarea>
       <button id="submit-btn" type="submit">Vas-y / Go</button>
+      <!-- v0.5.c — opt-in context monitor. Unchecked (default) = today's web run
+           byte-for-byte (no --monitor, no gauge). Checked appends --monitor so the
+           build streams its context usage and the gauge below can show it. -->
+      <label id="monitor-label" class="monitor-toggle">
+        <input id="monitor-toggle" type="checkbox">
+        <span>Suivre le contexte (avancé) / Monitor context (advanced)</span>
+      </label>
     </form>
 
     <!-- Step 2 — the profile (one question) -->
@@ -94,6 +101,9 @@
       <h2>En cours… / Working…</h2>
       <progress id="progress-bar" max="100"></progress>
       <p id="phase-line" class="phase"></p>
+      <!-- v0.5.c — context gauge (filled by app.js from /api/status .context when
+           the Monitor toggle is on). Hidden when there is no context to show. -->
+      <div id="context-gauge" class="context-gauge" hidden></div>
       <p id="heartbeat" class="heartbeat" hidden></p>
       <pre id="log-output" class="log"></pre>
     </section>
@@ -114,6 +124,8 @@
       <small>Make My Dreams — local only. No tracking, no signup.</small>
     </footer>
   </main>
+  <!-- v0.5.c — pure gauge render helper; exposes window.MMDGauge for app.js. -->
+  <script type="module" src="/gauge.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

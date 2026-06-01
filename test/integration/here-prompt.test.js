@@ -65,6 +65,27 @@ test('@integration AC-4: final prompt does NOT contain greenfield "Generate inde
   assert.doesNotMatch(final, /Bundle B safe-default/);
 });
 
+test('@integration v0.4.b: buildHerePrompt with sealedDir appends the read-only sealed-oracle note', { skip: SKIP_ON_WINDOWS }, () => {
+  const dream = 'add a greeting feature';
+  const sliceBranch = 'slice/here-add-greeting-1';
+  const targetDir = '/tmp/some-repo';
+  const sealedDir = '/tmp/some-repo/.mmd/shared/sealed-tests';
+
+  // Without sealedDir: no sealed note (the default --here prompt is unchanged).
+  const plain = buildHerePrompt({ dream, sliceBranch, targetDir });
+  assert.doesNotMatch(plain, /SEALED ORACLE/);
+
+  // With sealedDir: the read-only note appears, names the sealed dir, and
+  // states the anti-P-04 tamper contract (mirrors buildCoderPrompt).
+  const sealed = buildHerePrompt({ dream, sliceBranch, targetDir, sealedDir });
+  assert.match(sealed, /SEALED ORACLE \(READ-ONLY — NON-NEGOTIABLE\):/);
+  assert.ok(sealed.includes(sealedDir), 'note must name the sealed dir');
+  assert.match(sealed, /MUST NOT edit, weaken, rename, move, or delete/);
+  assert.match(sealed, /TAMPER/);
+  // The original --here lines are still present (the note is additive).
+  assert.match(sealed, /Mode: --here — modify the current repository in place/);
+});
+
 test('@integration AC-4: buildPrompt WITHOUT prompt= falls back to greenfield assembly', { skip: SKIP_ON_WINDOWS }, () => {
   const greenfield = buildPrompt({ dream: 'd', slug: 's', demoDir: '/tmp/r' });
   // Greenfield assembly retains its v0.2 markers.

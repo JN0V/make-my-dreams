@@ -13,6 +13,7 @@ import {
   MODE_FLAGS,
   VALUE_FLAGS,
   CATCH_FLAGS,
+  SEALED_FLAGS,
   KNOWN_FLAGS,
 } from '../../lib/argv-parser.js';
 
@@ -26,9 +27,33 @@ test('@unit parseArgv: empty argv → all flags false, no positional, no error',
     label: null,
     catch: false,
     'no-catch': false,
+    sealed: false,
   });
   assert.deepEqual(r.positional, []);
   assert.equal(r.error, null);
+});
+
+test('@unit parseArgv (v0.4.a AC-1): --sealed is a recognized boolean flag, default false', () => {
+  // Absent → default false.
+  assert.equal(parseArgv(['a counter app']).flags.sealed, false);
+
+  // Present → true; positional dream preserved.
+  const s = parseArgv(['--sealed', 'a counter app with buttons']);
+  assert.equal(s.flags.sealed, true);
+  assert.equal(s.error, null);
+  assert.deepEqual(s.positional, ['a counter app with buttons']);
+
+  // --sealed is in KNOWN_FLAGS (so it is never rejected as unknown — E14).
+  assert.ok(KNOWN_FLAGS.includes('sealed'));
+});
+
+test('@unit parseArgv (v0.4.a AC-1): --sealed composes with engine + mode flags (no mutex)', () => {
+  const r = parseArgv(['--sealed', '--fast', 'a counter app']);
+  assert.equal(r.error, null, `expected no error; got ${r.error && r.error.message}`);
+  assert.equal(r.flags.sealed, true);
+  assert.equal(r.flags.fast, true);
+  assert.equal(resolveEngine(r.flags), 'fast');
+  assert.deepEqual(r.positional, ['a counter app']);
 });
 
 test('@unit parseArgv (AC-1): --catch / --no-catch are recognized boolean flags', () => {
@@ -199,10 +224,10 @@ test('@unit resolveEngine: --deep alone (forward-compat) resolves to "standard" 
   assert.equal(resolveEngine({ fast: false, standard: false, deep: true }), 'standard');
 });
 
-test('@unit KNOWN_FLAGS is the union of ENGINE_FLAGS, SESSION_FLAGS, MODE_FLAGS, VALUE_FLAGS, and CATCH_FLAGS (v0.3.b)', () => {
+test('@unit KNOWN_FLAGS is the union of ENGINE_FLAGS, SESSION_FLAGS, MODE_FLAGS, VALUE_FLAGS, CATCH_FLAGS, and SEALED_FLAGS (v0.4.a)', () => {
   assert.deepEqual(
     [...KNOWN_FLAGS].sort(),
-    [...ENGINE_FLAGS, ...SESSION_FLAGS, ...MODE_FLAGS, ...VALUE_FLAGS, ...CATCH_FLAGS].sort(),
+    [...ENGINE_FLAGS, ...SESSION_FLAGS, ...MODE_FLAGS, ...VALUE_FLAGS, ...CATCH_FLAGS, ...SEALED_FLAGS].sort(),
   );
   // Defensive: arrays are frozen (immutable contract).
   assert.ok(Object.isFrozen(ENGINE_FLAGS));
@@ -210,6 +235,7 @@ test('@unit KNOWN_FLAGS is the union of ENGINE_FLAGS, SESSION_FLAGS, MODE_FLAGS,
   assert.ok(Object.isFrozen(MODE_FLAGS));
   assert.ok(Object.isFrozen(VALUE_FLAGS));
   assert.ok(Object.isFrozen(CATCH_FLAGS));
+  assert.ok(Object.isFrozen(SEALED_FLAGS));
   assert.ok(Object.isFrozen(KNOWN_FLAGS));
 });
 

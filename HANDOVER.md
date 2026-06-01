@@ -249,6 +249,12 @@ The deeper "whose constitution governs the build" question, deferred from v0.6.a
 3. **Drift-detector precision**: historical/rejected context-awareness so archival "Files created" lists + "rejected alternative" mentions (today's 2 false positives) aren't flagged.
 - Then: Diataxis generation (§6.3 "produce" face), event-driven triggering, full autolearning reuse-counter (§6.5).
 
+**Hors-roadmap concepts Sébastien raised (NOT in MAKE_MY_DREAMS §9 — to invent, not just build). Captured here so they stop getting re-lost:**
+- **Test rationalization** — a concept DISTINCT from the Documentalist (Sébastien was emphatic: the Documentalist does NOT consolidate tests). Keep the suite healthy as it grows: dedup redundant tests, make `@smoke` a real fast-feedback subset (only ~8 today), anti-bloat / coherence pass. Not urgent (1657 tests, ~15-20 s) but unscheduled. Needs its own concept design.
+- **`/mmd` slash command in Claude Code** — `mmd` is CLI-only today (no `.claude/commands/mmd.md`); the only materialized command is `bmad-adv-auto-dev`. A `/mmd` would let a Claude session drive mmd. Thin (mmd is built for detached long runs) but a real convenience gap. Decide whether MMD wants it.
+
+**Full designed-vs-built roadmap audit:** run `mmd document-review` → `docs/coherence-review.md` (heuristic; corrected-by-judgment synthesis of "what remains to finalize MMD" lives in the session log: core gaps = full autolearning, Bundle A security, polymorphic Reality Check, auto-handoff@70%, Bundle C/HITL; reach = Plan-Review, Mockup, Dream Expander, Dream Delivery/Retro, parallel Conductor; far = voice/game/web-UI/gbrain).
+
 **Smaller / orthogonal candidates:**
 - **LLM-enriched suggestions** (`discover --suggest-with-claude`) — a future opt-in mirroring `--infer-with-claude` (deferred from v0.6.b, YAGNI).
 - **Content/version-aware readiness** in `detectMmdSetup` (today it only checks presence).

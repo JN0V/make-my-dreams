@@ -162,6 +162,19 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 
 ---
 
+## JUST LANDED — v0.6.1 (v0.6.b): considerate guest — constitution suggestions + discover→`--here` friction fix
+
+**MMD now respects a third-party repo's constitution absolutely ("elle reste") and offers non-destructive improvement suggestions when one exists.** Implemented per SPEC_V06B.md (frozen), 5 ACs, via the 28th reflexive `mmd --here`. What shipped:
+- **AC-1 — deterministic suggestions checklist** (`lib/discover/constitution-suggest.js`): pure `suggestConstitutionImprovements(text) → {present[], missing[{theme,suggestion}]}` over 7 governance themes (testing, commit/git, security, error-handling, design principles, documentation, AI-coding) by case-insensitive keyword heuristic. No I/O, never throws (empty/malformed → all-missing), stable. Honestly labeled a heuristic, not an audit.
+- **AC-2 — discover surfaces them, non-destructively**: `buildReport` gains `constitutionText` and renders an advisory "## Constitution suggestions (advisory — your constitution is never modified)" section (omitted when no constitution; back-compat otherwise). `bin/discover.js` READS `.specify/memory/constitution.md` and **never writes it** (integration test asserts byte-for-byte unchanged).
+- **AC-3 — discover→`--here` friction fix**: `bin/discover.js` gitignores its scratch (`.mmd/`, `mmd-discovery-report.md`) via an idempotent marked block; the first-run setup preflight in `bin/mmd.js` treats a tree dirtied *only* by MMD-managed paths (pure predicate `lib/onboarding/mmd-managed.js`) as clean. **F7 intact**: any non-MMD dirty path still → exit 4. `lib/discover/safe-write.js` adds the root `.gitignore` as the only new write sink.
+- **AC-4 — docs**: ADR-033 (suggestions + friction + the honest composer-rework retirement), README + CLAUDE.md notes, mechanical blocks refreshed, bumped to 0.6.1.
+- **The Layer-C composer rework was RETIRED, not built** (honest §VI correction): `--here` is already governed by the *project's* constitution via **Layer B** (the auto-dev workflow reads `.specify/memory/constitution.md` directly — v0.6.a AC-6 confirmed it); the composer only runs on the greenfield `demo/` path where there is no project constitution. Rewriting it would be work against a non-problem (KISS/YAGNI). See ADR-033.
+
+**Full suite 1523/1523 green** (1496 baseline + 27 new). No Phase-4 review iterations run by this `--here` (the slice was implemented directly per the frozen-spec directive).
+
+**AC-5 status — VALIDATED ✅ (executed 2026-06-01, real repos).** On a throwaway repo with a deliberately thin constitution (KISS + docs only): `mmd discover` → the report's "Constitution suggestions" section correctly lists *Design principles, Documentation* as present and flags *Testing / Commit & branch / Security / Error handling / AI-coding* as gaps, explicitly stating the file is untouched; `constitution.md` verified **byte-for-byte identical** (sha256 unchanged) across the run. Post-discover `git status --porcelain` = `?? .gitignore` only (`.mmd/` + report gitignored). Then `mmd --here --skip-onboarding "<trivial>"` (driven with the `MMD_SETUP_CMD`/`MMD_AUTODEV_CMD` seams + `MMD_SKIP_GROUNDING=1`) **proceeded past the dirty-tree preflight with NO manual stash** — auto-ran setup, committed it on the base branch, and created `slice/here-tweak-greeting-…`. The negative side (a real user edit on top of the scratch → **exit 4**, "clean working tree") is covered by `test/integration/discover-then-here-clean.test.js` and was observed live (a stray deleted `.claude` file correctly refused). **MMD is now a considerate guest of a repo it doesn't own.**
+
 ## JUST LANDED — v0.6.0 (v0.6.a): third-party readiness (transparent first-run setup + brownfield detection)
 
 **MMD now works on a repo other than itself, with no new command to learn.** Implemented per SPEC_V06A.md (frozen), 6 ACs, via the 27th reflexive `mmd --here`. What shipped:
@@ -178,11 +191,14 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 - **`mmd discover` dirties the working tree** (writes `mmd-discovery-report.md` + `.mmd/`), which would trip the guard's dirty-tree veto (exit 4) if run *before* `--here` — friction for the documented "discover then --here" flow. Fix candidate: `discover` should `.gitignore` its own outputs, or the guard should tolerate MMD's own artifacts. (Worked around in the live run by using `--skip-onboarding`; discover→brownfield-app was proven separately.)
 - The build used the **monolithic default constitution** that `install-mmd.sh` materializes (`v1.3.0`, read via Layer B), NOT MMD's modular Layer-C modules — exactly the gap v0.6.b closes (composer reads the *project's* constitution).
 
-## NEXT PRIORITY — v0.6.b: the composer reads the PROJECT's constitution
+## v0.6.b — DONE (see "JUST LANDED — v0.6.1" above)
 
-The deeper "whose constitution governs the build" fix, deferred from v0.6.a (see SPEC_V06A §4 Out of scope):
-- **Layer-C composer reads the project's constitution modules** instead of MMD's bundled ones (`lib/constitution-compose.js` currently hardcodes `REPO_ROOT` = MMD's own install dir).
-- **Non-destructive "suggest improvements" mode** on an existing constitution (the user's "on peut faire des suggestions d'amélioration, mais sinon elle reste").
-- **Fix the discover-dirties-tree friction** so the documented "discover then --here" flow works without a manual clean/stash (gitignore discover outputs, or have the guard tolerate MMD's own artifacts). See the gotcha above.
-- Consider content/version-aware readiness in `detectMmdSetup` (today it only checks presence).
-- ~~Run the AC-6 real-toolchain end-to-end~~ — **DONE 2026-06-01** (live green on `/tmp/mmd-ac6-3nIk`, see the AC-6 status above).
+The deeper "whose constitution governs the build" question, deferred from v0.6.a, is resolved:
+- ~~**Layer-C composer reads the project's constitution modules**~~ — **RETIRED, not built** (honest §VI). Layer B already governs `--here` with the project's own constitution; the composer is greenfield-only. Documented in ADR-033 rather than coded (KISS/YAGNI).
+- ~~**Non-destructive "suggest improvements" mode**~~ — **DONE.** Deterministic checklist in the `mmd discover` report; `constitution.md` never modified ("elle reste"). AC-1/AC-2.
+- ~~**Fix the discover-dirties-tree friction**~~ — **DONE.** discover gitignores its scratch + the setup preflight tolerates MMD-managed paths; F7 intact. AC-3.
+
+## NEXT PRIORITY — candidates (no slice frozen yet)
+- **LLM-enriched suggestions** (`discover --suggest-with-claude`) — a future opt-in mirroring `--infer-with-claude` (deferred from v0.6.b, YAGNI).
+- **Content/version-aware readiness** in `detectMmdSetup` (today it only checks presence).
+- **`--here` branch-name-agnostic regression test** (the v0.6.a live run surfaced `git init` defaulting to `master`; the guard handled it but it's untested).

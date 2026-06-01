@@ -162,6 +162,27 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 
 ---
 
+## JUST LANDED — v0.7.2 (v0.7.c): the Documentalist's first ACTION — SPEC archival (`mmd document-compact`)
+
+**The Documentalist now ACTS: it detected the root SPEC sprawl (v0.7.a), guards the docs' truth (v0.7.b), and here clears the sprawl — safely, reversibly, idempotently.** Implemented per SPEC_V07C.md (frozen), 5 ACs, via the 31st reflexive `mmd --here`. *Act on the safe thing first*: archiving SPECs is mechanical + fully reversible (`git mv`); the harder semantic compaction (sharding the over-cap docs) is deferred. What shipped:
+- **AC-1 — pure planner** (`lib/documentalist/compact.js`): `planCompaction({specs, existingArchive}) → {moves, indexMarkdown, referenceRewrites}` + `applyReferenceRewrites`, an idempotent exact-token transform (prefixes a root `SPEC_V0XX.md` ref with `docs/specs/` only when not already prefixed) + `countReferences`/`parseSpecVersion`. Pure, no I/O, never throws; empty specs → empty plan; already-archived not re-planned. 22 `@unit` tests.
+- **AC-2 — `mmd document-compact`** (`bin/documentalist/document-compact.js` + dispatch/USAGE/`SUBCOMMANDS`): gather root SPECs → plan → `git mv` into `docs/specs/` (history preserved) → write the newest-first index → rewrite references in tracked markdown **outside** the archive. `--dry-run` is a true no-op that reports the real blast radius; idempotent no-op when no root SPECs; move-only (never edits prose, never deletes); preconditions validated **before any mutation** (non-git → exit 5; untracked SPEC → exit 6); does NOT auto-commit. 9 `@integration` tests on fixture git repos.
+- **AC-3 — reference integrity**: every textual form (link target, anchored link, prose mention, backticked link) rewritten; a non-moved SPEC untouched; no `docs/specs/docs/specs/`; a moved SPEC keeps its bare sibling cross-refs. Validated by the v0.7.b Drift detector (no new dangling SPEC refs).
+- **AC-5 — docs**: ADR-036 (act-safe-first + the move-only/idempotent/reversible safety contract + Drift-as-validation + new-SPECs-still-land-at-root model), README + CLAUDE.md, mechanical blocks refreshed, bumped to 0.7.2.
+
+**Full suite 1626/1626 green** (1597 baseline + 29 new). **Phase-4 adversarial review: 1 pass found 1 critical** (the version parser fabricated "v0.25" for the real `SPEC_V025.md` and sorted it above v0.7.c) **+ 3 medium + 3 low — all fixed**; a 2nd review confirmed 0/0/0/0.
+
+**AC-4 status — POST-MERGE OPERATOR STEP, NOT YET RUN (deliberately).** The slice must NOT run `mmd document-compact` against the live MMD repo: it would move this slice's own in-flight `SPEC_V07C.md` mid-build (so the logic is validated on **fixture** git repos in the tests). **After this slice is merged ff-only + tagged `v0.7.2`, the operator runs, from the repo root:**
+```bash
+mmd document-compact --dry-run   # preview: ~35 root SPEC_V*.md → docs/specs/, N refs across K files
+mmd document-compact             # git mv all root SPECs → docs/specs/ + write the index + rewrite refs
+npm test                         # full suite must stay green
+git log --follow -- docs/specs/SPEC_V01.md   # history preserved (reaches the original commit)
+mmd document-review              # must report NO dangling SPEC refs + drop the sprawl flag
+git add -A && git commit -m "chore(v0.7.2): archive root SPEC sprawl into docs/specs/ (mmd document-compact)"
+```
+Then update this section's AC-4 status to ✅ with the observed counts. New SPECs keep landing at the repo root per slice; a later `mmd document-compact` archives them (the §6.4 periodic-consolidation model).
+
 ## JUST LANDED — v0.7.0 (v0.7.a): the Documentalist's coherence review (`mmd document-review`)
 
 **MMD can now tell its owner, on demand, what it designed vs what it became — and where the docs have drifted.** First brick of the §6.4 **Documentalist**, built **detect-first, report-only**, per SPEC_V07A.md (frozen), 5 ACs, via the 29th reflexive `mmd --here`. What shipped:

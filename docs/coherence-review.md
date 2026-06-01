@@ -40,7 +40,7 @@ Legend: ✅ built · 🟡 partial · ❌ unbuilt · ❓ unknown.
 
 - ⚠️ MAKE_MY_DREAMS.md: 1722 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ README.md: 692 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ HANDOVER.md: 224 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
+- ⚠️ HANDOVER.md: 245 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ PROBLEMS.md: 241 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ BOOTSTRAP.md: 393 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ docs/lessons-learned.md: 516 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate

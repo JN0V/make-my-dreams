@@ -525,6 +525,23 @@ It works the way every MMD builder does — a **deterministic core, an optional 
 
 It is **strictly read-only beyond that one file**: it writes EXACTLY `docs/coherence-review.md` and never moves, deletes, or edits anything else (an integration test pins that `git status` shows only that path). `--with-claude` adds an LLM commentary block via the `MMD_DOCUMENT_REVIEW_CMD` seam, falling back honestly to the deterministic report when claude is absent/non-zero/unparseable — never a fabricated classification. This is **detect-before-correct**: v0.7.a/v0.7.b only *report* drift, sprawl, and oversized docs as candidates; v0.7.c will grant the Documentalist the power to *act* on the tidiness half (archive SPECs, shard `MAKE_MY_DREAMS.md`) once its detection is trusted. See [ADR-034](./docs/adr/034-documentalist-coherence-review.md) and [ADR-035](./docs/adr/035-documentalist-conformance-drift.md).
 
+### Active compaction (`mmd document-compact`) — *new in v0.7.c*
+
+The Documentalist's first **action**. v0.7.a *detected* the root SPEC sprawl and v0.7.b *checked* the docs' truth; `mmd document-compact` clears the sprawl the dashboard flagged — it archives the root `SPEC_V*.md` files into `docs/specs/` with an index and rewritten references. It is the **safe** half of compaction: *act on the safe thing before the hard thing*. Archiving SPECs is mechanical and fully reversible (`git mv` preserves history); the higher-risk semantic compaction (sharding the over-cap docs like `MAKE_MY_DREAMS.md`) is deliberately deferred until SPEC archival is trusted.
+
+```bash
+mmd document-compact --dry-run   # print the plan (which SPECs move, where); change NOTHING
+mmd document-compact             # git mv root SPECs → docs/specs/ + write the index + rewrite refs
+mmd document-compact --help
+```
+
+- A **pure planner** (`lib/documentalist/compact.js`): `planCompaction({specs, existingArchive})` returns the `{moves, indexMarkdown, referenceRewrites}` plan, plus `applyReferenceRewrites`, an **idempotent** exact-token transform that prefixes a root `SPEC_V0XX.md` reference with `docs/specs/` **only when it is not already prefixed** (no `docs/specs/docs/specs/`). Pure, no I/O, never throws.
+- The **subcommand** (`bin/documentalist/document-compact.js`) does the I/O: `git mv` each root SPEC into `docs/specs/` (history preserved), write a newest-first index there, and rewrite references (link targets, anchored links, prose mentions, backticked links) across tracked markdown *outside* the archive (a moved SPEC keeps its bare sibling cross-refs).
+- **Safety contract**: move-only (it **never** edits doc prose, never deletes), **idempotent** (no root SPECs → a clean no-op; a second run changes nothing), and **reversible** (`git log --follow` reaches a moved SPEC's original history). Preconditions are validated **before any mutation** — a non-git repo or an untracked SPEC is reported non-zero and nothing is half-applied — and it does **not** auto-commit (you review + commit).
+- **Validated by its own Drift detector**: after compaction, a `mmd document-review` must report **no new dangling SPEC references** — detection guards the action.
+
+New SPECs still land at the repo root per slice; a later `mmd document-compact` archives the shipped ones (the periodic-consolidation model). Shipped SPECs therefore live under `docs/specs/`. See [ADR-036](./docs/adr/036-documentalist-active-compaction.md).
+
 ### Web mode (no terminal — for non-technical users)  — *new in v0.2.5*
 
 ```bash

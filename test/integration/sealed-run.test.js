@@ -78,6 +78,7 @@ test('@integration v0.4.a AC-4: --sealed good coder → seal intact, sealed test
     assert.ok(status.blast_radius, 'status.json must carry blast_radius');
     assert.ok(Array.isArray(status.blast_radius.changed));
     assert.ok(Array.isArray(status.blast_radius.importers));
+    assert.ok(Array.isArray(status.blast_radius.transitive), 'v0.4.c: blast_radius carries the transitive closure');
     assert.ok(status.blast_radius.changed.includes('index.html'), 'changed should include the app file');
   } finally {
     rmSync(tmp, { recursive: true, force: true });

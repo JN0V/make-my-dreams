@@ -760,7 +760,9 @@ async function runSealedPipeline({
   }
   stdout.write('Sealed step 4/5 — ORACLE re-run: sealed tests PASS (independent verification).\n');
 
-  // ── 5. BLAST RADIUS (stub, advisory) → status.json.blast_radius ────────────
+  // ── 5. BLAST RADIUS (import-graph accurate, advisory) → status.json.blast_radius
+  // computeBlastRadius now resolves the import graph and returns the transitive
+  // reverse closure as `transitive` — the true blast radius we log (v0.4.c).
   const changedFiles = listFilesRelSync(targetDir, { skipDirs: ['.mmd', 'node_modules', '.git'] });
   const blastRadius = computeBlastRadius(changedFiles, {
     listFiles: () => listFilesRelSync(targetDir, { skipDirs: ['.mmd', 'node_modules', '.git'] }),
@@ -770,7 +772,9 @@ async function runSealedPipeline({
   });
   stdout.write(
     `Sealed step 5/5 — BLAST: ${blastRadius.changed.length} changed, ` +
-      `${blastRadius.importers.length} direct importer(s) (stub; AST in v0.5).\n`,
+      `${blastRadius.importers.length} direct importer(s), ` +
+      `${blastRadius.transitive.length} in the transitive blast radius ` +
+      `(import-graph accurate).\n`,
   );
 
   await onClean({ sealedCount, verdict, blastRadius, elapsedSeconds: elapsed() });

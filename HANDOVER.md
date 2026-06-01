@@ -1,7 +1,7 @@
 # Session handover
 
 > **Read this first** when picking up the project across a context switch (Cowork ↔ Claude Code, Sonnet ↔ Opus, fresh session, new collaborator). It transfers the **intent** (what's next + why), not just the **state** (state is in git).
-> Updated: 2026-06-01, end of a multi-session arc that landed v0.2.4 → v0.3.4 (v0.3 Dream Catcher + Layer-C composer + doc-sync Documentalist-lite).
+> Updated: 2026-06-01, end of a multi-session arc that landed v0.2.4 → v0.4.0 (v0.3 Dream Catcher + Layer-C composer + doc-sync + v0.4 Bundle-B sealed-test oracle).
 
 ---
 
@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.3.4`
+- **Latest tag**: `v0.4.0`
 - **Branch**: `main`
-- **Version**: `0.3.4` (package.json)
-- **Active lessons**: 16 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022)
-- **ADRs**: 25 (ADR-001..ADR-025)
-- **Tests**: 1309 passing
+- **Version**: `0.4.0` (package.json)
+- **Active lessons**: 17 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023)
+- **ADRs**: 26 (ADR-001..ADR-026)
+- **Tests**: 1337 passing
 - **Recent commits**:
-  - `825fe39 feat(v0.3.d): AC-6 — live README markers + blocks, command docs, CLAUDE.md, ADR-025, version 0.3.4`
-  - `3395cd5 feat(v0.3.d): AC-4 — mmd document-readme entry point (two-marker rewrite + drift)`
-  - `fef79b7 feat(v0.3.d): AC-5 — pure doc-drift detector (SUBCOMMANDS + flags vs README)`
-  - `2f0520c feat(v0.3.d): AC-2/AC-3 — README Status + Changelog builders (reuse handover machinery)`
-  - `e2839b5 feat(v0.3.d): AC-1 — register `mmd document-readme` + parseDocumentReadmeArgs`
+  - `a3a15ce refactor(v0.4.a): Phase-4 review hardening of the sealed orchestration`
+  - `6688ff3 docs(v0.4.a): AC-6 — ADR-026, L-023, README --sealed; bump version 0.4.0`
+  - `47b5e01 feat(v0.4.a): AC-4 — mmd --sealed orchestration (tester→seal→coder→verify→re-run→blast)`
+  - `901c406 feat(v0.4.a): AC-5 — grep-based blast-radius stub`
+  - `9fa07f3 feat(v0.4.a): AC-3 — tester + coder sealed-oracle prompts (pure)`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -50,6 +50,7 @@
 | **v0.3.2** | **Dream Catcher CLI surface** (TTY-gated `mmd "<dream>"` + `--catch`/`--no-catch`) + `MMD_PROFILE` threading (Kid → safe-by-default in the build prompt) | v0.3.b — **v0.3 COMPLETE: web + CLI + meaningful profile** |
 | **v0.3.3** | **Layer-C constitution composer** (`lib/constitution-compose.js`) — `MMD_PROFILE` now injects the real `kid.md`/`pro.md`/`safe-by-default` module text into the build prompt | v0.3.c — profile drives actual constitution modules (verified: Kid prompt 13.6 KB) |
 | **v0.3.4** | **`mmd document-readme`** (Documentalist-lite) — regenerates the README's Status + Changelog (from git tag annotations) between markers + a drift report; the `mmd handover` pattern applied to the README | v0.3.d — doc drift closed at the root (drift report: none) |
+| **v0.4.0** | **Bundle B — sealed-test oracle** (`mmd --sealed`): tester writes blind acceptance tests → MMD seals (sha256) → coder (auto-dev) → verify (tamper → fail) → re-run + blast-radius stub | v0.4.a — first correctness hardening (anti-P-04); opt-in, MMD-layer |
 
 **Plus an auto-promotion event** (post-v0.2.12, pre-v0.2.13): `mmd document-lessons` auto-promoted L-002 (claude -p stdout buffering) and L-016 (MMD_TIMEOUT_MS + spec-polish) into `ai-coding.md`, generated ADR-015 + ADR-016. **First time MMD modified its own constitution autonomously based on accumulated runtime data.**
 
@@ -71,7 +72,10 @@
 
 5. ~~**Documentalist-lite (doc-sync)**~~ — **DONE (v0.3.4).** `mmd document-readme` ([`SPEC_V03D.md`](SPEC_V03D.md), ADR-025): regenerates the README's **Status** block (version/tag/ADR/lesson/slice/test counts) and a **Changelog** block (one line per git tag from its annotation, newest-first) between `<!-- mmd:readme:status:* -->` / `<!-- mmd:readme:changelog:* -->` markers, plus a stdout **drift report** (SUBCOMMANDS+flags vs README). Reuses `lib/handover/rewrite-markers.js` + the count helpers — the `mmd handover` pattern applied to the README. Human prose (intro, History narrative, command docs) untouched. **Run `mmd document-readme --tests N` after each slice** (like `mmd handover`). The one-off manual meta-fix (commit `4c46318`) is now machine-maintained. Drift report currently: none.
 
-6. **Then the roadmap proper** (`MAKE_MY_DREAMS.md` §roadmap): v0.4 stateless Orchestrator + auto-handoff + Bundle B (sealed tests), v0.5 Conductor + Bundle C (observability/HITL), v0.5b full Documentalist (integrates gStack `/document-generate`+`/document-release`). NB: the roadmap's labels `v0.3a`/`v0.3b` mean Dream **Expander** (divergent brainstorming) / Plan-Review Worker — NOT what we shipped as v0.3.x (Dream **Catcher**); `MAKE_MY_DREAMS.md` itself deserves a reconciliation pass (the v0.3a Dream Expander is arguably superseded by our convergent Dream Catcher).
+6. **v0.4 — Bundle B (sealed-test oracle)** — **STARTED in v0.4.0 (v0.4.a).** Investigation showed v0.4-as-roadmapped was partly already-done (state, orchestration) and partly **blocked** (70% auto-handoff = `claude -p` token opacity → deferred to v0.5 Conductor). So v0.4 was rescoped to its high-value buildable core: the **sealed-test oracle** `mmd --sealed` ([`SPEC_V04A.md`](SPEC_V04A.md), ADR-026, L-023) — opt-in, MMD-layer (`_bmad/` is gitignored). `lib/sealed-tests/{manifest,tester-prompt,blast-radius}.js`. Verified: seal catches weaken+delete → `intact:false`.
+   - **v0.4.b candidates (next):** `--sealed` on `--here` + as a Standard-engine default (core is surface-agnostic); AST-accurate blast radius (grep stub today); property-based / LLM-as-judge oracle (deeper P-09).
+
+7. **Remaining roadmap** (`MAKE_MY_DREAMS.md` §roadmap): **v0.5 Conductor + Bundle C** (observability/HITL, status.json monitoring, auto-spawn/handoff — where the 70%-token-handoff blocker belongs, solvable via `claude -p --output-format stream-json` usage events — investigate first), **v0.5b full Documentalist** (event-driven, Diataxis, gStack `/document-generate`+`/document-release`). Optional/superseded: the roadmap's `v0.3a` Dream **Expander** (divergent brainstorming) is arguably superseded by our convergent Dream Catcher; `v0.3b` Plan-Review Worker unbuilt. **`MAKE_MY_DREAMS.md` deserves a reconciliation pass** — its version labels diverged from what shipped (we built Dream **Catcher** web+CLI under v0.3.x, not the roadmap's v0.3a/v0.3b).
 
 ## Operational rules (non-evident, MUST apply)
 
@@ -125,9 +129,9 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 ## Where to find fuller context
 
 - `MAKE_MY_DREAMS.md` — scoping doc, v19 iterations of design (~1000 lines, complete rationale)
-- `docs/lessons-learned.md` — 16 active lessons (L-001..L-022 minus the promoted/non-active ones; count is now authoritative via `mmd handover`)
+- `docs/lessons-learned.md` — 17 active lessons (L-001..L-023 minus the promoted/non-active ones; count is now authoritative via `mmd handover`)
 - `.specify/memory/constitution/*.md` — 13 modules + the 2 promoted lesson rules in `ai-coding.md`
-- `docs/adr/*.md` — 25 ADRs documenting major design decisions (001..025)
+- `docs/adr/*.md` — 26 ADRs documenting major design decisions (001..026)
 - `SPEC_V02*.md` at root — every slice's spec, with full DoD
 - `CLAUDE.md` — Layer A diffusion (this is what Claude Code auto-loads at session start; it points to all the above)
 

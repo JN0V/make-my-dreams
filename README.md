@@ -141,25 +141,28 @@ Engine flags compose with `--here` (`mmd --here --fast "<change>"` is valid). Re
 - `MMD_HERE_PROTECTED_BRANCHES` — comma-separated list (default `main,master`). `--here` from a protected branch is NOT an error — the slice branch is still created from HEAD. This env var documents the protected names for future Conductor enforcement.
 - `MMD_SKIP_GROUNDING` — set to `1` to bypass the prompt-grounding check (above). Not recommended; emits a warning and proceeds.
 
-### Sealed-test oracle (`mmd --sealed`) — *new in v0.4.a*
+### Sealed-test oracle (`mmd --sealed`) — *new in v0.4.a; `--here` in v0.4.b*
 
 The classic AI-coding failure is **making a test pass by rewriting the test, not the code** (PROBLEMS.md P-04 — ~a quarter of "verified" SWE-bench-Pro patches are actually wrong). `mmd --sealed "<dream>"` is an opt-in guard against it: an **independent oracle** that the implementing agent cannot quietly weaken.
 
 ```bash
-mmd --sealed "a counter app with + and − buttons"
+mmd --sealed "a counter app with + and − buttons"   # greenfield
+mmd --here --sealed "add a dark-mode toggle"          # in-place, incl. MMD itself (v0.4.b)
 ```
 
-It runs a **two-phase, MMD-orchestrated** flow on the greenfield path:
+It runs a **two-phase, MMD-orchestrated** flow:
 
-1. **TESTER** — a `claude -p` sub-agent derives acceptance tests from your dream (and `slice.md`, if present) into a sealed directory (`demo/<slug>/.mmd/shared/sealed-tests/`). It is told, emphatically, **not to implement the app** — the oracle must be blind to the implementation.
+1. **TESTER** — a `claude -p` sub-agent derives acceptance tests from your dream (and `slice.md`, if present) into a sealed directory (`<target>/.mmd/shared/sealed-tests/` — `demo/<slug>/` on greenfield, the repo root on `--here`). It is told, emphatically, **not to implement the app** — the oracle must be blind to the implementation.
 2. **SEAL** — MMD records a sha256 manifest of every sealed test file.
-3. **CODER** — the existing auto-dev runs as usual, with a prompt stating the sealed directory is a **read-only oracle**: read the tests to learn the target behaviour, but never edit, weaken, rename, or delete them.
+3. **CODER** — the existing auto-dev runs as usual, with a prompt stating the sealed directory is a **read-only oracle**: read the tests to learn the target behaviour, but never edit, weaken, rename, or delete them. (Greenfield runs the coder on `demo/<slug>/`; `--here` runs it on the slice branch.)
 4. **VERIFY** — MMD re-hashes the sealed directory. Any **tampered** or **removed** file is a seal break: `mmd` exits **non-zero naming the file(s)** and the slice is **not** marked done and **not** merged (anti-P-04). Files the coder *adds* (its own helper tests) are allowed.
 5. **RE-RUN + BLAST** — on an intact seal, MMD re-runs the sealed tests as an independent oracle (a failure flags the slice), then writes a stub **blast radius** (changed files + their direct importers, by grepping `import`/`require`) to `status.json.blast_radius`.
 
-Honesty is non-negotiable (constitution §VI): a tester that fails or writes nothing, an empty seal, a coder error, a tamper, or a failing sealed test each surface **explicitly** — never a silent "sealed OK". `--sealed` composes with the engine flags (`mmd --sealed --fast "<dream>"`). The **default path (no `--sealed`) is byte-for-byte unchanged**.
+The TESTER → SEAL → VERIFY → re-run → BLAST steps are **surface-agnostic** (`runSealedPipeline`, with the coder injected as a callback); only the coder differs between greenfield and `--here`. The **reflexive payoff** of v0.4.b: the same anti-P-04 oracle that guards a generated app now guards **MMD modifying itself** — a self-dev slice can be launched with `mmd --here --sealed` so an independent sealed oracle verifies its own correctness.
 
-Deferred to a follow-up (see [ADR-026](./docs/adr/026-sealed-test-oracle.md)): `--sealed` on `--here` and as a Standard-engine default (the `lib/sealed-tests/` core is surface-agnostic), and AST-accurate blast radius (the grep stub here is a v0.5 upgrade). Enforcement lives entirely at the **MMD layer** because the BMAD auto-dev workflow is gitignored — see the ADR for why.
+Honesty is non-negotiable (constitution §VI): a tester that fails or writes nothing, an empty seal, a coder error, a tamper, or a failing sealed test each surface **explicitly** — never a silent "sealed OK". `--sealed` composes with the engine flags and `--here` (`mmd --here --sealed --fast "<change>"`). The **default path (no `--sealed`) is byte-for-byte unchanged** on both surfaces.
+
+Deferred to a follow-up (see [ADR-026](./docs/adr/026-sealed-test-oracle.md)): `--sealed` as a Standard-engine default, and AST-accurate blast radius (the grep stub here is a v0.5 upgrade). Enforcement lives entirely at the **MMD layer** because the BMAD auto-dev workflow is gitignored — see the ADR for why.
 
 ### Bench mode (`mmd bench`) — *new in v0.2b*
 

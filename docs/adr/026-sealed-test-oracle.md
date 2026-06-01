@@ -54,9 +54,40 @@ On an intact seal, MMD **re-runs** the sealed tests (`node --test`) as the indep
 
 ## Deferred (explicitly out of scope for v0.4.a)
 
-- `--sealed` on `--here` and as a **Standard-engine default** — the `lib/sealed-tests/` core is surface-agnostic, so these are an easy follow-up, but adopting them changes default behaviour and deserves its own slice.
+- ~~`--sealed` on `--here`~~ — **shipped in v0.4.b** (see addendum below).
+- `--sealed` as a **Standard-engine default** — adopting it changes default behaviour and deserves its own slice.
 - **AST-based blast radius** (grep stub here; AST in v0.5).
 - Property-based / golden-trace / LLM-as-judge oracles (deeper P-09).
 - Modifying the BMAD `_bmad/` auto-dev workflow itself (enforcement stays MMD-layer by design).
 
 See [SPEC_V04A.md](../../SPEC_V04A.md) for the 6 ACs and [`docs/lessons-learned.md`](../lessons-learned.md) L-023 for the captured rule.
+
+---
+
+## Addendum — v0.4.b: `--sealed` on `--here` (the reflexive surface)
+
+**Status**: Accepted · **Date**: 2026-06-01 · **Parent spec**: [SPEC_V04B.md](../../SPEC_V04B.md) (FROZEN)
+
+### Context
+
+v0.4.a wired the sealed oracle only to the **greenfield** path (`runSealedGreenfield` in `bin/mmd.js`). But the seal/verify steps (`lib/sealed-tests/`) were already surface-agnostic — only the **CODER** step is surface-specific (greenfield: `buildCoderPrompt` + `invokeAutodev` on `demoDir`; `--here`: `buildHerePrompt` + `invokeAutodev` on the slice branch). Leaving `--here` unsealed meant MMD could guard a *generated* app from the agent-rewrites-the-test failure (P-04) but **not its own development slices** — the higher-stakes surface, since a self-modifying MMD that silently weakens its own tests is exactly the failure the oracle exists to catch.
+
+### Decision
+
+**Extract a surface-agnostic `runSealedPipeline`** (the coder injected as an async callback) and refactor the greenfield orchestration into a thin wrapper over it; then wire the same pipeline into `runHereMode` with a `--here` coder.
+
+1. **`runSealedPipeline({ targetDir, sealedDir, dream, slug, slice, logPath, coder, failStatus, onClean })`** owns the shared steps: TESTER → SEAL (**both** the empty-seal and incomplete-seal integrity guards) → `coder(sealedDir)` → VERIFY → re-run sealed tests → BLAST, with the honest `failStatus`/exit-6 handling at every branch. The two surface-specific status writers (`failStatus`, `onClean`) are injected so each surface keeps its own `status.json` shape and reporting; the **coder** is injected so the implementation step differs without duplicating the pipeline.
+2. **`runSealedGreenfield`** is now a thin wrapper: it reads `slice.md` (when present), injects the greenfield coder + greenfield status writers, and calls `runSealedPipeline`. Behaviour is **byte-for-byte unchanged** — the v0.4.a greenfield `--sealed` integration tests pass unmodified as the regression guard.
+3. **`mmd --here --sealed`**: `runHereMode`, when `flags.sealed`, runs `runSealedPipeline` (after the slice branch + state files exist) with a `--here` coder — `buildHerePrompt` (now told the sealed dir is read-only via an optional `sealedDir` note mirroring `buildCoderPrompt`) + `invokeAutodev` on the slice branch. The sealed dir is `<absTargetDir>/.mmd/shared/sealed-tests/` (gitignored, like greenfield's); the tester grounds on the dream (there is no `slice.md` in `--here`). The existing `--here` `status.json` transitions and reporting (Reality-Check short-circuit, npm-test suggestion, review/merge/discard hints) are preserved via the injected `onClean`, now plus the `sealed`/`blast_radius` fields.
+
+### Consequences
+
+- **Reflexive payoff**: the same anti-P-04 oracle that guards a generated app now guards **MMD modifying itself** — a future MMD slice can be launched with `mmd --here --sealed` so an independent, sealed oracle verifies the slice's own correctness and a tampered sealed test fails the slice loudly. This is the first time MMD's self-development surface carries the correctness hardening.
+- **No drift**: extracting the pipeline (rather than copy-pasting it onto `--here`) means the two surfaces share one tamper-enforcement code path — a fix to the seal logic protects both.
+- **Limits unchanged**: still opt-in; still grep-based blast radius; the sealed re-run is still `node --test` over the sealed files (module-type caveat from v0.4.a applies on `--here` too).
+
+### Out of scope for v0.4.b (still deferred)
+
+`--sealed` as a Standard-engine default; AST-accurate blast radius; property-based / LLM-as-judge oracle (deeper P-09); committing the sealed tests (they stay ephemeral in gitignored `.mmd/shared/sealed-tests/`).
+
+See [SPEC_V04B.md](../../SPEC_V04B.md) for the 5 ACs.

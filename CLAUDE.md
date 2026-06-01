@@ -49,6 +49,7 @@ The composer (`lib/constitution-compose.js`, **shipped v0.3.c**) turns the bindi
 - **Red-green for every failure**: any failure (test, install script, pipeline, integration) triggers a deterministic red→green test pass before it's considered fixed. See `testing.md`.
 - **Test stratification**: tag every test you write (`@smoke`, `@unit`, `@integration`, `@e2e`). See `testing.md` §V.
 - **AI honesty**: report walls explicitly, don't fabricate success. See `ai-coding.md` §I.
+- **Sealed self-dev (optional, v0.4.b)**: a MMD slice MAY now be launched with `mmd --here --sealed "<change>"`. An independent tester writes blind acceptance tests into the gitignored `.mmd/shared/sealed-tests/`, MMD seals them by hash, auto-dev implements on the slice branch, and MMD fails the slice (exit 6, files named) if any sealed test was weakened or deleted (anti-P-04, L-023). Use it when the slice's correctness must be guarded by an oracle the implementing agent cannot edit. See [ADR-026](./docs/adr/026-sealed-test-oracle.md).
 
 ## Repo-specific notes
 

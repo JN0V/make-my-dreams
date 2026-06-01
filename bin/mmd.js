@@ -845,6 +845,18 @@ async function runSealedPipeline({
     logPath: judgeLog,
     timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
   });
+  // Defensive consistency (universal §VI — never a fabricated pass): the prompt
+  // says OVERALL is MET only when EVERY AC is MET (SPEC AC-3: "overall === 'met'
+  // (all ACs met)"). If the model contradicts itself — OVERALL: MET while a
+  // per-AC line is not-met/uncertain — do NOT trust the optimistic bottom line.
+  // Downgrade to the worst per-AC status so a not-met AC can never slip through
+  // an over-eager OVERALL. A consistent verdict is untouched.
+  if (judge.overall === 'met' && judge.verdicts.some((v) => v.status !== 'met')) {
+    judge.overall = judge.verdicts.some((v) => v.status === 'not-met') ? 'not-met' : 'uncertain';
+    judge.reason =
+      'OVERALL claimed met but a per-AC verdict was not met — downgraded ' +
+      '(never pass a not-met/uncertain AC behind an over-eager OVERALL).';
+  }
   // overall === 'met' (every AC met) → proceed. Any not-met/uncertain (or an
   // unparseable reply, which fell back to uncertain) → EXIT 7 (behavioral-gap),
   // distinct from the tamper exit (6) so the two oracle failures are

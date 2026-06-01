@@ -51,6 +51,14 @@ if printf '%s' "$ALL_ARGS" | grep -q "BEHAVIORAL JUDGE"; then
     echo "OVERALL: NOT-MET — at least one acceptance criterion is not satisfied"
     exit 0
   fi
+  if [ -n "${MMD_FAKE_JUDGE_INCONSISTENT:-}" ]; then
+    # A self-contradictory verdict: an over-eager OVERALL: MET while a per-AC
+    # line is NOT-MET. MMD must distrust the optimistic bottom line (§VI).
+    echo "AC 1: MET — the counter UI renders"
+    echo "AC 2: NOT-MET — the minus button is missing"
+    echo "OVERALL: MET — looks good overall"
+    exit 0
+  fi
   echo "AC 1: MET — the counter starts at zero and renders"
   echo "AC 2: MET — both the plus and minus buttons are present and wired"
   echo "OVERALL: MET — every acceptance criterion is satisfied by the implementation"

@@ -108,6 +108,26 @@ test('@integration v0.4.d AC-4: --sealed judge NOT-MET → exit 7, named AC, sli
   }
 });
 
+// AC-4 (robustness, §VI) — a self-contradictory verdict (OVERALL: MET but an AC
+// is NOT-MET) must NOT pass: the optimistic bottom line is distrusted and
+// downgraded → exit 7. A not-met AC never slips through an over-eager OVERALL.
+test('@integration v0.4.d: contradictory judge (OVERALL met + an AC not-met) is downgraded → exit 7', { skip: SKIP_ON_WINDOWS }, () => {
+  const tmp = makeTmp();
+  try {
+    const r = runMmd(['--sealed', DREAM], { cwd: tmp, env: { MMD_FAKE_JUDGE_INCONSISTENT: '1' } });
+    assert.equal(r.status, 7, `expected exit 7; got ${r.status}; stderr=${r.stderr}`);
+    assert.match(r.stderr, /BEHAVIORAL GAP/);
+    assert.match(r.stderr, /OVERALL: not-met/);
+
+    const status = readStatus(tmp);
+    assert.equal(status.state, 'failed');
+    assert.equal(status.judge.overall, 'not-met', 'the over-eager OVERALL: MET is downgraded to not-met');
+    assert.match(status.judge.reason, /downgraded/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 // AC-4 — an unparseable judge reply falls back to uncertain → exit 7 (never a
 // fabricated pass; the sacred fallback).
 test('@integration v0.4.d AC-4: --sealed unparseable judge → uncertain → exit 7 (never a fabricated pass)', { skip: SKIP_ON_WINDOWS }, () => {

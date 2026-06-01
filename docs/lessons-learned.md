@@ -494,3 +494,23 @@ This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanline
 **Category**: observability, architecture, error-handling, security, ai-coding
 **Applies to**: mmd --here, mmd greenfield, any detached/long-running run, any "where is it / is it done" poll
 **Keywords for matching**: notification, notify, MMD_NOTIFY_URL, webhook, ntfy, push, fan-out, Conductor, Layer 6, detached, run_done, run_failed, best-effort, opt-in, shouldNotify, buildNotification, sendNotification, AbortController, timeout, polling, proactive feedback, egress, least disclosure
+
+---
+
+## L-027 — `claude -p --output-format stream-json` exposes `usage` → live context % is observable; the model's `[1m]` suffix signals the 1M window
+
+**Status**: active (1 occurrence — surfaced building the v0.5.b Conductor context monitor, 2026-06-01)
+**Date**: 2026-06-01
+**Origin**: The v0.5 Conductor's eventual auto-handoff needs to know how full the orchestrator's context window is mid-run. The open question was whether that number is observable without a private API. It is: `claude -p --output-format stream-json --verbose` emits one JSON object per line — a `system`/init event carrying the **model**, and `assistant`/`result` events carrying **`usage`**. v0.5.b (ADR-030) turned that into an opt-in `--monitor` that parses the stream into a context % written to `status.json.context` and a 70% `READY_FOR_HANDOFF` signal + `context_70` notification.
+**The discovery**: two facts make the context % computable from the public stream:
+  1. **`usage` is the window occupancy.** `input_tokens + cache_read_input_tokens + cache_creation_input_tokens` is the size of the prompt the model just processed — i.e. how full its context is. `output_tokens` is what it produced, NOT what occupied the window on the way in, so it is excluded.
+  2. **The model id encodes the window.** The `system` event's model carries a `[1m]` suffix (e.g. `claude-opus-4-8[1m]`) when the 1,000,000-token window is active; a plain id is the standard 200,000. The `assistant` event's `message.model` does NOT carry the suffix — only the `system` event is authoritative on the window. An unrecognized model must yield `estimated:true` + a documented 200K default, never a fabricated exact % (universal §VI).
+**Rule**:
+  1. **Read the window from the `system` event, the usage from `assistant`/`result`.** Don't infer the window from the assistant model (no `[1m]` there); don't count `output_tokens` toward context.
+  2. **A spawn-changing observability feature stays opt-in until proven.** `--output-format stream-json` changes how the child is launched and consumed; the default text spawn builds MMD itself (the reflexive bootstrap), so the monitor is gated behind `--monitor` and the default args are pinned by a test to carry no `--output-format`. Contrast L-026: a purely-additive side channel (notifications) could ship without a flag; a spawn-changing one needs the opt-in.
+  3. **The number is the orchestrator's context, not per-sub-agent.** The top-level stream sees only the macro loop; the Phase 1–4 sub-agents have their own fresh contexts the monitor can't see. Label it as such (L-009 discipline) — don't present the orchestrator % as the whole picture.
+  4. **Track the running MAX, and reuse the existing fan-out for the threshold ping.** Context can dip between turns; the meaningful figure is the high-water mark. The 70% crossing reuses the v0.5.a notify channel as a new `context_70` event, debounced to once per run — a new signal, not a new transport.
+**To promote if**: 3 reuses validated (counter: 0) — candidate for `observability.md` as "live LLM context % is derivable from `stream-json` usage; gate spawn-changing observability behind an opt-in flag." Until then it sits here as the Conductor context-monitor lesson.
+**Category**: observability, ai-coding, architecture
+**Applies to**: mmd --here, mmd greenfield, any monitored auto-dev run, future auto-handoff/resume
+**Keywords for matching**: monitor, --monitor, stream-json, output-format, verbose, usage, context, context window, contextTokens, contextPct, contextWindowFor, parseStreamEvent, 1m, READY_FOR_HANDOFF, MMD_HANDOFF_THRESHOLD, context_70, handoff, cache_read_input_tokens, cache_creation_input_tokens, input_tokens, Conductor, Layer 6, observability, estimated

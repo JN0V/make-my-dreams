@@ -159,3 +159,20 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 
 ---
 
+
+---
+
+## NEXT PRIORITY (scoped 2026-06-01) — third-party readiness (install + onboarding)
+
+**The real missing link toward "usable on any project"** (MMD is proven on exactly ONE brownfield repo: itself). Build this in a FRESH session (context was full when scoped). Empirically probed on a throwaway Node repo (`git init` + package.json + index.js):
+
+**Confirmed gaps:**
+1. **`mmd discover` mis-detects project type.** On a repo with `package.json` + `index.js` it reported `detected case = blank` (should be "Node/brownfield app"). The discover entry WORKS + writes the report + no crash (good), but the inference is wrong for real projects → fix the project-type detection in the discover INFER step.
+2. **Structural setup is absent in a fresh repo (known):** no `.specify/memory/` (constitution + `constitution-bindings.yaml`), no per-repo auto-dev wiring. So `mmd --here` there → the Layer-C composer falls back to the minimal line (graceful, v0.3.c) but the profile→constitution binding is INERT (no modules to bind). `install-mmd.sh` must run IN the target repo first — but that's undocumented friction.
+3. **Operational gotchas are tribal knowledge:** `MMD_TIMEOUT_MS=0`, the spec-frozen dream directive, commit-incrementally, `--sealed`/`--monitor`/`MMD_NOTIFY_URL` — a third-party user has zero guidance.
+
+**Proposed slice (v0.6.0 candidate — "third-party readiness"), design conversation FIRST then SPEC:**
+- Fix `mmd discover` INFER project-type (Node/Python/etc. from manifests) so the gate + report are accurate.
+- A first-run path: when `mmd --here`/`mmd <dream>` runs on a repo lacking `.specify/memory/`, detect it and either auto-set-up (run the constitution-install step) or warn + point to `install-mmd.sh .` — never silently run with an inert constitution.
+- Consider an `mmd init` (or fold into `discover`) that bundles install + onboarding for a new project, and surfaces the key env vars/flags.
+- **Validate by actually running the full flow on a REAL non-MMD repo** (the dream-bench cross-project test the roadmap never ran). This slice's DoD MUST include a green end-to-end on a third-party repo, not just MMD itself.

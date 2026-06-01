@@ -34,8 +34,13 @@ ALL_ARGS="$*"
 # BEFORE the tester branch. Emit a deterministic tagged verdict:
 #   MMD_FAKE_JUDGE_NOTMET=1       → OVERALL: NOT-MET (a behavioral gap)
 #   MMD_FAKE_JUDGE_UNPARSEABLE=1  → prose with no tags → MMD falls back to uncertain
+#   MMD_FAKE_JUDGE_FAIL=1         → exit non-zero (spawn/crash) → MMD → uncertain
 #   (default)                     → OVERALL: MET (the implementation matches the ask)
 if printf '%s' "$ALL_ARGS" | grep -q "BEHAVIORAL JUDGE"; then
+  if [ -n "${MMD_FAKE_JUDGE_FAIL:-}" ]; then
+    echo "fake-claude-sealed: JUDGE simulated crash" >&2
+    exit 3
+  fi
   if [ -n "${MMD_FAKE_JUDGE_UNPARSEABLE:-}" ]; then
     echo "I took a look and it all seems fine to me — looks good, ship it."
     exit 0

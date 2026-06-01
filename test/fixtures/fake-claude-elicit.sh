@@ -36,6 +36,27 @@ if [ -n "${MMD_FAKE_ELICIT_EMPTY:-}" ]; then
   exit 0
 fi
 
+# JUDGE mode (v0.4.d behavioral oracle) — the judge prompt carries the
+# "BEHAVIORAL JUDGE" marker (JUDGE_MARKER in lib/sealed-tests/judge.js). Emit a
+# deterministic tagged verdict so parseJudgeVerdict can read it. Knobs:
+#   MMD_FAKE_JUDGE_NOTMET=1       → OVERALL: NOT-MET (a behavioral gap)
+#   MMD_FAKE_JUDGE_UNPARSEABLE=1  → untagged prose → MMD falls back to uncertain
+#   (default)                     → OVERALL: MET
+if echo "$PROMPT" | grep -q "BEHAVIORAL JUDGE"; then
+  if [ -n "${MMD_FAKE_JUDGE_UNPARSEABLE:-}" ]; then
+    echo "Looks good to me overall — I'd ship it."
+    exit 0
+  fi
+  if [ -n "${MMD_FAKE_JUDGE_NOTMET:-}" ]; then
+    printf 'AC 1: NOT-MET — the asked-for behaviour is missing\n'
+    printf 'OVERALL: NOT-MET — at least one acceptance criterion is unmet\n'
+    exit 0
+  fi
+  printf 'AC 1: MET — the implementation does what was asked\n'
+  printf 'OVERALL: MET — every acceptance criterion is satisfied\n'
+  exit 0
+fi
+
 # Branch on the turn MODE, detected from the prompt's instructions (the a-2
 # ask_question / synthesize prompts carry distinct markers + wording; the a-1
 # autonome prompt carries neither marker and says "Ask NO questions").

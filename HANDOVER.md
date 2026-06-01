@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.6.1`
-- **Branch**: `main`
-- **Version**: `0.6.1` (package.json)
+- **Branch**: `slice/here-documentalist-coherence-review-1780326331`
+- **Version**: `0.7.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 33 (ADR-001..ADR-033)
-- **Tests**: 1523 passing
+- **ADRs**: 34 (ADR-001..ADR-034)
+- **Tests**: 1561 passing
 - **Recent commits**:
-  - `0ac2714 docs(v0.6.b): HANDOVER — v0.6.b landed + AC-5 real-repo validation captured`
-  - `e710b24 docs(v0.6.b): refresh README + HANDOVER mechanical blocks at v0.6.1 / 1523 tests`
-  - `b4931e9 docs(v0.6.b): ADR-033 + README/CLAUDE constitution-suggestions notes, bump to 0.6.1`
-  - `bb254c2 feat(v0.6.b): wire suggestions into discover + the discover-then-here friction fix`
-  - `e877893 feat(v0.6.b): pure constitution-suggestions checklist + MMD-managed dirty-path predicate`
+  - `9e6f6b0 feat(v0.7.a): coherence-report render + mmd document-review subcommand (AC-3)`
+  - `02c44ce feat(v0.7.a): heuristic roadmap reconciliation — designed vs built (AC-2)`
+  - `dc80f2d feat(v0.7.a): deterministic inventory gatherer for the Documentalist (AC-1)`
+  - `f38d174 docs(v0.7.a): SPEC for the Documentalist's coherence review (mmd document-review)`
+  - `e470431 docs(v0.6.1): refresh README changelog now that v0.6.1 is tagged`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -161,6 +161,18 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 
 
 ---
+
+## JUST LANDED — v0.7.0 (v0.7.a): the Documentalist's coherence review (`mmd document-review`)
+
+**MMD can now tell its owner, on demand, what it designed vs what it became — and where the docs have drifted.** First brick of the §6.4 **Documentalist**, built **detect-first, report-only**, per SPEC_V07A.md (frozen), 5 ACs, via the 29th reflexive `mmd --here`. What shipped:
+- **AC-1 — deterministic inventory** (`lib/documentalist/inventory.js`): pure-ish `gatherInventory(deps)` over injected fs/git readers — subcommands, git tags, ADRs+titles, `lib/` modules, per-doc line counts (with a 200-line §6.4 cap flag), root `SPEC_V*.md` sprawl count, active-lesson count. **Never throws**: each field degrades to empty/null on read failure. Unit-tested on an in-memory fixture repo + integration-tested against the real surface.
+- **AC-2 — heuristic roadmap reconciliation** (`lib/documentalist/roadmap-reconcile.js`): pure `reconcileRoadmap({roadmapText,inventory})` parses the §9 `### vX.Y — Title` headers and classifies each capability **built/partial/unbuilt** by name-matching against the inventory. Conservative + clearly-labelled a heuristic (single fully-matched concept → built, half-matched compound → partial, no signal → unbuilt; malformed → unknown, never throws). 14 exhaustive fixture unit tests.
+- **AC-3 — `mmd document-review`** (`lib/documentalist/coherence-report.js` render + `bin/documentalist/document-review.js` subcommand + dispatch/USAGE/`SUBCOMMANDS`): writes **EXACTLY** `docs/coherence-review.md` and is **strictly read-only beyond that one file** (an integration test asserts `git status` shows only that path). Opt-in `--with-claude` enriches via the `MMD_DOCUMENT_REVIEW_CMD` spawn seam with a graceful honest fallback (absent/non-zero/empty → deterministic report + an "unavailable" note, never a fabricated classification). 8 integration tests.
+- **AC-5 — docs**: ADR-034 (detect-before-act + the deterministic-inventory/heuristic-reconciliation method + v0.7.b active compaction), README + CLAUDE.md notes, mechanical blocks refreshed, bumped to 0.7.0.
+
+**Full suite 1561/1561 green** (1523 baseline + 38 new). No Phase-4 review iterations needed (slice implemented directly per the frozen-spec directive; adversarial self-review surfaced no Critical/High).
+
+**AC-4 status — DETECTION GATE VALIDATED ✅ (executed 2026-06-01 on MMD itself).** Running `mmd document-review` on the MMD repo wrote `docs/coherence-review.md` that **reproduces the manual gap audit's big rocks**: all six — auto-handoff@70% (v0.4 🟡 partial), Dream Expander (v0.3a ❌ unbuilt), Plan-Review Worker (v0.3b 🟡 partial), Bundle A Security (v0.2b 🟡 partial), full Documentalist (v0.5b 🟡 partial), polymorphic Reality Check (v0.6 🟡 partial) — come out **unbuilt or partial**, while Dream Catcher (v0.3) / `mmd serve` (v0.2.5) come out ✅ built. It flags **`MAKE_MY_DREAMS.md` at 1722 lines over the 200-line §6.4 cap** (plus README/HANDOVER/PROBLEMS/BOOTSTRAP/lessons-learned), the **33 `SPEC_V*.md` root sprawl** (the SPEC's "32" + the new SPEC_V07A.md — the live count is reported honestly), and a correct inventory (**12 subcommands · 34 ADRs · 21 lessons · tags v0.1.0..v0.6.1**). The read-only contract held: `git status` after the run showed only `docs/coherence-review.md`. **Detection is trustworthy — the prerequisite for granting compaction in v0.7.b.** (Known heuristic blind spot, acknowledged in ADR-034: it name-matches, so v0.10 "Full Dream Catcher Web UI" over-credits as built off `lib/dream-catcher`; `--with-claude` is the escape hatch.)
 
 ## JUST LANDED — v0.6.1 (v0.6.b): considerate guest — constitution suggestions + discover→`--here` friction fix
 

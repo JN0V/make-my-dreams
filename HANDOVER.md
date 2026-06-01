@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.7.2`
-- **Branch**: `main`
-- **Version**: `0.7.2` (package.json)
+- **Branch**: `slice/here-coherence-graph-staleness-diff-1780336482`
+- **Version**: `0.7.3` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 36 (ADR-001..ADR-036)
-- **Tests**: 1626 passing
+- **ADRs**: 37 (ADR-001..ADR-037)
+- **Tests**: 1651 passing
 - **Recent commits**:
-  - `7b5c2c2 docs(v0.7.2): AC-4 — archive the 35 root SPEC_V*.md into docs/specs/ (live operator run)`
-  - `085ece1 docs(v0.7.c): capture the v0.7.c slice + the AC-4 post-merge operator step in HANDOVER`
-  - `d68e3c3 docs(v0.7.c): refresh mechanical blocks to 1626 tests after Phase-4 fixes`
-  - `e74a486 fix(v0.7.c): Phase-4 review — correct version parse for multi-digit patch + honest dry-run/failures`
-  - `772da87 docs(v0.7.c): refresh mechanical blocks + coherence dashboard at v0.7.2 / 1622 tests`
+  - `3d87f3e docs(v0.7.d): ADR-037 + README/CLAUDE.md for the coherence graph; bump to 0.7.3`
+  - `6e134c3 feat(v0.7.d): mmd document-review --since — staleness-on-diff coupling report`
+  - `d31c599 feat(v0.7.d): coherence graph pure core — doc-links extractor + graph builder/walk`
+  - `8e9bc11 docs(v0.7.d): SPEC for the coherence graph — staleness-on-diff (mmd document-review --since)`
+  - `ffc0476 docs(v0.7.2): refresh blocks at 1626 + flip AC-4 status to LIVE-DONE (35 SPECs archived)`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

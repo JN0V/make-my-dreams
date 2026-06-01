@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.5.2`
-- **Branch**: `slice/here-third-party-readiness-first-run-setup-1780321310`
+- **Latest tag**: `v0.6.0`
+- **Branch**: `main`
 - **Version**: `0.6.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 32 (ADR-001..ADR-032)
 - **Tests**: 1496 passing
 - **Recent commits**:
+  - `02bf780 docs(v0.6.a): HANDOVER closure + AC-6 honest status + refresh blocks at 1496`
   - `b4690b3 fix(v0.6.a): refuse first-run setup on a dirty tree before writing (Phase-4 F7)`
   - `96452c9 fix(v0.6.a): commit first-run setup before the clean-tree check (Phase-4 F1)`
   - `f6eb252 docs(v0.6.a): refresh README + HANDOVER mechanical blocks (AC-5)`
   - `c20ac35 test(v0.6.a): re-bless version-pinned assertions for 0.6.0`
-  - `fc7d535 docs(v0.6.a): ADR-032 + README/CLAUDE "Using MMD on your own repo" + bump 0.6.0 (AC-5)`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -171,12 +171,18 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 
 **Phase-4 adversarial review (2 iterations):** found + fixed F1 (CRITICAL — setup wrote files but didn't commit → the next clean-tree check aborted exit 4, defeating AC-6), F3 (signal-kill reporting), F7 (MEDIUM — `git add -A` could sweep a user's uncommitted work; now refused on a dirty tree before writing). Exit condition reached: **0 Critical / 0 High** (F8/F9 documented as accepted LOW limits in ADR-032). Full suite **1496/1496** green.
 
-**AC-6 status (honest — universal §VI / L-004).** The cross-project flow is proven **green by an automated scripted end-to-end** (`test/integration/here-setup-commit-flow.test.js`): on a fresh non-MMD repo (`git init` + package.json + index.js, no `.specify/`, no `_bmad/`), `mmd --here` auto-runs the first-run setup (via the `MMD_SETUP_CMD` seam standing in for `install-mmd.sh`), commits it, prints the cheat-sheet, and the run proceeds to a `slice/here-…` branch with a fake auto-dev — and an already-set-up repo is a no-op with the constitution byte-for-byte untouched. **What is NOT yet executed in this environment:** the same flow with the REAL toolchain — real `install-mmd.sh` (which shells to `npx bmad-method`) + a real `claude -p` auto-dev run. That real-toolchain run is the remaining manual validation step (it needs network + the BMAD installer + minutes of a real LLM run); the wiring it depends on is proven, but until it's run on a real repo with real `claude`, treat the "real green end-to-end" as **proven-by-wiring, not yet by a live run**. Do not claim the live cross-project run passed until it has actually been executed and its commands/result captured here.
+**AC-6 status — LIVE GREEN ✅ (executed 2026-06-01, real toolchain).** The cross-project flow is proven **green by a real end-to-end run on a throwaway non-MMD repo** (`/tmp/mmd-ac6-3nIk`: `git init` → `package.json` + `index.js`, no `.specify/`, no `_bmad/`). `mmd --here --skip-onboarding "<trivial>"` (non-TTY) printed the missing-pieces detection, **auto-ran the REAL `install-mmd.sh`** (Phase 0 bun ✓, Phase 1 real `npx bmad-method` install), committed the setup on the base branch (`db53c32 chore: MMD first-run setup …`), created a `slice/here-…` branch from `master`, ran a **real `claude -p` auto-dev**, and landed a green commit (`fa0d6fb docs: add top-of-file comment …`) — `status.json.state = done`, `EXIT=0`. The fast surfaces were also confirmed on a real repo directly: `mmd discover` → `detected case = brownfield-app` (the exact `blank` bug fixed) and `detectMmdSetup` → `ready:false` with named missing pieces. Plus the scripted seam test (`test/integration/here-setup-commit-flow.test.js`) covers the no-op-on-already-set-up path. **MMD now provably works on a repo other than itself.**
+
+**Third-party gotchas surfaced by the live run (candidates for v0.6.b — honest §VI):**
+- `git init` defaults to **`master`** on this host, not `main`. The guard handled it correctly (used `master` as base, never assumed `main`) — but worth a regression test that `--here` is branch-name-agnostic.
+- **`mmd discover` dirties the working tree** (writes `mmd-discovery-report.md` + `.mmd/`), which would trip the guard's dirty-tree veto (exit 4) if run *before* `--here` — friction for the documented "discover then --here" flow. Fix candidate: `discover` should `.gitignore` its own outputs, or the guard should tolerate MMD's own artifacts. (Worked around in the live run by using `--skip-onboarding`; discover→brownfield-app was proven separately.)
+- The build used the **monolithic default constitution** that `install-mmd.sh` materializes (`v1.3.0`, read via Layer B), NOT MMD's modular Layer-C modules — exactly the gap v0.6.b closes (composer reads the *project's* constitution).
 
 ## NEXT PRIORITY — v0.6.b: the composer reads the PROJECT's constitution
 
 The deeper "whose constitution governs the build" fix, deferred from v0.6.a (see SPEC_V06A §4 Out of scope):
 - **Layer-C composer reads the project's constitution modules** instead of MMD's bundled ones (`lib/constitution-compose.js` currently hardcodes `REPO_ROOT` = MMD's own install dir).
 - **Non-destructive "suggest improvements" mode** on an existing constitution (the user's "on peut faire des suggestions d'amélioration, mais sinon elle reste").
-- **Run the AC-6 real-toolchain end-to-end** (install-mmd.sh + real claude -p) on a throwaway non-MMD repo and capture it here — close the honest gap above.
+- **Fix the discover-dirties-tree friction** so the documented "discover then --here" flow works without a manual clean/stash (gitignore discover outputs, or have the guard tolerate MMD's own artifacts). See the gotcha above.
 - Consider content/version-aware readiness in `detectMmdSetup` (today it only checks presence).
+- ~~Run the AC-6 real-toolchain end-to-end~~ — **DONE 2026-06-01** (live green on `/tmp/mmd-ac6-3nIk`, see the AC-6 status above).

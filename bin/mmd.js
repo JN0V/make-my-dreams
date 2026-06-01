@@ -444,6 +444,22 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
     env,
     confirmFn: confirmFirstRunSetup,
     runnerFn: runInstallMmd,
+    // Veto setup on an already-dirty tree so the post-setup `git add -A` can
+    // never sweep the user's pre-existing uncommitted work into the setup
+    // commit. A non-git target → let validateHereTarget report it (exit 3/4).
+    preflightFn: () => {
+      const s = spawnSync('git', ['status', '--porcelain'], { cwd: absTargetDir, encoding: 'utf8' });
+      if (s.status === 0 && s.stdout.trim() !== '') {
+        return {
+          ok: false,
+          exitCode: 4,
+          message:
+            'error: --here requires a clean working tree before first-run setup ' +
+            '(commit, stash, or .gitignore your changes first). (exit 4)\n',
+        };
+      }
+      return { ok: true };
+    },
     out: (s) => stdout.write(s),
     err: (s) => stderr.write(s),
   });

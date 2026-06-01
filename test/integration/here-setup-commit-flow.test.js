@@ -90,6 +90,27 @@ test('@integration first-run setup on a fresh repo: setup → commit → clean-t
   }
 });
 
+test('@integration first-run setup: a DIRTY fresh repo is rejected before setup writes anything (F7, exit 4)',
+  { skip: SKIP_ON_WINDOWS }, () => {
+  const dir = makeFreshRepo();
+  try {
+    // Pre-existing uncommitted user work.
+    writeFileSync(path.join(dir, 'my-wip.txt'), 'work in progress\n');
+
+    const r = runMmd(['--here', '--skip-onboarding', 'add a tiny hello helper'], dir);
+    assert.equal(r.status, 4, `expected exit 4 on a dirty tree; got ${r.status}. stderr: ${r.stderr}`);
+    assert.match(r.stderr, /clean working tree/i);
+
+    // Setup must NOT have run: no constitution materialized, no setup commit,
+    // and the user's WIP is left exactly as-is (never swept into a commit).
+    assert.ok(!existsSync(path.join(dir, '.specify', 'memory', 'constitution.md')));
+    assert.doesNotMatch(git(['log', '--oneline'], dir), /MMD first-run setup/);
+    assert.equal(readFileSync(path.join(dir, 'my-wip.txt'), 'utf8'), 'work in progress\n');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('@integration first-run setup: an already-set-up repo is a no-op (no setup commit, constitution untouched)',
   { skip: SKIP_ON_WINDOWS }, () => {
   const dir = makeFreshRepo();

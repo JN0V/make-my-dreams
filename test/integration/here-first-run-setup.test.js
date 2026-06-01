@@ -106,6 +106,32 @@ test('@integration guard: runner throws → exit 8, reported honestly', async ()
   assert.match(h.err.join(''), /failed to start/);
 });
 
+test('@integration guard: preflight veto (dirty tree) → abort exit 4, runner NOT called', async () => {
+  // F7: a not-ready repo whose tree is already dirty must NOT have setup run
+  // (else the post-setup commit would sweep the user's uncommitted work).
+  const h = harness({ ready: false, confirm: true });
+  const r = await runFirstRunSetup({
+    ...h.opts,
+    tty: true,
+    env: {},
+    preflightFn: () => ({ ok: false, exitCode: 4, message: 'error: dirty tree (exit 4)\n' }),
+  });
+  assert.equal(r.ok, false);
+  assert.equal(r.action, 'blocked');
+  assert.equal(r.exitCode, 4);
+  assert.equal(h.calls.runner, 0, 'setup must not write on a dirty tree');
+  assert.equal(h.calls.confirm, 0, 'must not even prompt before the preflight passes');
+  assert.match(h.err.join(''), /dirty tree/);
+});
+
+test('@integration guard: preflight ok → setup proceeds normally', async () => {
+  const h = harness({ ready: false, confirm: true, runnerCode: 0 });
+  const r = await runFirstRunSetup({ ...h.opts, tty: true, env: {}, preflightFn: () => ({ ok: true }) });
+  assert.equal(r.ok, true);
+  assert.equal(r.action, 'setup-ran');
+  assert.equal(h.calls.runner, 1);
+});
+
 test('@integration guard: MMD_SKIP_SETUP=1 → bypass with a warning, runner not called', async () => {
   const h = harness({ ready: false });
   const r = await runFirstRunSetup({ ...h.opts, tty: true, env: { MMD_SKIP_SETUP: '1' } });

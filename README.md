@@ -141,7 +141,7 @@ Engine flags compose with `--here` (`mmd --here --fast "<change>"` is valid). Re
 - `MMD_HERE_PROTECTED_BRANCHES` — comma-separated list (default `main,master`). `--here` from a protected branch is NOT an error — the slice branch is still created from HEAD. This env var documents the protected names for future Conductor enforcement.
 - `MMD_SKIP_GROUNDING` — set to `1` to bypass the prompt-grounding check (above). Not recommended; emits a warning and proceeds.
 
-### Sealed-test oracle (`mmd --sealed`) — *new in v0.4.a; `--here` in v0.4.b; import-graph blast radius in v0.4.c*
+### Sealed-test oracle (`mmd --sealed`) — *new in v0.4.a; `--here` in v0.4.b; import-graph blast radius in v0.4.c; behavioral judge in v0.4.d*
 
 The classic AI-coding failure is **making a test pass by rewriting the test, not the code** (PROBLEMS.md P-04 — ~a quarter of "verified" SWE-bench-Pro patches are actually wrong). `mmd --sealed "<dream>"` is an opt-in guard against it: an **independent oracle** that the implementing agent cannot quietly weaken.
 
@@ -156,13 +156,15 @@ It runs a **two-phase, MMD-orchestrated** flow:
 2. **SEAL** — MMD records a sha256 manifest of every sealed test file.
 3. **CODER** — the existing auto-dev runs as usual, with a prompt stating the sealed directory is a **read-only oracle**: read the tests to learn the target behaviour, but never edit, weaken, rename, or delete them. (Greenfield runs the coder on `demo/<slug>/`; `--here` runs it on the slice branch.)
 4. **VERIFY** — MMD re-hashes the sealed directory. Any **tampered** or **removed** file is a seal break: `mmd` exits **non-zero naming the file(s)** and the slice is **not** marked done and **not** merged (anti-P-04). Files the coder *adds* (its own helper tests) are allowed.
-5. **RE-RUN + BLAST** — on an intact seal, MMD re-runs the sealed tests as an independent oracle (a failure flags the slice), then writes the **blast radius** to `status.json.blast_radius`. As of v0.4.c this is **import-graph accurate** (not the old grep stub): MMD parses every file's module specifiers, resolves each relative one to a concrete file (`./` vs `../` not conflated; comment-only mentions excluded), builds the import graph, and records the **transitive reverse closure** (`transitive`) — every file that imports a changed file directly or through a chain — alongside the direct `importers`.
+5. **RE-RUN** — on an intact seal, MMD re-runs the sealed tests as an independent oracle (a failure flags the slice, exit 6). This is the **deterministic gate**.
+6. **JUDGE** *(new in v0.4.d)* — once the deterministic gate is green, a `claude -p` **behavioral oracle** grades the implementation against **what was asked** (the dream / ACs), using the sealed tests + the produced artifacts as evidence. This closes a different gap (PROBLEMS.md **P-09**): *a passing test suite proves the code does what it does, not what was asked* — a suite can be adequate-but-incomplete. The judge emits a deterministic tagged verdict (one `AC <id>: MET|NOT-MET|UNCERTAIN — reason` line per AC + an `OVERALL:` line); MMD parses it into a closed set. **All ACs `MET` → the slice proceeds; any `NOT-MET`/`UNCERTAIN` (or an unparseable reply) → `mmd` exits `7` (behavioral-gap), the slice is *not* marked done, and the per-AC verdict is printed and written to `status.json.judge`.** Like the 5-Whys, an unreadable verdict (parse failure, judge spawn error, timeout) falls back to **`uncertain` — never a fabricated `met`** (the sacred fallback, §VI). **Exit 7 is distinct from exit 6** so the two oracle failures are distinguishable: 6 = the check was attacked or the tests went red; 7 = the tests are green but the implementation misses what was asked. The judge runs ONLY behind the deterministic gate (a tamper/red test still exits 6 *before* the judge), so a non-deterministic judge can only ever *block for human review* — never wave through a tamper or a red test. See [ADR-028](./docs/adr/028-llm-judge-behavioral-oracle.md).
+7. **BLAST** — after the judge passes, MMD writes the **blast radius** to `status.json.blast_radius`. As of v0.4.c this is **import-graph accurate** (not the old grep stub): MMD parses every file's module specifiers, resolves each relative one to a concrete file (`./` vs `../` not conflated; comment-only mentions excluded), builds the import graph, and records the **transitive reverse closure** (`transitive`) — every file that imports a changed file directly or through a chain — alongside the direct `importers`.
 
-The TESTER → SEAL → VERIFY → re-run → BLAST steps are **surface-agnostic** (`runSealedPipeline`, with the coder injected as a callback); only the coder differs between greenfield and `--here`. The **reflexive payoff** of v0.4.b: the same anti-P-04 oracle that guards a generated app now guards **MMD modifying itself** — a self-dev slice can be launched with `mmd --here --sealed` so an independent sealed oracle verifies its own correctness.
+The TESTER → SEAL → VERIFY → re-run → JUDGE → BLAST steps are **surface-agnostic** (`runSealedPipeline`, with the coder injected as a callback); only the coder differs between greenfield and `--here`. The **reflexive payoff** of v0.4.b: the same anti-P-04 oracle that guards a generated app now guards **MMD modifying itself** — a self-dev slice can be launched with `mmd --here --sealed` so an independent sealed oracle verifies its own correctness.
 
-Honesty is non-negotiable (constitution §VI): a tester that fails or writes nothing, an empty seal, a coder error, a tamper, or a failing sealed test each surface **explicitly** — never a silent "sealed OK". `--sealed` composes with the engine flags and `--here` (`mmd --here --sealed --fast "<change>"`). The **default path (no `--sealed`) is byte-for-byte unchanged** on both surfaces.
+Honesty is non-negotiable (constitution §VI): a tester that fails or writes nothing, an empty seal, a coder error, a tamper, a failing sealed test, or a judge that finds a behavioral gap each surface **explicitly** — never a silent "sealed OK". `--sealed` composes with the engine flags and `--here` (`mmd --here --sealed --fast "<change>"`). The **default path (no `--sealed`) is byte-for-byte unchanged** on both surfaces. With v0.4.d, Bundle B has **both** oracles: the deterministic sealed-test gate (P-04) *and* the behavioral judge against what-was-asked (P-09).
 
-Deferred to a follow-up (see [ADR-026](./docs/adr/026-sealed-test-oracle.md)): `--sealed` as a Standard-engine default. The blast radius graduated from grep stub to import-graph accurate in v0.4.c ([ADR-027](./docs/adr/027-import-graph-blast-radius.md)) with **zero new dependencies** (vanilla-stack); its documented residual gap is computed/runtime specifiers, re-export aliasing, and non-JS importers. Enforcement lives entirely at the **MMD layer** because the BMAD auto-dev workflow is gitignored — see the ADRs for why.
+Deferred to a follow-up: `--sealed` as a Standard-engine default (see [ADR-026](./docs/adr/026-sealed-test-oracle.md)); a **`--judge-advisory`** warn-only judge mode and a **multi-judge majority vote** to dampen the single judge's non-determinism (see [ADR-028](./docs/adr/028-llm-judge-behavioral-oracle.md)). The blast radius graduated from grep stub to import-graph accurate in v0.4.c ([ADR-027](./docs/adr/027-import-graph-blast-radius.md)) with **zero new dependencies** (vanilla-stack); its documented residual gap is computed/runtime specifiers, re-export aliasing, and non-JS importers. Enforcement lives entirely at the **MMD layer** because the BMAD auto-dev workflow is gitignored — see the ADRs for why.
 
 ### Bench mode (`mmd bench`) — *new in v0.2b*
 
@@ -499,12 +501,12 @@ The folder will be renamed `make-my-dreams/` after v0.1 is validated. The repo i
 ## Status
 
 <!-- mmd:readme:status:start -->
-- **Version**: `0.4.2` (package.json)
+- **Version**: `0.4.3` (package.json)
 - **Latest tag**: `v0.4.2`
-- **ADRs**: 27 (ADR-001..ADR-027)
-- **Active lessons**: 18 active
+- **ADRs**: 28 (ADR-001..ADR-028)
+- **Active lessons**: 19 active
 - **Reflexive slices (release tags)**: 26
-- **Tests**: 1362 passing
+- **Tests**: 1392 passing
 - _Mechanical block — regenerated by `mmd document-readme`; the prose History and command docs are human-authored._
 <!-- mmd:readme:status:end -->
 

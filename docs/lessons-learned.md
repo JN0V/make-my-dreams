@@ -457,3 +457,22 @@ This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanline
 **Category**: architecture, ai-coding, dependency-discipline, observability, design-vs-implementation
 **Applies to**: mmd --sealed, mmd --here, blast radius, any-impact-analysis
 **Keywords for matching**: blast radius, import graph, computeBlastRadius, transitive, reverse closure, resolveSpecifier, parseSpecifiers, AST, acorn, babel, vanilla-stack, zero-deps, YAML-lite, P-05, fragment grep, stub, residual gap, dependency, advisory
+
+---
+
+## L-025 — A passing test suite is not proof of asked-for behavior; an independent judge against the dream catches P-09
+
+**Status**: active (1 occurrence — surfaced building the v0.4.d behavioral oracle, 2026-06-01)
+**Date**: 2026-06-01
+**Origin**: the sealed-test oracle (v0.4.a–c, L-023/ADR-026) hardened MMD against P-04 — the agent rewriting its own check — by sealing an *independent* test suite and re-running it. But "the sealed tests pass" answers a narrower question than "the implementation does what was asked". A suite — even an independent, tamper-evident one — can be adequate-but-incomplete: an acceptance criterion the tester didn't cover, an edge of the dream no assertion touches, a requirement met in letter but not spirit. All go green. That is P-09. v0.4.d (ADR-028) added an LLM-as-judge that grades the implementation against the dream/ACs *after* the deterministic gate passes.
+**The pattern**: a sibling of L-023 ("the agent verified it" is only as strong as the verifier's independence) one level up — there the failure was the agent editing the check; here the check itself is *complete-looking but incomplete*. Two different oracles answer two different questions: the deterministic sealed test asks "does the code satisfy these assertions?", the behavioral judge asks "does the code do what was asked?". Green on the first is necessary, not sufficient. The same honesty discipline as the 5-Whys (L-016, ADR-011) governs the judge's failure mode: an unreadable verdict escalates to a human, it never fabricates a pass.
+**Rule**:
+  1. **Treat "tests pass" as necessary, not sufficient.** A green suite proves the code does what the tests *check*, not what was *asked*. Where correctness against intent matters, add a second oracle that grades against the request (the dream / ACs), with the test suite as evidence — not as the bar.
+  2. **The behavioral oracle runs BEHIND the deterministic one, never instead of it.** The judge is non-deterministic and softer; run it strictly downstream of the hard gate (seal intact + tests green). A tamper or a red test still fails first (exit 6) before the judge speaks. The worst a flaky judge can do is over-flag for human review (exit 7) — it can never wave through a tamper or a red test.
+  3. **Sacred fallback: unreadable → uncertain, NEVER met.** Any unparseable/empty/odd verdict, spawn error, timeout, or non-zero exit resolves to `uncertain` with an explicit reason and escalates (exit 7). Mirror the 5-Whys escalate-on-unparseable; never invent a confident `met`. The parser is pure and never throws.
+  4. **Make the two failures distinguishable.** A tamper/seal/red-test failure (exit 6) and a behavioral gap (exit 7) are different signals to a human or CI — give them distinct exit codes and name which one fired. Write the per-AC verdict to `status.json` so the gap is inspectable, not just a code.
+  5. **Name the softness; defer the softeners explicitly.** A single LLM judge is non-deterministic — say so (ADR), and note the obvious next steps (`--judge-advisory` warn-only mode, multi-judge majority vote) as deferred rather than re-discovering them. A documented limit is not a bug; an undocumented one erodes trust (universal §VI).
+**To promote if**: 3 reuses validated (counter: 0) — candidate for `ai-coding.md` as "tests-pass ≠ asked-for; add a behavioral oracle behind the deterministic gate; unreadable → escalate, never a fabricated pass." Until then it sits here as the LLM-judge behavioral-oracle lesson.
+**Category**: testing, ai-coding, oracle-independence, verification, honesty
+**Applies to**: mmd --sealed, mmd --here, any-claude-spawn, any "the agent verified it" claim
+**Keywords for matching**: judge, LLM-as-judge, behavioral oracle, P-09, sealed, buildJudgePrompt, parseJudgeVerdict, met, not-met, uncertain, sacred fallback, exit 7, exit 6, behavioral gap, tests pass, asked-for behavior, five-whys, escalate, non-determinism, judge-advisory, multi-judge

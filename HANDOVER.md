@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.7.5`
-- **Branch**: `main`
-- **Version**: `0.7.5` (package.json)
+- **Branch**: `slice/here-test-curator-test-health-1780348277`
+- **Version**: `0.7.6` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 39 (ADR-001..ADR-039)
-- **Tests**: 1670 passing
+- **ADRs**: 40 (ADR-001..ADR-040)
+- **Tests**: 1705 passing
 - **Recent commits**:
-  - `9731e84 fix(v0.7.5): add the MMD_SLASH_COMMAND_MATERIALIZE sentinels the install test extracts`
-  - `b7c4ef1 chore: bump version to 0.7.5 (/mmd operator slash command slice)`
-  - `99d1a10 feat: materialize /mmd slash command via install-mmd.sh (idempotent)`
-  - `90f083d feat: add /mmd slash-command operator playbook (tracked source + unit anchors)`
-  - `29ab8f9 docs: regenerate coherence-review dashboard at v0.7.4 (current designed-vs-built + doc-health)`
+  - `03e57d0 docs(v0.7.6): ADR-040 + README + CLAUDE for the Test Curator; bump to 0.7.6`
+  - `4a70102 feat(v0.7.6): mmd test-health subcommand + dispatch (Test Curator AC-3/AC-4)`
+  - `d3ac318 feat(v0.7.6): pure test-health report builder (Test Curator AC-2)`
+  - `045d8f6 feat(v0.7.6): pure test-corpus scanner (Test Curator AC-1)`
+  - `9805249 docs(v0.7.6): SPEC for the Test Curator (mmd test-health) — corpus-health detect/report role`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -161,6 +161,16 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 
 
 ---
+
+## JUST LANDED — v0.7.6: the Test Curator — test-corpus health (`mmd test-health`)
+
+**MMD now owns the fourth quality question its other roles kept blurring: is the test _corpus itself_ healthy as it grows?** The test analog of the Documentalist — distinct from `mmd qa` (per-change review) and the BMAD TEA (test architecture). Implemented per SPEC_V076.md (frozen), 5 ACs, via a reflexive `mmd --here` slice. **Detect-and-report only** (strictly read-only — never modifies a test) and **deterministic** (no LLM — the corpus signal is exactly computable). What shipped:
+- **AC-1 — pure scanner** (`lib/test-curator/scan.js`): `scanTestCorpus(files)` reads the stratification tag from each test title (`@smoke`/`@unit`/`@integration`/`@e2e` prefix — the convention `npm test:smoke` greps + testing.md §V mandates), extracts `{title,tag,file,line}` per test + `{path,lineCount,testCount}` per file. Skips comment lines (a commented-out `test()` is not counted); best-effort on multiline/template titles. Pure, deterministic, never throws. 13 `@unit` tests.
+- **AC-2 — pure report builder** (`lib/test-curator/report.js`): `buildTestHealthReport(scan, {maxLines,maxTests})` → the stratification distribution, the untagged tests (a §V violation) with `file:line`, a smoke-health line (vs the §V 5–10 fast-feedback band), and oversized split candidates. Honest advisory framing, clearly heuristic; exports `DEFAULT_MAX_LINES`/`DEFAULT_MAX_TESTS`. 13 `@unit` tests.
+- **AC-3 — `mmd test-health`** (`bin/test-curator/test-health.js`): gather git-tracked test files (`git ls-files '*.test.js'`, **excluding `test/fixtures/`**), scan, build, write EXACTLY `docs/test-health.md` (read-only contract asserted — only that path changes), print a summary. Env-overridable thresholds (`MMD_TEST_FILE_MAX_LINES`/`MMD_TEST_FILE_MAX_TESTS`) with graceful honest fallback; `--dry-run`/`--help`; exit 5 when not a git repo. Dispatch + USAGE + `SUBCOMMANDS` mirror the document-* contract. 9 `@integration` tests.
+- **AC-5 — docs**: ADR-040 (the role + its boundaries + detect-before-act + deterministic-over-LLM), README + CLAUDE.md, mechanical blocks refreshed, bumped to 0.7.6.
+
+**AC-4 status — LIVE CORPUS STATE CAPTURED ✅ (executed 2026-06-01 on MMD itself).** `mmd test-health` reports: **1686 tests across 183 files** (git-tracked, fixtures excluded; heuristic count of `test(`/`it(` calls) — **1254 `@unit` · 350 `@integration` · 7 `@smoke` · 2 `@e2e` · 73 UNTAGGED**. The smoke subset (7) sits **within the testing.md §V 5–10 fast-feedback band** (usable). The headline finding is **73 untagged tests** — real §V stratification debt accumulated in older files (`test/integration/mmd.test.js`, `parse-dream.test.js`, `invoke-autodev.test.js`, `camera-secure-context.test.js`, …), each listed with `file:line` in `docs/test-health.md`. These are pre-existing (NOT introduced by this slice) and the Curator **does not fix them** — detect-before-act: a wrong stratum is worse than an absent one (it would corrupt the fast lane), so retagging is a separate human-reviewed action. **2 oversized files** flagged at the default 500-line / 60-test thresholds. The read-only contract held (only `docs/test-health.md` written). `docs/test-health.md` is committed as the regenerable dashboard (the test analog of `docs/coherence-review.md`). Future (deferred, YAGNI): auto-retag suggestions, per-stratum runtime budgets, duplicate-test detection, an opt-in `--with-claude` semantic pass.
 
 ## JUST LANDED — v0.7.3 (v0.7.d): the coherence graph — staleness-on-diff (`mmd document-review --since`)
 

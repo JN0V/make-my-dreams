@@ -14,7 +14,7 @@ each other:
 - **The BMAD TEA (Murat)** — *test architecture*: how to design a test plan / pick
   a framework / scaffold coverage for a feature, ahead of implementation. It
   answers "how *should* we test this feature?".
-- **The Documentalist (`mmd document-*`)** — keeps the *docs* coherent over time
+- **The Documentalist** (the `document-review` / `document-compact` family) — keeps the *docs* coherent over time
   (inventory, drift/conformance, coherence graph, active compaction). It answers
   "have the *docs* drifted from what MMD became?".
 

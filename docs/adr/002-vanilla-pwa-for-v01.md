@@ -41,7 +41,7 @@ The v0.1 PWA stack is **vanilla HTML5 + CSS + ES2022 JS + Canvas API + getUserMe
 
 ## References
 
-- [SPEC_V01.md §5 Implementation hints](../../SPEC_V01.md)
+- [docs/specs/SPEC_V01.md §5 Implementation hints](../../SPEC_V01.md)
 - [MAKE_MY_DREAMS.md §3.1 Three engines (Standard engine default)](../../MAKE_MY_DREAMS.md)
 - [ADR-001 Adopt gStack as runtime backbone](./001-adopt-gstack-as-backbone.md)
 - [Tech-spec v0.1 §4.7 Vanilla PWA](../../_bmad-output/implementation-artifacts/v01-techspec.md)

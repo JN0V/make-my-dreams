@@ -3,7 +3,7 @@
 **Status**: Accepted
 **Date**: 2026-06-01
 **Deciders**: MMD core (self-dev, 22nd reflexive `mmd --here`, 9th with `--label`)
-**Parent design**: [SPEC_V04C.md](../../SPEC_V04C.md) (FROZEN). Maps to [PROBLEMS.md](../../PROBLEMS.md) P-05 ("a change's true reach is invisible"). Upgrades the v0.4.a stub introduced in [ADR-026](./026-sealed-test-oracle.md).
+**Parent design**: [docs/specs/SPEC_V04C.md](../../SPEC_V04C.md) (FROZEN). Maps to [PROBLEMS.md](../../PROBLEMS.md) P-05 ("a change's true reach is invisible"). Upgrades the v0.4.a stub introduced in [ADR-026](./026-sealed-test-oracle.md).
 
 ## Context
 

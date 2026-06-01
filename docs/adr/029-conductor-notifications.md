@@ -3,7 +3,7 @@
 **Status**: Accepted
 **Date**: 2026-06-01
 **Deciders**: MMD core (self-dev, 24th reflexive `mmd --here`, 11th with `--label`)
-**Parent design**: [SPEC_V05A.md](../../SPEC_V05A.md) (FROZEN). First brick of the v0.5 **Conductor** (MAKE_MY_DREAMS.md Layer 6 — orchestration/observability). Directly addresses the recurring user feedback "I keep having to ask where things are" when a detached run finishes.
+**Parent design**: [docs/specs/SPEC_V05A.md](../../SPEC_V05A.md) (FROZEN). First brick of the v0.5 **Conductor** (MAKE_MY_DREAMS.md Layer 6 — orchestration/observability). Directly addresses the recurring user feedback "I keep having to ask where things are" when a detached run finishes.
 
 ## Context
 

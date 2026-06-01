@@ -3,7 +3,7 @@
 **Status**: Accepted
 **Date**: 2026-06-01
 **Deciders**: MMD core (self-dev, 28th reflexive `mmd --here`)
-**Parent design**: [SPEC_V06B.md](../../SPEC_V06B.md) (FROZEN). Follows [ADR-032](./032-transparent-first-run-setup.md) (v0.6.a made MMD *run* on a third-party repo; v0.6.b makes it a *good guest* of that repo's rules).
+**Parent design**: [docs/specs/SPEC_V06B.md](../../SPEC_V06B.md) (FROZEN). Follows [ADR-032](./032-transparent-first-run-setup.md) (v0.6.a made MMD *run* on a third-party repo; v0.6.b makes it a *good guest* of that repo's rules).
 
 ## Context
 
@@ -52,7 +52,7 @@ The non-destructive guarantee is the heart of "elle reste": discover **READS** `
 
 ## References
 
-- [SPEC_V06B.md](../../SPEC_V06B.md) — the frozen spec (AC-1..AC-5).
+- [docs/specs/SPEC_V06B.md](../../SPEC_V06B.md) — the frozen spec (AC-1..AC-5).
 - [ADR-032](./032-transparent-first-run-setup.md) — v0.6.a first-run setup + `brownfield-app`.
 - [ADR-024](./024-constitution-composer-layer-c.md) — the Layer-C composer (greenfield-only, as confirmed here).
 - L-009 (design vs current code), universal §VI (honesty) + §VII (human-readable), §II (KISS/YAGNI).

@@ -3,7 +3,7 @@
 **Status**: Accepted
 **Date**: 2026-06-01
 **Deciders**: MMD core (self-dev, 23rd reflexive `mmd --here`, 10th with `--label`)
-**Parent design**: [SPEC_V04D.md](../../SPEC_V04D.md) (FROZEN). Maps to [PROBLEMS.md](../../PROBLEMS.md) P-09 ("a passing test suite proves the code does what it *does*, not what was *asked*"). Sits behind the sealed-test gate from [ADR-026](./026-sealed-test-oracle.md) (P-04) and the import-graph blast radius from [ADR-027](./027-import-graph-blast-radius.md).
+**Parent design**: [docs/specs/SPEC_V04D.md](../../SPEC_V04D.md) (FROZEN). Maps to [PROBLEMS.md](../../PROBLEMS.md) P-09 ("a passing test suite proves the code does what it *does*, not what was *asked*"). Sits behind the sealed-test gate from [ADR-026](./026-sealed-test-oracle.md) (P-04) and the import-graph blast radius from [ADR-027](./027-import-graph-blast-radius.md).
 
 ## Context
 

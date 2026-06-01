@@ -44,16 +44,15 @@ Legend: ✅ built · 🟡 partial · ❌ unbuilt · ❓ unknown.
 - ⚠️ PROBLEMS.md: 241 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ BOOTSTRAP.md: 393 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ docs/lessons-learned.md: 516 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ 35 SPEC_V*.md at the repo root — sprawl, archive candidate (v0.7.b active compaction)
 
-## Inventory  (14 subcommands · 36 ADRs · 21 lessons · tags v0.1.0..v0.7.1)
+## Inventory  (14 subcommands · 36 ADRs · 21 lessons · tags v0.1.0..v0.7.2)
 
 - **Subcommands** (14): serve, bench, ship, discover, qa, cso, document-release, unblock, document-lessons, handover, document-readme, document-review, document-compact, lessons
 - **lib/ modules** (25): argv-parser, bench, composer, conductor, constitution-compose, discover, documentalist, dream-catcher, engine, handover, here-mode, here-mode, invoke-autodev, onboarding, parse-dream, rate-limit, readme-sync, reality-check, sealed-tests, security-headers, server, skills, spec-derive, sse, state
 - **ADRs** (36): latest ADR-036 — The Documentalist ACTS: active compaction by archiving the SPEC sprawl (act on the safe thing first)
 - **Active lessons**: 21
-- **Root SPEC files**: 35
-- **Tags**: 34 (v0.1.0..v0.7.1)
+- **Root SPEC files**: 0
+- **Tags**: 35 (v0.1.0..v0.7.2)
 
 ## Drift / conformance  (does the doc still match reality?)
 
@@ -66,4 +65,5 @@ _Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edi
 
 ### Stale facts (a prose claim disagrees with the live inventory)
 
-- ✅ No stale facts — bounded counts / current-version claims match the inventory.
+- ⚠️ README.md:613 says "current version v0.7.1" — inventory has v0.7.2
+- ⚠️ HANDOVER.md:17 says "current version v0.7.1" — inventory has v0.7.2

@@ -80,4 +80,4 @@ The audit always runs at `mmd ship` time so every release surfaces the pillar ta
 - L-012 — the failure that motivated this slice.
 - L-009 — the meta-rule (distinguish design scope from current implementation) that L-012 generalizes.
 - ADR-001 — adopt gStack as backbone (the original commitment that this ADR makes operational).
-- SPEC_V02F.md — the authoritative spec implemented by this ADR.
+- docs/specs/SPEC_V02F.md — the authoritative spec implemented by this ADR.

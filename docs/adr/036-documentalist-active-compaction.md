@@ -74,7 +74,7 @@ not re-moved; the index stays complete) is exactly for this recurring use.
 
 ### Why the live 34-SPEC archival is the operator's POST-MERGE step
 
-The auto-dev slice that builds this feature has its own in-flight `SPEC_V07C.md`
+The auto-dev slice that builds this feature has its own in-flight `docs/specs/SPEC_V07C.md`
 at the root. Running `mmd document-compact` *inside* the slice would move that
 spec mid-build. So the slice validates the logic on **fixture git repos** in the
 tests (dry-run no-op, real move+index+rewrite, idempotent re-run, integrity,

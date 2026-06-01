@@ -3,7 +3,7 @@
 **Status**: Accepted
 **Date**: 2026-06-01
 **Deciders**: MMD core (self-dev, 19th reflexive `mmd --here`, 6th with `--label`)
-**Parent design**: [SPEC_V03D.md](../../SPEC_V03D.md) (FROZEN). Reuses the machinery
+**Parent design**: [docs/specs/SPEC_V03D.md](../../SPEC_V03D.md) (FROZEN). Reuses the machinery
 introduced by [ADR-020](./020-mmd-handover-subcommand.md) (`mmd handover`) and is the
 lite, pulled-forward first step of the full Documentalist long planned for v0.5b.
 
@@ -103,7 +103,7 @@ hidden).
 
 ## References
 
-- [SPEC_V03D.md](../../SPEC_V03D.md) — the slice spec (FROZEN)
+- [docs/specs/SPEC_V03D.md](../../SPEC_V03D.md) — the slice spec (FROZEN)
 - [ADR-020](./020-mmd-handover-subcommand.md) — `mmd handover`, the pattern + machinery this reuses
 - [L-020](../lessons-learned.md) — the marker-bounded mechanical/intent doc-refresh pattern, reused here
 - [L-009](../lessons-learned.md) — communicate the design/implementation gap (the deferred full Documentalist)

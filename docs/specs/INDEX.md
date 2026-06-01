@@ -1,0 +1,40 @@
+# Archived SPECs
+
+> Shipped specifications, archived from the repo root by `mmd document-compact`.
+> Newest first. GENERATED — do not hand-edit (regenerate with `mmd document-compact`).
+
+- **v0.7.c** — [`SPEC_V07C.md`](SPEC_V07C.md) — Make My Dreams — v0.7.c Spec: the Documentalist compacts — SPEC archival (`mmd document-compact`)
+- **v0.7.b** — [`SPEC_V07B.md`](SPEC_V07B.md) — Make My Dreams — v0.7.b Spec: the Documentalist checks DRIFT — is the doc still TRUE? (`mmd document-review` conformance)
+- **v0.7.a** — [`SPEC_V07A.md`](SPEC_V07A.md) — Make My Dreams — v0.7.a Spec: the Documentalist's coherence review (`mmd document-review`)
+- **v0.6.b** — [`SPEC_V06B.md`](SPEC_V06B.md) — Make My Dreams — v0.6.b Spec: constitution suggestions + discover-then---here friction fix
+- **v0.6.a** — [`SPEC_V06A.md`](SPEC_V06A.md) — Make My Dreams — v0.6.a Spec: third-party readiness (transparent first-run setup + brownfield detection)
+- **v0.5.c** — [`SPEC_V05C.md`](SPEC_V05C.md) — Make My Dreams — v0.5.c Spec: serve-UI context gauge (+ opt-in web monitor toggle)
+- **v0.5.b** — [`SPEC_V05B.md`](SPEC_V05B.md) — Make My Dreams — v0.5.b Spec: live context monitor (`--monitor`, opt-in)
+- **v0.5.a** — [`SPEC_V05A.md`](SPEC_V05A.md) — Make My Dreams — v0.5.a Spec: Conductor notifications (Layer 6 webhook fan-out)
+- **v0.4.d** — [`SPEC_V04D.md`](SPEC_V04D.md) — Make My Dreams — v0.4.d Spec: LLM-as-judge behavioral oracle (P-09)
+- **v0.4.c** — [`SPEC_V04C.md`](SPEC_V04C.md) — Make My Dreams — v0.4.c Spec: import-graph blast radius (upgrade the grep stub)
+- **v0.4.b** — [`SPEC_V04B.md`](SPEC_V04B.md) — Make My Dreams — v0.4.b Spec: `--sealed` on `--here` (reflexive sealed oracle)
+- **v0.4.a** — [`SPEC_V04A.md`](SPEC_V04A.md) — Make My Dreams — v0.4.a Spec: Bundle B — sealed-test oracle (`mmd --sealed`)
+- **v0.3.d** — [`SPEC_V03D.md`](SPEC_V03D.md) — Make My Dreams — v0.3.d Spec: `mmd document-readme` — doc-sync (Documentalist-lite)
+- **v0.3.c** — [`SPEC_V03C.md`](SPEC_V03C.md) — Make My Dreams — v0.3.c Spec: profile → constitution-module composition (Layer C)
+- **v0.3.b** — [`SPEC_V03B.md`](SPEC_V03B.md) — Make My Dreams — v0.3.b Spec: Dream Catcher CLI surface + profile threading
+- **v0.3.a2** — [`SPEC_V03A2.md`](SPEC_V03A2.md) — Make My Dreams — v0.3.a-2 Spec: Dream Catcher involvement dial + scope editing
+- **v0.3.a1** — [`SPEC_V03A1.md`](SPEC_V03A1.md) — Make My Dreams — v0.3.a-1 Spec: Dream Catcher walking skeleton (Autonome mode, web)
+- **v0.3.a** — [`SPEC_V03A.md`](SPEC_V03A.md) — Make My Dreams — v0.3.a Spec: Dream Catcher — refine the dream before launch
+- **v0.2.5** — [`SPEC_V025.md`](SPEC_V025.md) — Make My Dreams — v0.2.5 Spec: `mmd serve` (accessibility milestone)
+- **v0.2.p** — [`SPEC_V02P.md`](SPEC_V02P.md) — Make My Dreams — v0.2.p Spec: `mmd handover` — auto-refresh the State block (L-020 closure)
+- **v0.2.n** — [`SPEC_V02N.md`](SPEC_V02N.md) — Make My Dreams — v0.2.n Spec: WIP-salvage stall signal + composer regression-lock (L-019 closure)
+- **v0.2.m** — [`SPEC_V02M.md`](SPEC_V02M.md) — Make My Dreams — v0.2.m Spec: Spec Kit + OpenSpec + Ralph Loop install hardening
+- **v0.2.l** — [`SPEC_V02L.md`](SPEC_V02L.md) — Make My Dreams — v0.2.l Spec: Composer categorization + context-aware filtering
+- **v0.2.k** — [`SPEC_V02K.md`](SPEC_V02K.md) — Make My Dreams — v0.2.k Spec: MMD-on-MMD findings closure
+- **v0.2.j** — [`SPEC_V02J.md`](SPEC_V02J.md) — Make My Dreams — v0.2.j Spec: Five Whys Escalation pattern
+- **v0.2.i** — [`SPEC_V02I.md`](SPEC_V02I.md) — Make My Dreams — v0.2.i Spec: Documentalist lite (counter incrementer + auto-promote)
+- **v0.2.h** — [`SPEC_V02H.md`](SPEC_V02H.md) — Make My Dreams — v0.2.h Spec: Conductor preconditions hardening (prompt-grounding check)
+- **v0.2.g** — [`SPEC_V02G.md`](SPEC_V02G.md) — Make My Dreams — v0.2.g Spec: Medium gStack — `mmd qa` + `mmd cso` + `mmd document-release`
+- **v0.2.f** — [`SPEC_V02F.md`](SPEC_V02F.md) — Make My Dreams — v0.2.f Spec: gStack effective (install hardening + `mmd ship` + audit-pillars)
+- **v0.2.e** — [`SPEC_V02E.md`](SPEC_V02E.md) — Make My Dreams — v0.2e Spec: Composer minimal (lessons auto-injection)
+- **v0.2.c** — [`SPEC_V02C.md`](SPEC_V02C.md) — Make My Dreams — v0.2c Spec: Project Onboarder (`mmd discover`)
+- **v0.2.b** — [`SPEC_V02B.md`](SPEC_V02B.md) — Make My Dreams — v0.2b Spec: `mmd bench` (dream-bench v0)
+- **v0.2.a** — [`SPEC_V02A.md`](SPEC_V02A.md) — Make My Dreams — v0.2a Spec: `--here` mode (self / brownfield-in-place)
+- **v0.2** — [`SPEC_V02.md`](SPEC_V02.md) — Make My Dreams — v0.2 Spec: FAST engine (`mmd --fast`)
+- **v0.1** — [`SPEC_V01.md`](SPEC_V01.md) — Make My Dreams — v0.1 Walking Skeleton Spec

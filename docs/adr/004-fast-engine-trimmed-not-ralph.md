@@ -70,7 +70,7 @@ Until then: FAST = trimmed auto-dev, full stop.
 
 ## References
 
-- [SPEC_V02.md](../../SPEC_V02.md) — full v0.2 spec (7 ACs + 5 deferred v0.1 items)
+- [docs/specs/SPEC_V02.md](../../SPEC_V02.md) — full v0.2 spec (7 ACs + 5 deferred v0.1 items)
 - [MAKE_MY_DREAMS.md §3.1](../../MAKE_MY_DREAMS.md) — "three engines, one brain" + v15 revision pinning FAST = trimmed auto-dev
 - [ADR-002](./002-vanilla-pwa-for-v01.md) and [ADR-003](./003-mmd-serve-vanilla-stack.md) — precedents for "pragmatic vanilla over speculative framework"
 - [`lib/spec-derive.js`](../../lib/spec-derive.js) — the 1-page upfront spec generator

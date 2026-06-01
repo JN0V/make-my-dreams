@@ -3,7 +3,7 @@
 **Status**: Accepted
 **Date**: 2026-06-01
 **Deciders**: MMD core (self-dev, 27th reflexive `mmd --here`)
-**Parent design**: [SPEC_V06A.md](../../SPEC_V06A.md) (FROZEN). First crossing of the "works on exactly one repo (itself)" wall — third-party readiness. The deeper "whose constitution governs the build" composer rework is the deferred v0.6.b.
+**Parent design**: [docs/specs/SPEC_V06A.md](../../SPEC_V06A.md) (FROZEN). First crossing of the "works on exactly one repo (itself)" wall — third-party readiness. The deeper "whose constitution governs the build" composer rework is the deferred v0.6.b.
 
 ## Context
 
@@ -64,7 +64,7 @@ The two outside-world touches — asking the user and spawning the installer —
 
 ## References
 
-- [SPEC_V06A.md](../../SPEC_V06A.md) — the frozen spec.
+- [docs/specs/SPEC_V06A.md](../../SPEC_V06A.md) — the frozen spec.
 - [ADR-013](./013-prompt-grounding-check.md) — the `MMD_SKIP_GROUNDING` escape hatch this guard mirrors with `MMD_SKIP_SETUP`.
 - [ADR-024](./024-constitution-composer-layer-c.md) — the Layer-C composer whose project-aware rework is the deferred v0.6.b.
 - L-009 — design vs current-code scope discipline (the wall this slice crosses).

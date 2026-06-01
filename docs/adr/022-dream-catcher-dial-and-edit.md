@@ -3,8 +3,8 @@
 **Status**: Accepted
 **Date**: 2026-05-31
 **Deciders**: MMD core (self-dev, 16th reflexive `mmd --here`, 3rd with `--label`)
-**Parent design**: [SPEC_V03A.md](../../SPEC_V03A.md) (FROZEN) — this ADR records the
-decisions implemented in [SPEC_V03A2.md](../../SPEC_V03A2.md), completing the Dream
+**Parent design**: [docs/specs/SPEC_V03A.md](../../SPEC_V03A.md) (FROZEN) — this ADR records the
+decisions implemented in [docs/specs/SPEC_V03A2.md](../../SPEC_V03A2.md), completing the Dream
 Catcher core begun in [ADR-021](./021-dream-catcher.md) (the v0.3.a-1 walking skeleton).
 
 ## Context

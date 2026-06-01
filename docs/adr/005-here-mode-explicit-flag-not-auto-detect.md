@@ -70,7 +70,7 @@ Until then: `--here` is named, explicit, and required.
 
 ## References
 
-- [SPEC_V02A.md](../../SPEC_V02A.md) — full v0.2a spec (7 ACs + 4 deferred future items)
+- [docs/specs/SPEC_V02A.md](../../SPEC_V02A.md) — full v0.2a spec (7 ACs + 4 deferred future items)
 - [MAKE_MY_DREAMS.md §7](../../MAKE_MY_DREAMS.md) — reflexive bootstrap design intent
 - [`docs/lessons-learned.md`](../lessons-learned.md) L-009 — the failure that motivated v0.2a
 - [`lib/here-mode.js`](../../lib/here-mode.js) — validation + slice-branch + prompt

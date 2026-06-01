@@ -3,8 +3,8 @@
 **Status**: Accepted
 **Date**: 2026-05-31
 **Deciders**: MMD core (self-dev, 15th reflexive `mmd --here`, 2nd with `--label`)
-**Parent design**: [SPEC_V03A.md](../../SPEC_V03A.md) (FROZEN) — this ADR records the
-walking-skeleton decisions implemented in [SPEC_V03A1.md](../../SPEC_V03A1.md).
+**Parent design**: [docs/specs/SPEC_V03A.md](../../SPEC_V03A.md) (FROZEN) — this ADR records the
+walking-skeleton decisions implemented in [docs/specs/SPEC_V03A1.md](../../SPEC_V03A1.md).
 
 ## Context
 

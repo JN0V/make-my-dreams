@@ -101,8 +101,8 @@ We deliberately chose Medium and NOT Heavy for v0.2.g because:
 
 - L-012 — the gStack drift failure that motivated this slice.
 - L-013 — the wrapper-modifying slice meta-rule + race-fix that v0.2.g must preserve.
-- L-016 — spec-polishing trap: v0.2.g auto-dev went direct-to-implementation instead of re-iterating SPEC_V02G.md.
+- L-016 — spec-polishing trap: v0.2.g auto-dev went direct-to-implementation instead of re-iterating docs/specs/SPEC_V02G.md.
 - ADR-001 — adopt gStack as backbone (the original commitment that this ADR continues to operationalize).
 - ADR-007 — `mmd ship` wrapper + functional install + pillar audit (the precursor that this ADR extends).
 - ADR-008 — Project Onboarder walking skeleton (defines the discovery gate that this ADR's AC-5 deliberately bypasses for read-only skills).
-- SPEC_V02G.md — the frozen spec implemented by this ADR.
+- docs/specs/SPEC_V02G.md — the frozen spec implemented by this ADR.

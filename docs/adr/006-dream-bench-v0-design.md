@@ -83,7 +83,7 @@ If a future iteration wants a "narrate the report" feature, it MUST be a SEPARAT
 
 ## References
 
-- [SPEC_V02B.md](../../SPEC_V02B.md) — full v0.2b spec (7 ACs + 10 DoD items)
+- [docs/specs/SPEC_V02B.md](../../SPEC_V02B.md) — full v0.2b spec (7 ACs + 10 DoD items)
 - [MAKE_MY_DREAMS.md §8.3](../../MAKE_MY_DREAMS.md) — dream-bench scoping
 - [MAKE_MY_DREAMS.md §9 v0.3](../../MAKE_MY_DREAMS.md) — "5 reproducible dreams" roadmap entry
 - [`bench/dreams/SCHEMA.md`](../../bench/dreams/SCHEMA.md) — front-matter schema

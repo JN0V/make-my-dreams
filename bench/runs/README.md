@@ -33,4 +33,4 @@ The `latest/` symlink always points to the freshest run, so referencing it from 
 
 - [`bench/dreams/SCHEMA.md`](../dreams/SCHEMA.md) — front-matter schema for the 5 canonical dreams
 - [`docs/adr/006-dream-bench-v0-design.md`](../../docs/adr/006-dream-bench-v0-design.md) — why these 5 dreams, why sequential, why deterministic report
-- [`SPEC_V02B.md`](../../SPEC_V02B.md) — the spec that shipped this harness
+- [`docs/specs/SPEC_V02B.md`](../../SPEC_V02B.md) — the spec that shipped this harness

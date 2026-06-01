@@ -3,7 +3,7 @@
 **Status**: Accepted
 **Date**: 2026-05-31
 **Deciders**: MMD core (self-dev, 18th reflexive `mmd --here`, 5th with `--label`)
-**Parent design**: [SPEC_V03C.md](../../SPEC_V03C.md) (FROZEN). Builds directly on
+**Parent design**: [docs/specs/SPEC_V03C.md](../../SPEC_V03C.md) (FROZEN). Builds directly on
 [ADR-023](./023-dream-catcher-cli-and-profile.md) (which threaded `MMD_PROFILE` into the
 build and consumed it minimally) and realises the "Layer C" long described in
 [CLAUDE.md](../../CLAUDE.md) "Constitution diffusion mechanisms".
@@ -115,7 +115,7 @@ extend — a future slice can take the union across several dimensions (e.g. pro
 
 ## References
 
-- [SPEC_V03C.md](../../SPEC_V03C.md) — the slice spec (FROZEN)
+- [docs/specs/SPEC_V03C.md](../../SPEC_V03C.md) — the slice spec (FROZEN)
 - [ADR-023](./023-dream-catcher-cli-and-profile.md) — profile threading + the minimal v0.3.b consumption this supersedes
 - [CLAUDE.md](../../CLAUDE.md) — "Constitution diffusion mechanisms" (Layers A/B/C)
 - [`.specify/memory/constitution-bindings.yaml`](../../.specify/memory/constitution-bindings.yaml) — the bindings table read at runtime

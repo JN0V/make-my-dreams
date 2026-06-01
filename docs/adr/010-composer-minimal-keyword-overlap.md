@@ -164,7 +164,7 @@ v0.2e is the **sixth use of `mmd --here`** to develop MMD — after L-010 (trivi
 
 ## References
 
-- SPEC: [SPEC_V02E.md](../../SPEC_V02E.md)
+- SPEC: [docs/specs/SPEC_V02E.md](../../SPEC_V02E.md)
 - Scoping: [MAKE_MY_DREAMS.md §6.5](../../MAKE_MY_DREAMS.md) + §6.5b autolearning loop
 - Lessons file: [docs/lessons-learned.md](../lessons-learned.md)
 - Prior ADRs: ADR-001 (gStack as backbone), ADR-008 (Project Onboarder), ADR-009 (Medium gStack integration pattern)

@@ -3,7 +3,7 @@
 **Status**: Accepted
 **Date**: 2026-06-01
 **Deciders**: MMD core (self-dev, 29th reflexive `mmd --here`)
-**Parent design**: [SPEC_V07A.md](../../SPEC_V07A.md) (FROZEN). First brick of the §6.4 **Documentalist** (the *detect* face); follows the document-* family ([ADR-025](./025-document-readme-doc-sync.md)).
+**Parent design**: [docs/specs/SPEC_V07A.md](../../SPEC_V07A.md) (FROZEN). First brick of the §6.4 **Documentalist** (the *detect* face); follows the document-* family ([ADR-025](./025-document-readme-doc-sync.md)).
 
 ## Context
 

@@ -54,8 +54,14 @@ test('@integration inventory: real MMD repo yields a non-empty, consistent surfa
     assert.ok(inv.libModules.includes(m), `lib module ${m} missing`);
   }
 
-  // SPEC sprawl is real (many root SPEC files).
-  assert.ok(inv.specCount >= 20, `expected SPEC sprawl >= 20, got ${inv.specCount}`);
+  // Root SPEC count is a valid non-negative number. (Before v0.7.c this was the
+  // sprawl signal, asserted >= 20; v0.7.c's `mmd document-compact` archived the
+  // root SPEC_V*.md into docs/specs/, so a healthy repo now reads 0 here. The
+  // inventory field must stay consistent either way.)
+  assert.ok(
+    Number.isInteger(inv.specCount) && inv.specCount >= 0,
+    `expected a non-negative root SPEC count, got ${inv.specCount}`,
+  );
 
   // Active lessons counted via the real parser.
   assert.ok(typeof inv.lessonCount === 'number' && inv.lessonCount > 0);

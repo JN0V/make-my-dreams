@@ -10,8 +10,8 @@ The Conductor (today: `lib/here-mode.js`, driven by `bin/mmd.js`) validates only
 git-domain-general preconditions before launching auto-dev: cwd is a git repo,
 the working tree is clean, the slice branch can be created. It does **not**
 introspect the dream/prompt content. L-015 ([`docs/lessons-learned.md`](../lessons-learned.md))
-captured the cost: launching `mmd --here "implement v0.2.g per SPEC_V02G.md"`
-when `SPEC_V02G.md` had never actually landed on `main` (a `git merge --ff-only`
+captured the cost: launching `mmd --here "implement v0.2.g per docs/specs/SPEC_V02G.md"`
+when `docs/specs/SPEC_V02G.md` had never actually landed on `main` (a `git merge --ff-only`
 that silently no-op'd because the spec branch was *behind* main). Auto-dev would
 have spent 30–90 minutes reading a non-existent file and producing nonsense. The
 operational mitigation — manually running `git show <base>:<spec> > /dev/null`

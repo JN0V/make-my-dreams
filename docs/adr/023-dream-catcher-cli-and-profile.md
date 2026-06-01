@@ -3,8 +3,8 @@
 **Status**: Accepted
 **Date**: 2026-05-31
 **Deciders**: MMD core (self-dev, 17th reflexive `mmd --here`, 4th with `--label`)
-**Parent design**: [SPEC_V03A.md](../../SPEC_V03A.md) (FROZEN) — this ADR records the
-decisions implemented in [SPEC_V03B.md](../../SPEC_V03B.md), the final v0.3 piece. It
+**Parent design**: [docs/specs/SPEC_V03A.md](../../SPEC_V03A.md) (FROZEN) — this ADR records the
+decisions implemented in [docs/specs/SPEC_V03B.md](../../SPEC_V03B.md), the final v0.3 piece. It
 builds directly on [ADR-021](./021-dream-catcher.md) (the surface-agnostic core) and
 [ADR-022](./022-dream-catcher-dial-and-edit.md) (the dial + scope editing).
 
@@ -95,7 +95,7 @@ profile is meaningful *now*, without coupling this slice to the composer rework.
 
 ## References
 
-- [SPEC_V03B.md](../../SPEC_V03B.md) — the slice spec (FROZEN)
+- [docs/specs/SPEC_V03B.md](../../SPEC_V03B.md) — the slice spec (FROZEN)
 - [ADR-021](./021-dream-catcher.md), [ADR-022](./022-dream-catcher-dial-and-edit.md) — the core + dial
 - [L-021](../lessons-learned.md) — headless `claude -p` has no stdin (why elicitation is MMD-orchestrated)
 - [L-022](../lessons-learned.md) — don't thread an env var nothing consumes (observability)

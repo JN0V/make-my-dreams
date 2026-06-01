@@ -101,4 +101,4 @@ parser, and the sacred unparseable-output fallback to `escalate-to-user`
   cannot silently regress.
 
 See [ADR-011](./011-five-whys-escalation.md) for the 5-Whys escalation design
-and [SPEC_V02N.md](../../SPEC_V02N.md) for the acceptance criteria.
+and [docs/specs/SPEC_V02N.md](../../SPEC_V02N.md) for the acceptance criteria.

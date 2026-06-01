@@ -3,7 +3,7 @@
 **Status**: Accepted
 **Date**: 2026-06-01
 **Deciders**: MMD core (self-dev, 20th reflexive `mmd --here`, 7th with `--label`)
-**Parent design**: [SPEC_V04A.md](../../SPEC_V04A.md) (FROZEN) — Bundle B. Maps to [PROBLEMS.md](../../PROBLEMS.md) P-04 (false-positive "fixes"), P-05 (invisible blast radius), P-09 (weak oracles).
+**Parent design**: [docs/specs/SPEC_V04A.md](../../SPEC_V04A.md) (FROZEN) — Bundle B. Maps to [PROBLEMS.md](../../PROBLEMS.md) P-04 (false-positive "fixes"), P-05 (invisible blast radius), P-09 (weak oracles).
 
 ## Context
 
@@ -60,13 +60,13 @@ On an intact seal, MMD **re-runs** the sealed tests (`node --test`) as the indep
 - Property-based / golden-trace / LLM-as-judge oracles (deeper P-09).
 - Modifying the BMAD `_bmad/` auto-dev workflow itself (enforcement stays MMD-layer by design).
 
-See [SPEC_V04A.md](../../SPEC_V04A.md) for the 6 ACs and [`docs/lessons-learned.md`](../lessons-learned.md) L-023 for the captured rule.
+See [docs/specs/SPEC_V04A.md](../../SPEC_V04A.md) for the 6 ACs and [`docs/lessons-learned.md`](../lessons-learned.md) L-023 for the captured rule.
 
 ---
 
 ## Addendum — v0.4.b: `--sealed` on `--here` (the reflexive surface)
 
-**Status**: Accepted · **Date**: 2026-06-01 · **Parent spec**: [SPEC_V04B.md](../../SPEC_V04B.md) (FROZEN)
+**Status**: Accepted · **Date**: 2026-06-01 · **Parent spec**: [docs/specs/SPEC_V04B.md](../../SPEC_V04B.md) (FROZEN)
 
 ### Context
 
@@ -90,4 +90,4 @@ v0.4.a wired the sealed oracle only to the **greenfield** path (`runSealedGreenf
 
 `--sealed` as a Standard-engine default; AST-accurate blast radius; property-based / LLM-as-judge oracle (deeper P-09); committing the sealed tests (they stay ephemeral in gitignored `.mmd/shared/sealed-tests/`).
 
-See [SPEC_V04B.md](../../SPEC_V04B.md) for the 5 ACs.
+See [docs/specs/SPEC_V04B.md](../../SPEC_V04B.md) for the 5 ACs.

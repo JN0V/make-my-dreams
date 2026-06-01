@@ -3,7 +3,7 @@
 **Status**: Accepted
 **Date**: 2026-06-01
 **Deciders**: MMD core (self-dev, 26th reflexive `mmd --here`, 13th with `--label`)
-**Parent design**: [SPEC_V05C.md](../../SPEC_V05C.md) (FROZEN). Makes the v0.5.b live context monitor ([ADR-030](./030-live-context-monitor.md)) **visible** in the `mmd serve` web UI — third user-facing step of the v0.5 **Conductor** (MAKE_MY_DREAMS.md Layer 6 — orchestration/observability).
+**Parent design**: [docs/specs/SPEC_V05C.md](../../SPEC_V05C.md) (FROZEN). Makes the v0.5.b live context monitor ([ADR-030](./030-live-context-monitor.md)) **visible** in the `mmd serve` web UI — third user-facing step of the v0.5 **Conductor** (MAKE_MY_DREAMS.md Layer 6 — orchestration/observability).
 
 ## Context
 
@@ -60,7 +60,7 @@ The default serve page runs under a strict CSP (`style-src 'self'`, no `unsafe-i
 
 ## References
 
-- [SPEC_V05C.md](../../SPEC_V05C.md) — the frozen spec.
+- [docs/specs/SPEC_V05C.md](../../SPEC_V05C.md) — the frozen spec.
 - [ADR-030](./030-live-context-monitor.md) — the `--monitor` context monitor this gauge displays.
 - [ADR-029](./029-conductor-notifications.md) — the first Conductor brick (notifications).
 - L-027 — stream-json usage → context %; orchestrator-not-sub-agent; opt-in for spawn-changing features.

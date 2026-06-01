@@ -20,7 +20,7 @@ Two stack questions had to be decided:
 - `bin/serve-ui/index.html` (~50 lines)
 - `bin/serve-ui/style.css` (~200 lines, hand-written, no preprocessor)
 - `bin/serve-ui/app.js` (~300 lines, vanilla ES2022, no transpilation)
-- Total wire weight uncompressed: < 30 KB (per SPEC_V025.md AC-2, verified by `@unit` test).
+- Total wire weight uncompressed: < 30 KB (per docs/specs/SPEC_V025.md AC-2, verified by `@unit` test).
 - No external font, no analytics SDK, no CDN dependency.
 
 ### 2. Transport: **Server-Sent Events (SSE), one-way, GET-only**
@@ -38,9 +38,9 @@ Two stack questions had to be decided:
 - **Consistency with ADR-002**: generated PWAs are vanilla; the MMD-serve UI being vanilla too reinforces "no framework needed for small focused UIs."
 - **Zero build step**: no `npm run build`, no bundler config, no source maps, no transpilation cache. `mmd serve` boots in < 1 s.
 - **Easier audit**: 550 lines of plain code that anyone can read end-to-end. Critical for a tool meant to be safe for kids — no surprise dependency tree.
-- **Zero runtime dependency**: aligns with SPEC_V025.md §5 "No new runtime dependencies." No supply-chain risk (cf P-03 slopsquatting in `security.md`).
+- **Zero runtime dependency**: aligns with docs/specs/SPEC_V025.md §5 "No new runtime dependencies." No supply-chain risk (cf P-03 slopsquatting in `security.md`).
 - **Page weight target < 30 KB**: achievable trivially with vanilla; nearly impossible with React + bundler overhead.
-- **CSP `script-src 'self'` works trivially**: no inline scripts needed (per SPEC_V025.md AC-2 F37).
+- **CSP `script-src 'self'` works trivially**: no inline scripts needed (per docs/specs/SPEC_V025.md AC-2 F37).
 
 **Cons / trade-offs accepted**:
 - No reactive state library → app.js manages DOM imperatively. Justified by the UI's simplicity (one form, one progress area, one result area).
@@ -57,7 +57,7 @@ Two stack questions had to be decided:
 - **Single-direction matches our trust model**: the client cannot push arbitrary commands mid-stream; everything goes through `POST /api/dream` as a first-class request with rate-limiting (`lib/rate-limit.js`).
 
 **Cons / trade-offs accepted**:
-- EventSource is **GET-only** → the protocol is two-step (POST dream → GET event stream by session_id). Slightly more endpoints than a WebSocket would need. Documented in SPEC_V025.md F21.
+- EventSource is **GET-only** → the protocol is two-step (POST dream → GET event stream by session_id). Slightly more endpoints than a WebSocket would need. Documented in docs/specs/SPEC_V025.md F21.
 - No client → server messaging on the open stream. Acceptable because v0.2.5 doesn't need it (cancel-from-page is deferred to v0.3 Dream Catcher conversational).
 
 **Alternatives rejected**:
@@ -75,7 +75,7 @@ Until then, this stack is the right answer.
 
 ## References
 
-- [SPEC_V025.md](../../SPEC_V025.md) — full v0.2.5 spec (16 ACs after 3 adversarial-review iterations)
+- [docs/specs/SPEC_V025.md](../../SPEC_V025.md) — full v0.2.5 spec (16 ACs after 3 adversarial-review iterations)
 - [ADR-002: Vanilla HTML/CSS/JS for generated PWAs](./002-vanilla-pwa-for-v01.md) — consistent precedent
 - [MAKE_MY_DREAMS.md §3.2](../../MAKE_MY_DREAMS.md) — strategic positioning (MMD = orchestration layer, minimal own surface)
 - [.specify/memory/constitution/security.md](../../.specify/memory/constitution/security.md) — Bundle A safety items (binding `127.0.0.1` only, CSP, path-traversal protection)

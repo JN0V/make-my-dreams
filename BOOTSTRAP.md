@@ -87,7 +87,7 @@ What this means, and how to opt out:
    `PATH`, the installer detects them and never reaches the `curl … | bash` lines.
 
 Pinning known-good SHA-256 digests for the two scripts is tracked as a follow-up
-(deliberately out of scope for v0.2.k — see `SPEC_V02K.md` §4).
+(deliberately out of scope for v0.2.k — see `docs/specs/SPEC_V02K.md` §4).
 
 ---
 
@@ -134,7 +134,7 @@ Pre-v0.1. See [BOOTSTRAP.md](./BOOTSTRAP.md) for the active dev plan, [docs/adr/
 - [`MAKE_MY_DREAMS.md`](./MAKE_MY_DREAMS.md) — full scoping document (~1000 lines, 11 versions)
 - [`PROBLEMS.md`](./PROBLEMS.md) — annex: 26 documented problems and techniques
 - [`BOOTSTRAP.md`](./BOOTSTRAP.md) — this file's sibling: step-by-step dev plan
-- [`SPEC_V01.md`](./SPEC_V01.md) — the v0.1 walking skeleton spec to feed to `auto-dev`
+- [`docs/specs/SPEC_V01.md`](./SPEC_V01.md) — the v0.1 walking skeleton spec to feed to `auto-dev`
 - [`install-mmd.sh`](./install-mmd.sh) — the proven `auto-dev` installer that will serve as MMD's **Standard engine** (cf §3.1 of the scoping document)
 
 ## Quick start
@@ -306,14 +306,14 @@ Once all checked: **v0.0 done**. Proceed to v0.1.
 
 ### Step 7 — Hand `auto-dev` the v0.1 spec
 
-The walking skeleton spec is in [`SPEC_V01.md`](./SPEC_V01.md) (right here in this repo).
+The walking skeleton spec is in [`docs/specs/SPEC_V01.md`](./SPEC_V01.md) (right here in this repo).
 
 From inside Claude Code, run:
 
 ```bash
 cd ~/Documents/extend-bmad   # or make-my-dreams
 claude
-> /bmad-adv-auto-dev Implement the v0.1 walking skeleton as described in SPEC_V01.md (read it in full and follow it precisely). Goal: a `mmd <dream>` CLI command that delegates to auto-dev (the Standard engine, this repo's existing install-mmd.sh) to deliver a working MVP for the dream "a drawing app that overlays an image on the camera feed". Output: working CLI under bin/mmd.js + a PWA generated under ./demo/drawing-app-camera-overlay/ that runs locally.
+> /bmad-adv-auto-dev Implement the v0.1 walking skeleton as described in docs/specs/SPEC_V01.md (read it in full and follow it precisely). Goal: a `mmd <dream>` CLI command that delegates to auto-dev (the Standard engine, this repo's existing install-mmd.sh) to deliver a working MVP for the dream "a drawing app that overlays an image on the camera feed". Output: working CLI under bin/mmd.js + a PWA generated under ./demo/drawing-app-camera-overlay/ that runs locally.
 ```
 
 `auto-dev` will:

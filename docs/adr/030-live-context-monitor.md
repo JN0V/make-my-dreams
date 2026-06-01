@@ -3,7 +3,7 @@
 **Status**: Accepted
 **Date**: 2026-06-01
 **Deciders**: MMD core (self-dev, 25th reflexive `mmd --here`, 12th with `--label`)
-**Parent design**: [SPEC_V05B.md](../../SPEC_V05B.md) (FROZEN). Second brick of the v0.5 **Conductor** (MAKE_MY_DREAMS.md Layer 6 — orchestration/observability), following the notification fan-out ([ADR-029](./029-conductor-notifications.md)).
+**Parent design**: [docs/specs/SPEC_V05B.md](../../SPEC_V05B.md) (FROZEN). Second brick of the v0.5 **Conductor** (MAKE_MY_DREAMS.md Layer 6 — orchestration/observability), following the notification fan-out ([ADR-029](./029-conductor-notifications.md)).
 
 ## Context
 
@@ -61,4 +61,4 @@ Crossing 70% is an **observability + early-warning** signal, not an action. The 
 
 **Deferred**: the actual auto-handoff/resume; making `--monitor` the default (would re-introduce the bootstrap risk — kept opt-in); per-sub-agent accounting; a serve-UI context gauge driven by `status.json.context`.
 
-See [SPEC_V05B.md](../../SPEC_V05B.md), [ADR-029](./029-conductor-notifications.md), and [L-027](../lessons-learned.md).
+See [docs/specs/SPEC_V05B.md](../../SPEC_V05B.md), [ADR-029](./029-conductor-notifications.md), and [L-027](../lessons-learned.md).

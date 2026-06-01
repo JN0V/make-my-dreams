@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.7.3`
-- **Branch**: `main`
-- **Version**: `0.7.3` (package.json)
+- **Branch**: `slice/here-coherence-graph-hub-source-cap-1780338661`
+- **Version**: `0.7.4` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 37 (ADR-001..ADR-037)
-- **Tests**: 1651 passing
+- **ADRs**: 38 (ADR-001..ADR-038)
+- **Tests**: 1657 passing
 - **Recent commits**:
+  - `6305a66 docs(v0.7.e): ADR-038 + CLAUDE.md + bump to 0.7.4 for the hub-source cap`
+  - `26b3039 test(v0.7.e): pin the hub-source note wording + assert non-hub output is unchanged`
+  - `00d1be1 feat(v0.7.e): cap hub-source neighbor floods in the coherence-graph staleness report`
+  - `1e1255b docs(v0.7.3): refresh changelog now that v0.7.3 is tagged`
   - `59aaf41 test(v0.7.d): bump version anchors to 0.7.3 (package.json anchor + ship --help snapshot)`
-  - `c4eec6b docs(v0.7.d): capture the coherence-graph slice + live AC-4 coupling in HANDOVER`
-  - `94c230b docs(v0.7.d): refresh README + HANDOVER mechanical blocks to 0.7.3 / 1651 tests`
-  - `3d87f3e docs(v0.7.d): ADR-037 + README/CLAUDE.md for the coherence graph; bump to 0.7.3`
-  - `6e134c3 feat(v0.7.d): mmd document-review --since — staleness-on-diff coupling report`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.6.1`
-- **Branch**: `slice/here-documentalist-coherence-review-1780326331`
+- **Latest tag**: `v0.7.0`
+- **Branch**: `main`
 - **Version**: `0.7.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 34 (ADR-001..ADR-034)
 - **Tests**: 1561 passing
 - **Recent commits**:
+  - `8fc9246 docs(v0.7.a): ADR-034 + README/CLAUDE document-review docs, self-validation, bump 0.7.0 (AC-4/AC-5)`
   - `9e6f6b0 feat(v0.7.a): coherence-report render + mmd document-review subcommand (AC-3)`
   - `02c44ce feat(v0.7.a): heuristic roadmap reconciliation — designed vs built (AC-2)`
   - `dc80f2d feat(v0.7.a): deterministic inventory gatherer for the Documentalist (AC-1)`
   - `f38d174 docs(v0.7.a): SPEC for the Documentalist's coherence review (mmd document-review)`
-  - `e470431 docs(v0.6.1): refresh README changelog now that v0.6.1 is tagged`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -211,6 +211,13 @@ The deeper "whose constitution governs the build" question, deferred from v0.6.a
 - ~~**Fix the discover-dirties-tree friction**~~ — **DONE.** discover gitignores its scratch + the setup preflight tolerates MMD-managed paths; F7 intact. AC-3.
 
 ## NEXT PRIORITY — candidates (no slice frozen yet)
+
+**Documentalist roadmap (the main thrust — v0.7.a just landed the DETECT face):**
+- **v0.7.b — active compaction (ACT).** Now that detection is validated (AC-4), grant the Documentalist the §6.4.3 power to *act* on what `mmd document-review` flags: archive the 33 root `SPEC_V*.md` into `docs/specs/` + an index, shard the 6 over-cap docs (`MAKE_MY_DREAMS.md` 1722 lines first), prune obsolete sections. On a slice branch, reviewable, ff-merged — "le balayage fait par le Documentaliste lui-même" (Sébastien). Detect-before-bulldoze sequencing.
+- **v0.7.c — the coherence graph (Sébastien's idea, 2026-06-01).** A *derived* (never hand-maintained) traceability graph coupling doc↔code↔ADR blocks with **staleness propagation on diff**: change one node → linked nodes flagged "may be stale, review." Reuse what already exists: `computeBlastRadius` (ADR-027, code↔code), the grounding file-ref extractor (doc→code), `[[name]]`/`ADR-NNN`/md links (doc↔doc) — ~80% of edges derive for free. The opt-in n-ary *semantic* link = a micro-anchor `@mmd:link <concept>` shared across artifacts. Value = a diff-walk check (`--since <ref>`), **advisory + ranked, never a hard gate**. Start file/symbol/anchor granularity (NOT arbitrary paragraph — stable-block-id problem). Bonus: render the graph as Mermaid/.dot for the literal mind-map. Deserves its own design conversation before SPEC. See the memory note `coherence-graph-traceability`.
+- Then: Diataxis generation (§6.3 "produce" face), event-driven triggering, full autolearning reuse-counter (§6.5).
+
+**Smaller / orthogonal candidates:**
 - **LLM-enriched suggestions** (`discover --suggest-with-claude`) — a future opt-in mirroring `--infer-with-claude` (deferred from v0.6.b, YAGNI).
 - **Content/version-aware readiness** in `detectMmdSetup` (today it only checks presence).
 - **`--here` branch-name-agnostic regression test** (the v0.6.a live run surfaced `git init` defaulting to `master`; the guard handled it but it's untested).

@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.6.0`
-- **Branch**: `main`
-- **Version**: `0.6.0` (package.json)
+- **Branch**: `slice/here-constitution-suggestions-discover-friction-1780324655`
+- **Version**: `0.6.1` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 32 (ADR-001..ADR-032)
-- **Tests**: 1496 passing
+- **ADRs**: 33 (ADR-001..ADR-033)
+- **Tests**: 1523 passing
 - **Recent commits**:
-  - `02bf780 docs(v0.6.a): HANDOVER closure + AC-6 honest status + refresh blocks at 1496`
-  - `b4690b3 fix(v0.6.a): refuse first-run setup on a dirty tree before writing (Phase-4 F7)`
-  - `96452c9 fix(v0.6.a): commit first-run setup before the clean-tree check (Phase-4 F1)`
-  - `f6eb252 docs(v0.6.a): refresh README + HANDOVER mechanical blocks (AC-5)`
-  - `c20ac35 test(v0.6.a): re-bless version-pinned assertions for 0.6.0`
+  - `b4931e9 docs(v0.6.b): ADR-033 + README/CLAUDE constitution-suggestions notes, bump to 0.6.1`
+  - `bb254c2 feat(v0.6.b): wire suggestions into discover + the discover-then-here friction fix`
+  - `e877893 feat(v0.6.b): pure constitution-suggestions checklist + MMD-managed dirty-path predicate`
+  - `ba42a57 docs(v0.6.b): SPEC for constitution suggestions + discover-then-here friction fix`
+  - `ccdf47f docs(v0.6.0): AC-6 live green + refresh mechanical blocks at v0.6.0`
 - **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

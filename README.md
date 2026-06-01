@@ -141,7 +141,7 @@ Engine flags compose with `--here` (`mmd --here --fast "<change>"` is valid). Re
 - `MMD_HERE_PROTECTED_BRANCHES` — comma-separated list (default `main,master`). `--here` from a protected branch is NOT an error — the slice branch is still created from HEAD. This env var documents the protected names for future Conductor enforcement.
 - `MMD_SKIP_GROUNDING` — set to `1` to bypass the prompt-grounding check (above). Not recommended; emits a warning and proceeds.
 
-### Sealed-test oracle (`mmd --sealed`) — *new in v0.4.a; `--here` in v0.4.b*
+### Sealed-test oracle (`mmd --sealed`) — *new in v0.4.a; `--here` in v0.4.b; import-graph blast radius in v0.4.c*
 
 The classic AI-coding failure is **making a test pass by rewriting the test, not the code** (PROBLEMS.md P-04 — ~a quarter of "verified" SWE-bench-Pro patches are actually wrong). `mmd --sealed "<dream>"` is an opt-in guard against it: an **independent oracle** that the implementing agent cannot quietly weaken.
 
@@ -156,13 +156,13 @@ It runs a **two-phase, MMD-orchestrated** flow:
 2. **SEAL** — MMD records a sha256 manifest of every sealed test file.
 3. **CODER** — the existing auto-dev runs as usual, with a prompt stating the sealed directory is a **read-only oracle**: read the tests to learn the target behaviour, but never edit, weaken, rename, or delete them. (Greenfield runs the coder on `demo/<slug>/`; `--here` runs it on the slice branch.)
 4. **VERIFY** — MMD re-hashes the sealed directory. Any **tampered** or **removed** file is a seal break: `mmd` exits **non-zero naming the file(s)** and the slice is **not** marked done and **not** merged (anti-P-04). Files the coder *adds* (its own helper tests) are allowed.
-5. **RE-RUN + BLAST** — on an intact seal, MMD re-runs the sealed tests as an independent oracle (a failure flags the slice), then writes a stub **blast radius** (changed files + their direct importers, by grepping `import`/`require`) to `status.json.blast_radius`.
+5. **RE-RUN + BLAST** — on an intact seal, MMD re-runs the sealed tests as an independent oracle (a failure flags the slice), then writes the **blast radius** to `status.json.blast_radius`. As of v0.4.c this is **import-graph accurate** (not the old grep stub): MMD parses every file's module specifiers, resolves each relative one to a concrete file (`./` vs `../` not conflated; comment-only mentions excluded), builds the import graph, and records the **transitive reverse closure** (`transitive`) — every file that imports a changed file directly or through a chain — alongside the direct `importers`.
 
 The TESTER → SEAL → VERIFY → re-run → BLAST steps are **surface-agnostic** (`runSealedPipeline`, with the coder injected as a callback); only the coder differs between greenfield and `--here`. The **reflexive payoff** of v0.4.b: the same anti-P-04 oracle that guards a generated app now guards **MMD modifying itself** — a self-dev slice can be launched with `mmd --here --sealed` so an independent sealed oracle verifies its own correctness.
 
 Honesty is non-negotiable (constitution §VI): a tester that fails or writes nothing, an empty seal, a coder error, a tamper, or a failing sealed test each surface **explicitly** — never a silent "sealed OK". `--sealed` composes with the engine flags and `--here` (`mmd --here --sealed --fast "<change>"`). The **default path (no `--sealed`) is byte-for-byte unchanged** on both surfaces.
 
-Deferred to a follow-up (see [ADR-026](./docs/adr/026-sealed-test-oracle.md)): `--sealed` as a Standard-engine default, and AST-accurate blast radius (the grep stub here is a v0.5 upgrade). Enforcement lives entirely at the **MMD layer** because the BMAD auto-dev workflow is gitignored — see the ADR for why.
+Deferred to a follow-up (see [ADR-026](./docs/adr/026-sealed-test-oracle.md)): `--sealed` as a Standard-engine default. The blast radius graduated from grep stub to import-graph accurate in v0.4.c ([ADR-027](./docs/adr/027-import-graph-blast-radius.md)) with **zero new dependencies** (vanilla-stack); its documented residual gap is computed/runtime specifiers, re-export aliasing, and non-JS importers. Enforcement lives entirely at the **MMD layer** because the BMAD auto-dev workflow is gitignored — see the ADRs for why.
 
 ### Bench mode (`mmd bench`) — *new in v0.2b*
 

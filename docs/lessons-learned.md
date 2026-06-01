@@ -439,3 +439,21 @@ This is the missing line in v0.2a AC-2 (validation gates) — `--here` cleanline
 **Category**: testing, ai-coding, oracle-independence, subprocess-control, design-vs-implementation
 **Applies to**: mmd "<dream>", mmd --here, any-claude-spawn
 **Keywords for matching**: sealed, sealed test, oracle, tamper, manifest, sha256, seal, rewrite the test, P-04, false positive, independent oracle, tester, coder, blast radius, verify, acceptance tests, self-graded, blind, read-only, auto-dev, SWE-bench
+
+---
+
+## L-024 — A resolved import graph beats fragment-grep for impact, and a full AST wasn't worth a dependency
+
+**Status**: active (1 occurrence — surfaced upgrading the v0.4.a blast-radius stub to v0.4.c, 2026-06-01)
+**Date**: 2026-06-01
+**Origin**: v0.4.a shipped `computeBlastRadius` as an honest fragment-grep stub (ADR-026): it matched filename substrings inside import/require lines. v0.4.c (ADR-027) replaced it with a resolved, transitive import graph. The stub was wrong in BOTH directions — over-counting (a filename mentioned only in a comment or string; a basename collision conflating `./helper.js` and `../helper.js`) and under-counting (no path resolution, and no transitive reach, so a change's true reach through a chain stayed invisible — the exact P-05 gap).
+**The pattern**: an "honest stub graduates to honest accuracy" sibling of L-009 (walking-skeleton scope is deliberately partial, not the true boundary). The first cut was advertised as a stub with a documented limitation; the upgrade closes the limitation WITHOUT overselling — "import-graph accurate", not "AST-accurate", with the residual gap (computed/runtime specifiers, re-export aliasing, non-JS importers) stated plainly. The dependency question generalizes: when a constrained grammar (module specifiers) needs parsing, a small hand-rolled extractor + resolver can beat a heavyweight parser dependency — the same call already made twice for YAML-lite.
+**Rule**:
+  1. **For impact analysis, resolve don't grep.** A substring match on import lines over- and under-counts; resolve each specifier to a concrete file (literal, `+ext`, `/index`) against the real file set, and conflate nothing (`./x` ≠ `../x`). A filename in a comment or string is NOT a dependency — strip comments and match only the real import forms.
+  2. **"Reach" means the TRANSITIVE reverse closure, not one hop.** Direct importers are a starting point; the blast radius is everything that imports the change directly OR through a chain. Invert the graph and BFS/DFS with a visited set so cycles can't hang.
+  3. **Weigh a dependency against the vanilla-stack convention, especially for advisory features.** A full AST parser (acorn/babel) is more accurate, but for an advisory map that never gates a run it isn't worth a permanent dependency in a zero-dep repo. The YAML-lite precedent (hand-rolled twice) is the bar: a small, tested, hand-rolled parser for a constrained grammar over a heavyweight dep.
+  4. **Name the claim honestly and document the gap.** "Import-graph accurate" ≠ "AST-accurate". State what the no-dep approach does NOT catch (computed/runtime specifiers, re-export aliasing through computed names, non-JS importers) in the ADR — a documented limit is not a bug; an undocumented one erodes trust (universal §VI).
+**To promote if**: 3 reuses validated (counter: 0) — candidate for `architecture.md` or `ai-coding.md` as "resolve don't grep for impact; weigh every dependency against the zero-dep convention; name accuracy claims honestly and document the residual gap." Until then it sits here as the import-graph blast-radius lesson.
+**Category**: architecture, ai-coding, dependency-discipline, observability, design-vs-implementation
+**Applies to**: mmd --sealed, mmd --here, blast radius, any-impact-analysis
+**Keywords for matching**: blast radius, import graph, computeBlastRadius, transitive, reverse closure, resolveSpecifier, parseSpecifiers, AST, acorn, babel, vanilla-stack, zero-deps, YAML-lite, P-05, fragment grep, stub, residual gap, dependency, advisory

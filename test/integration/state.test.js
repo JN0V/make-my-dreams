@@ -18,7 +18,7 @@ function makeTmp(prefix = 'mmd-state-') {
   return mkdtempSync(path.join(tmpdir(), prefix));
 }
 
-test('ensureLayout creates .mmd/shared/, .mmd/local/runs/, .mmd/local/reality-checks/ idempotently', async () => {
+test('@integration ensureLayout creates .mmd/shared/, .mmd/local/runs/, .mmd/local/reality-checks/ idempotently', async () => {
   const tmp = makeTmp();
   try {
     const demoDir = path.join(tmp, 'demo', 'foo');
@@ -34,7 +34,7 @@ test('ensureLayout creates .mmd/shared/, .mmd/local/runs/, .mmd/local/reality-ch
   }
 });
 
-test('readStatus on a fresh demoDir returns null', async () => {
+test('@integration readStatus on a fresh demoDir returns null', async () => {
   const tmp = makeTmp();
   try {
     const demoDir = path.join(tmp, 'demo', 'foo');
@@ -46,7 +46,7 @@ test('readStatus on a fresh demoDir returns null', async () => {
   }
 });
 
-test('writeStatus then readStatus round-trips the object', async () => {
+test('@integration writeStatus then readStatus round-trips the object', async () => {
   const tmp = makeTmp();
   try {
     const demoDir = path.join(tmp, 'demo', 'foo');
@@ -69,7 +69,7 @@ test('writeStatus then readStatus round-trips the object', async () => {
   }
 });
 
-test('writeStatus appends a decision line on state transition', async () => {
+test('@integration writeStatus appends a decision line on state transition', async () => {
   const tmp = makeTmp();
   try {
     const demoDir = path.join(tmp, 'demo', 'foo');
@@ -100,7 +100,7 @@ test('writeStatus appends a decision line on state transition', async () => {
   }
 });
 
-test('appendDecision writes a single line atomically to decisions.log', async () => {
+test('@integration appendDecision writes a single line atomically to decisions.log', async () => {
   const tmp = makeTmp();
   try {
     const demoDir = path.join(tmp, 'demo', 'foo');
@@ -113,7 +113,7 @@ test('appendDecision writes a single line atomically to decisions.log', async ()
   }
 });
 
-test('ensureGitignore is a no-op when there is no .git/ and no .gitignore (outside-git case)', async () => {
+test('@integration ensureGitignore is a no-op when there is no .git/ and no .gitignore (outside-git case)', async () => {
   const tmp = makeTmp();
   try {
     await ensureGitignore(tmp);
@@ -124,7 +124,7 @@ test('ensureGitignore is a no-op when there is no .git/ and no .gitignore (outsi
   }
 });
 
-test('ensureGitignore adds .mmd/local/ section to an existing .gitignore', async () => {
+test('@integration ensureGitignore adds .mmd/local/ section to an existing .gitignore', async () => {
   const tmp = makeTmp();
   try {
     writeFileSync(path.join(tmp, '.gitignore'), 'node_modules/\n');
@@ -136,7 +136,7 @@ test('ensureGitignore adds .mmd/local/ section to an existing .gitignore', async
   }
 });
 
-test('ensureGitignore is a no-op when .mmd/local/ is already present', async () => {
+test('@integration ensureGitignore is a no-op when .mmd/local/ is already present', async () => {
   const tmp = makeTmp();
   try {
     const initial = 'node_modules/\n.mmd/local/\n';
@@ -148,7 +148,7 @@ test('ensureGitignore is a no-op when .mmd/local/ is already present', async () 
   }
 });
 
-test('ensureGitignore creates .gitignore when only .git/ exists', async () => {
+test('@integration ensureGitignore creates .gitignore when only .git/ exists', async () => {
   const tmp = makeTmp();
   try {
     mkdirSync(path.join(tmp, '.git'));
@@ -160,7 +160,7 @@ test('ensureGitignore creates .gitignore when only .git/ exists', async () => {
   }
 });
 
-test('readStatus rejects on corrupt JSON by renaming and warning (no silent failure)', async () => {
+test('@integration readStatus rejects on corrupt JSON by renaming and warning (no silent failure)', async () => {
   const tmp = makeTmp();
   try {
     const demoDir = path.join(tmp, 'demo', 'foo');
@@ -179,7 +179,7 @@ test('readStatus rejects on corrupt JSON by renaming and warning (no silent fail
   }
 });
 
-test('writeStatus surfaces EACCES (no silent catch)', { skip: platform() === 'win32' }, async () => {
+test('@integration writeStatus surfaces EACCES (no silent catch)', { skip: platform() === 'win32' }, async () => {
   const tmp = makeTmp();
   try {
     const demoDir = path.join(tmp, 'demo', 'foo');

@@ -18,7 +18,7 @@ const __dirname = dirname(__filename);
 const APP_JS = resolve(__dirname, '../../demo/drawing-app-camera-overlay/app.js');
 
 describe('PWA camera — secure context handling (v0.1 deferred E-Bonus)', () => {
-  it('app.js must check window.isSecureContext before claiming "API not available"', async () => {
+  it('@integration app.js must check window.isSecureContext before claiming "API not available"', async () => {
     const src = await readFile(APP_JS, 'utf8');
     // The fix introduces an explicit isSecureContext branch with a tailored message
     // that mentions http://localhost or https:// as the remedy. Without this branch,
@@ -35,7 +35,7 @@ describe('PWA camera — secure context handling (v0.1 deferred E-Bonus)', () =>
     );
   });
 
-  it('app.js must still handle the genuinely-absent API case', async () => {
+  it('@integration app.js must still handle the genuinely-absent API case', async () => {
     const src = await readFile(APP_JS, 'utf8');
     // The fix should keep the !navigator.mediaDevices check, but only for the
     // truly-old-browser case — not for non-secure-context blocking.

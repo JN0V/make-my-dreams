@@ -11,59 +11,59 @@ function makeTmp() {
   return mkdtempSync(path.join(tmpdir(), 'mmd-parse-'));
 }
 
-test('slugify strips stopwords from the fil-rouge dream', () => {
+test('@integration slugify strips stopwords from the fil-rouge dream', () => {
   const s = slugify('a drawing app that overlays an image on the camera feed');
   assert.equal(s, 'drawing-app-overlays-image-camera-feed');
 });
 
-test('slugify produces deterministic slug for the test dream', () => {
+test('@integration slugify produces deterministic slug for the test dream', () => {
   assert.equal(slugify('a tiny test app that shows hello world'), 'tiny-test-app-shows-hello-world');
 });
 
-test('slugify normalizes whitespace, case, punctuation', () => {
+test('@integration slugify normalizes whitespace, case, punctuation', () => {
   assert.equal(slugify('  Hello, WORLD!! '), 'hello-world');
 });
 
-test('slugify on empty input throws TypeError', () => {
+test('@integration slugify on empty input throws TypeError', () => {
   assert.throws(() => slugify(''), /empty|dream/i);
 });
 
-test('slugify truncates >300-char input to ≤64 chars', () => {
+test('@integration slugify truncates >300-char input to ≤64 chars', () => {
   const long = 'word '.repeat(80);
   const s = slugify(long);
   assert.ok(s.length <= 64, `slug length ${s.length} should be ≤ 64`);
 });
 
-test('slugify defuses path traversal input', () => {
+test('@integration slugify defuses path traversal input', () => {
   const s = slugify('../../etc/passwd');
   assert.equal(s, 'etc-passwd');
   assert.ok(!s.includes('/'));
   assert.ok(!s.includes('..'));
 });
 
-test('slugify on emoji-only throws TypeError', () => {
+test('@integration slugify on emoji-only throws TypeError', () => {
   assert.throws(() => slugify('🚀🌟'), TypeError);
 });
 
-test('slugify on CJK-only throws TypeError', () => {
+test('@integration slugify on CJK-only throws TypeError', () => {
   assert.throws(() => slugify('日本語'), TypeError);
 });
 
-test('slugify on mixed CJK + ASCII keeps ASCII', () => {
+test('@integration slugify on mixed CJK + ASCII keeps ASCII', () => {
   assert.equal(slugify('hello 日本 world'), 'hello-world');
 });
 
-test('slugify flattens French diacritics to ASCII', () => {
+test('@integration slugify flattens French diacritics to ASCII', () => {
   assert.equal(slugify('Café littéraire'), 'cafe-litteraire');
 });
 
-test('STOPWORDS is exported and contains common articles', () => {
+test('@integration STOPWORDS is exported and contains common articles', () => {
   assert.ok(STOPWORDS.includes('a'));
   assert.ok(STOPWORDS.includes('the'));
   assert.ok(STOPWORDS.includes('that'));
 });
 
-test('initStateFiles writes vision.md + slice.md and ensures dirs, but NOT status.json', async () => {
+test('@integration initStateFiles writes vision.md + slice.md and ensures dirs, but NOT status.json', async () => {
   const tmp = makeTmp();
   try {
     const demoDir = path.join(tmp, 'demo', 'tiny-test-app-shows-hello-world');
@@ -84,7 +84,7 @@ test('initStateFiles writes vision.md + slice.md and ensures dirs, but NOT statu
   }
 });
 
-test('nextAvailableSlug probes -2, -3, ... and returns first ENOENT', async () => {
+test('@integration nextAvailableSlug probes -2, -3, ... and returns first ENOENT', async () => {
   const tmp = makeTmp();
   try {
     const demoRoot = path.join(tmp, 'demo');

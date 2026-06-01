@@ -36,7 +36,7 @@ function runMmd(args, opts = {}) {
   });
 }
 
-test('mmd --version exits 0 with the version from package.json', () => {
+test('@integration mmd --version exits 0 with the version from package.json', () => {
   // Read the version dynamically from package.json so the test does NOT need
   // to be edited on every version bump. v0.1 had this hardcoded to /0\.1\.0/
   // which broke when we bumped to 0.2.5 — the test had to be generalized.
@@ -51,7 +51,7 @@ test('mmd --version exits 0 with the version from package.json', () => {
   assert.equal(r.stdout.trim(), pkg.version);
 });
 
-test('mmd --help exits 0 and mentions --resume/--fresh/--cancel', () => {
+test('@integration mmd --help exits 0 and mentions --resume/--fresh/--cancel', () => {
   const r = spawnSync('node', [MMD, '--help'], { encoding: 'utf8' });
   assert.equal(r.status, 0);
   assert.match(r.stdout, /--resume/);
@@ -59,13 +59,13 @@ test('mmd --help exits 0 and mentions --resume/--fresh/--cancel', () => {
   assert.match(r.stdout, /--cancel/);
 });
 
-test('mmd with no args exits non-zero with usage on stderr', () => {
+test('@integration mmd with no args exits non-zero with usage on stderr', () => {
   const r = spawnSync('node', [MMD], { encoding: 'utf8' });
   assert.notEqual(r.status, 0);
   assert.match(r.stderr + r.stdout, /usage|dream/i);
 });
 
-test('mmd "" exits with code 2 (usage error)', () => {
+test('@integration mmd "" exits with code 2 (usage error)', () => {
   const r = spawnSync('node', [MMD, ''], { encoding: 'utf8' });
   assert.equal(r.status, 2);
 });
@@ -107,7 +107,7 @@ test('@integration AC-3: --no-catch on a non-TTY launches the verbatim dream (no
   }
 });
 
-test('happy path end-to-end with autodev stub creates demo dir + state files', () => {
+test('@integration happy path end-to-end with autodev stub creates demo dir + state files', () => {
   const tmp = makeTmp();
   try {
     const r = runMmd(['a tiny test app that shows hello world'], { cwd: tmp });
@@ -137,7 +137,7 @@ test('happy path end-to-end with autodev stub creates demo dir + state files', (
   }
 });
 
-test('AC-2 slug: drawing-app dream produces drawing-app-overlays-image-camera-feed demo dir', () => {
+test('@integration AC-2 slug: drawing-app dream produces drawing-app-overlays-image-camera-feed demo dir', () => {
   const tmp = makeTmp();
   try {
     const r = runMmd(['a drawing app that overlays an image on the camera feed'], { cwd: tmp });
@@ -149,7 +149,7 @@ test('AC-2 slug: drawing-app dream produces drawing-app-overlays-image-camera-fe
   }
 });
 
-test('re-run in non-TTY without flags exits 2', () => {
+test('@integration re-run in non-TTY without flags exits 2', () => {
   const tmp = makeTmp();
   try {
     // First run to create state
@@ -163,7 +163,7 @@ test('re-run in non-TTY without flags exits 2', () => {
   }
 });
 
-test('re-run with --resume exits 3 and reports state', () => {
+test('@integration re-run with --resume exits 3 and reports state', () => {
   const tmp = makeTmp();
   try {
     let r = runMmd(['a tiny test app that shows hello world'], { cwd: tmp });
@@ -176,7 +176,7 @@ test('re-run with --resume exits 3 and reports state', () => {
   }
 });
 
-test('re-run with --cancel exits 1', () => {
+test('@integration re-run with --cancel exits 1', () => {
   const tmp = makeTmp();
   try {
     let r = runMmd(['a tiny test app that shows hello world'], { cwd: tmp });
@@ -188,7 +188,7 @@ test('re-run with --cancel exits 1', () => {
   }
 });
 
-test('re-run with --fresh deletes existing demo dir and restarts', () => {
+test('@integration re-run with --fresh deletes existing demo dir and restarts', () => {
   const tmp = makeTmp();
   try {
     let r = runMmd(['a tiny test app that shows hello world'], { cwd: tmp });
@@ -206,7 +206,7 @@ test('re-run with --fresh deletes existing demo dir and restarts', () => {
   }
 });
 
-test('autodev failure: status.json is written with state=failed and all five fields', () => {
+test('@integration autodev failure: status.json is written with state=failed and all five fields', () => {
   const tmp = makeTmp();
   try {
     const r = runMmd(['a tiny test app that shows hello world'], {
@@ -227,7 +227,7 @@ test('autodev failure: status.json is written with state=failed and all five fie
   }
 });
 
-test('symlink-bypass refusal on --fresh (exit 5, target preserved)', { skip: platform() === 'win32' }, () => {
+test('@integration symlink-bypass refusal on --fresh (exit 5, target preserved)', { skip: platform() === 'win32' }, () => {
   const tmp = makeTmp();
   try {
     // Pre-create demo/<slug> as a SYMLINK to outside ./demo/
@@ -257,7 +257,7 @@ test('symlink-bypass refusal on --fresh (exit 5, target preserved)', { skip: pla
   }
 });
 
-test('slug collision: different dream same slug → -2 suffix', () => {
+test('@integration slug collision: different dream same slug → -2 suffix', () => {
   const tmp = makeTmp();
   try {
     // Pre-create the slug directory with a status.json whose dream differs.
@@ -281,7 +281,7 @@ test('slug collision: different dream same slug → -2 suffix', () => {
   }
 });
 
-test('corrupt status.json triggers defensive rename + warning + proceed', async () => {
+test('@integration corrupt status.json triggers defensive rename + warning + proceed', async () => {
   const tmp = makeTmp();
   try {
     const slug = 'tiny-test-app-shows-hello-world';

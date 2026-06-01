@@ -55,7 +55,7 @@ function runMmd(args, opts = {}) {
   });
 }
 
-test('mmd ship --help exits 0 and prints usage anchors', () => {
+test('@integration mmd ship --help exits 0 and prints usage anchors', () => {
   const r = runMmd(['ship', '--help']);
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /mmd ship/i);
@@ -63,7 +63,7 @@ test('mmd ship --help exits 0 and prints usage anchors', () => {
   assert.match(r.stdout, /<branch>/);
 });
 
-test('mmd ship outside a git repo exits 3', () => {
+test('@integration mmd ship outside a git repo exits 3', () => {
   const tmp = mkdtempSync(path.join(tmpdir(), 'mmd-ship-nogit-'));
   try {
     const r = runMmd(['ship'], { cwd: tmp });
@@ -74,7 +74,7 @@ test('mmd ship outside a git repo exits 3', () => {
   }
 });
 
-test('mmd ship on main (protected) exits 4', () => {
+test('@integration mmd ship on main (protected) exits 4', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'mmd-ship-main-'));
   try {
     const git = (args) => spawnSync(
@@ -92,7 +92,7 @@ test('mmd ship on main (protected) exits 4', () => {
   }
 });
 
-test('mmd ship --dry-run on a slice branch exits 0 and prints prompt + env + cmd', () => {
+test('@integration mmd ship --dry-run on a slice branch exits 0 and prints prompt + env + cmd', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship', '--dry-run'], { cwd: dir });
@@ -111,7 +111,7 @@ test('mmd ship --dry-run on a slice branch exits 0 and prints prompt + env + cmd
   }
 });
 
-test('mmd ship --dry-run on an unknown subcommand-style flag is rejected', () => {
+test('@integration mmd ship --dry-run on an unknown subcommand-style flag is rejected', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship', '--bogus'], { cwd: dir });
@@ -122,7 +122,7 @@ test('mmd ship --dry-run on an unknown subcommand-style flag is rejected', () =>
   }
 });
 
-test('mmd ship --dry-run on a feat/* branch is accepted', () => {
+test('@integration mmd ship --dry-run on a feat/* branch is accepted', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'mmd-ship-feat-'));
   try {
     const git = (args) => {
@@ -144,7 +144,7 @@ test('mmd ship --dry-run on a feat/* branch is accepted', () => {
   }
 });
 
-test('mmd ship --dry-run runs in under 5 seconds (DoD §3)', () => {
+test('@integration mmd ship --dry-run runs in under 5 seconds (DoD §3)', () => {
   const dir = makeShipReadyRepo();
   try {
     const t0 = Date.now();
@@ -157,7 +157,7 @@ test('mmd ship --dry-run runs in under 5 seconds (DoD §3)', () => {
   }
 });
 
-test('mmd ship --dry-run with explicit <branch> argument honors it', () => {
+test('@integration mmd ship --dry-run with explicit <branch> argument honors it', () => {
   const dir = makeShipReadyRepo();
   try {
     // We're on slice/test-... but pass an explicit feat/* branch.
@@ -169,7 +169,7 @@ test('mmd ship --dry-run with explicit <branch> argument honors it', () => {
   }
 });
 
-test('mmd ship --dry-run with explicit main argument exits 4', () => {
+test('@integration mmd ship --dry-run with explicit main argument exits 4', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship', '--dry-run', 'main'], { cwd: dir });

@@ -18,7 +18,7 @@ function makeTmp() {
   return tmp;
 }
 
-test('invokeAutodev with fake-autodev.sh returns code 0 and logs subprocess output', async () => {
+test('@integration invokeAutodev with fake-autodev.sh returns code 0 and logs subprocess output', async () => {
   const tmp = makeTmp();
   try {
     process.env.MMD_AUTODEV_CMD = FIXTURE_OK;
@@ -42,7 +42,7 @@ test('invokeAutodev with fake-autodev.sh returns code 0 and logs subprocess outp
   }
 });
 
-test('invokeAutodev resolves (does not throw) when subprocess exits non-zero', async () => {
+test('@integration invokeAutodev resolves (does not throw) when subprocess exits non-zero', async () => {
   const tmp = makeTmp();
   try {
     process.env.MMD_AUTODEV_CMD = FIXTURE_FAIL;
@@ -62,7 +62,7 @@ test('invokeAutodev resolves (does not throw) when subprocess exits non-zero', a
   }
 });
 
-test('invokeAutodev rejects with mmdExitCode === 4 when executable is missing', async () => {
+test('@integration invokeAutodev rejects with mmdExitCode === 4 when executable is missing', async () => {
   const tmp = makeTmp();
   try {
     process.env.MMD_AUTODEV_CMD = '/no/such/path/definitely-does-not-exist';
@@ -87,7 +87,7 @@ test('invokeAutodev rejects with mmdExitCode === 4 when executable is missing', 
   }
 });
 
-test('invokeAutodev rejects with mmdExitCode === 5 when cwd is missing', async () => {
+test('@integration invokeAutodev rejects with mmdExitCode === 5 when cwd is missing', async () => {
   const missingCwd = path.join(tmpdir(), 'mmd-inv-missing-' + Date.now() + '-' + Math.random().toString(36).slice(2));
   try {
     process.env.MMD_AUTODEV_CMD = FIXTURE_OK;
@@ -112,7 +112,7 @@ test('invokeAutodev rejects with mmdExitCode === 5 when cwd is missing', async (
   }
 });
 
-test('buildSubprocessEnv allowlist strips arbitrary secrets but keeps PATH/HOME', () => {
+test('@integration buildSubprocessEnv allowlist strips arbitrary secrets but keeps PATH/HOME', () => {
   const parentEnv = {
     PATH: '/usr/bin',
     HOME: '/home/test',
@@ -130,7 +130,7 @@ test('buildSubprocessEnv allowlist strips arbitrary secrets but keeps PATH/HOME'
   assert.equal(out.GITHUB_TOKEN, undefined);
 });
 
-test('env allowlist actually strips secrets when spawning subprocess (echo-env fixture)', async () => {
+test('@integration env allowlist actually strips secrets when spawning subprocess (echo-env fixture)', async () => {
   const tmp = makeTmp();
   try {
     process.env.MMD_AUTODEV_CMD = FIXTURE_ENV;
@@ -161,7 +161,7 @@ test('env allowlist actually strips secrets when spawning subprocess (echo-env f
   }
 });
 
-test('invokeAutodev validates MMD_AUTODEV_CMD points to an executable path', async () => {
+test('@integration invokeAutodev validates MMD_AUTODEV_CMD points to an executable path', async () => {
   const tmp = makeTmp();
   try {
     // Create a non-executable file
@@ -191,7 +191,7 @@ test('invokeAutodev validates MMD_AUTODEV_CMD points to an executable path', asy
   }
 });
 
-test('invokeAutodev passes args as array (no shell injection on dream containing shell metas)', async () => {
+test('@integration invokeAutodev passes args as array (no shell injection on dream containing shell metas)', async () => {
   const tmp = makeTmp();
   try {
     process.env.MMD_AUTODEV_CMD = FIXTURE_OK;

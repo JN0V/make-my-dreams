@@ -11,7 +11,7 @@ function makeTmp() {
   return mkdtempSync(path.join(tmpdir(), 'mmd-rc-'));
 }
 
-test('forced backend=skip returns SKIPPED regardless of env', async () => {
+test('@integration forced backend=skip returns SKIPPED regardless of env', async () => {
   process.env.MMD_REALITY_CHECK_BACKEND = 'skip';
   try {
     const tmp = makeTmp();
@@ -27,7 +27,7 @@ test('forced backend=skip returns SKIPPED regardless of env', async () => {
   }
 });
 
-test('forced backend=mcp returns SKIPPED with mcp-not-available reason (v0.1 stub)', async () => {
+test('@integration forced backend=mcp returns SKIPPED with mcp-not-available reason (v0.1 stub)', async () => {
   process.env.MMD_REALITY_CHECK_BACKEND = 'mcp';
   try {
     const tmp = makeTmp();
@@ -43,7 +43,7 @@ test('forced backend=mcp returns SKIPPED with mcp-not-available reason (v0.1 stu
   }
 });
 
-test('forced backend=playwright degrades to SKIPPED if playwright is not installed', async () => {
+test('@integration forced backend=playwright degrades to SKIPPED if playwright is not installed', async () => {
   process.env.MMD_REALITY_CHECK_BACKEND = 'playwright';
   try {
     const tmp = makeTmp();
@@ -65,7 +65,7 @@ test('forced backend=playwright degrades to SKIPPED if playwright is not install
   }
 });
 
-test('autodetect with no forced backend returns one of PASS/FAIL/SKIPPED', async () => {
+test('@integration autodetect with no forced backend returns one of PASS/FAIL/SKIPPED', async () => {
   delete process.env.MMD_REALITY_CHECK_BACKEND;
   const tmp = makeTmp();
   try {

@@ -57,7 +57,7 @@ describe('mmd serve — smoke @integration', () => {
     }
   });
 
-  it('GET /api/health returns ok=true with the version', async () => {
+  it('@integration GET /api/health returns ok=true with the version', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/api/health`);
     assert.equal(res.status, 200);
     const body = await res.json();
@@ -65,7 +65,7 @@ describe('mmd serve — smoke @integration', () => {
     assert.match(body.version, /^\d+\.\d+\.\d+$/);
   });
 
-  it('GET / returns the UI HTML with charset', async () => {
+  it('@integration GET / returns the UI HTML with charset', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/`);
     assert.equal(res.status, 200);
     assert.match(res.headers.get('content-type'), /text\/html/);
@@ -74,14 +74,14 @@ describe('mmd serve — smoke @integration', () => {
     assert.match(body, /Make My Dreams/);
   });
 
-  it('GET /demo/../etc/passwd is blocked (path traversal)', async () => {
+  it('@integration GET /demo/../etc/passwd is blocked (path traversal)', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/demo/../etc/passwd`);
     // 403 or 404 are both acceptable — what matters is NOT 200 leaking the file
     assert.notEqual(res.status, 200);
     assert.ok(res.status === 403 || res.status === 404, `unexpected status ${res.status}`);
   });
 
-  it('GET /api/health responds in under 100 ms (warm server)', async () => {
+  it('@integration GET /api/health responds in under 100 ms (warm server)', async () => {
     const start = Date.now();
     const res = await fetch(`http://127.0.0.1:${port}/api/health`);
     const elapsed = Date.now() - start;

@@ -62,7 +62,7 @@ function runMmd(args, opts = {}) {
   });
 }
 
-test('mmd ship (fake claude): exits 0 on a slice branch, spawns the fixture', () => {
+test('@integration mmd ship (fake claude): exits 0 on a slice branch, spawns the fixture', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship'], { cwd: dir });
@@ -83,7 +83,7 @@ test('mmd ship (fake claude): exits 0 on a slice branch, spawns the fixture', ()
   }
 });
 
-test('mmd ship (fake claude): summary includes branch + sha + log path', () => {
+test('@integration mmd ship (fake claude): summary includes branch + sha + log path', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship'], { cwd: dir });
@@ -96,7 +96,7 @@ test('mmd ship (fake claude): summary includes branch + sha + log path', () => {
   }
 });
 
-test('mmd ship (fake claude): AC-7 audit-pillars table appears in summary', () => {
+test('@integration mmd ship (fake claude): AC-7 audit-pillars table appears in summary', () => {
   const dir = makeShipReadyRepo();
   try {
     // To make audit-pillars resolvable, we need the scripts/ dir + git binary
@@ -126,7 +126,7 @@ test('mmd ship (fake claude): AC-7 audit-pillars table appears in summary', () =
   }
 });
 
-test('mmd ship (fake claude failing): propagates non-zero exit code', () => {
+test('@integration mmd ship (fake claude failing): propagates non-zero exit code', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship'], {
@@ -142,7 +142,7 @@ test('mmd ship (fake claude failing): propagates non-zero exit code', () => {
   }
 });
 
-test('mmd ship: missing claude binary exits 4 with clear message', () => {
+test('@integration mmd ship: missing claude binary exits 4 with clear message', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship'], {
@@ -156,7 +156,7 @@ test('mmd ship: missing claude binary exits 4 with clear message', () => {
   }
 });
 
-test('mmd ship: fake-claude receives -p --output-format text <prompt>', () => {
+test('@integration mmd ship: fake-claude receives -p --output-format text <prompt>', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship'], { cwd: dir });

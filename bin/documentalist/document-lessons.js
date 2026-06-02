@@ -18,6 +18,7 @@ import { cwd as processCwd, stdout, stderr } from 'node:process';
 import path from 'node:path';
 import { readFileSync, statSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import { findComposerAudits } from '../../lib/composer/usage-stats.js';
@@ -29,6 +30,19 @@ import {
   serializeCounterUpdates,
 } from '../../lib/documentalist/serialize-lessons.js';
 import { promoteLesson } from '../../lib/documentalist/promote-lesson.js';
+import { validatedReuses } from '../../lib/autolearn/validated-reuse.js';
+import {
+  readRunStateForComposerSync,
+  readCreditedRunsSync,
+  writeCreditedRunsSync,
+  mergeCredited,
+} from '../../lib/autolearn/run-outcome.js';
+import {
+  buildPromoteGatePrompt,
+  parsePromoteGateVerdict,
+  gateFallback,
+} from '../../lib/autolearn/promote-gate.js';
+import { buildSubprocessEnv } from '../../lib/invoke-autodev.js';
 
 const PKG_PATH = fileURLToPath(new URL('../../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
@@ -63,7 +77,14 @@ Exit codes:
   6  partial failure (one or more promotions errored; details on stderr)
 
 Env vars:
-  MMD_LESSONS_FILE   Override the lessons-learned.md path (default <cwd>/docs/lessons-learned.md).
+  MMD_LESSONS_FILE        Override the lessons-learned.md path (default <cwd>/docs/lessons-learned.md).
+  MMD_PROMOTE_GATE_CMD    The injected LLM promotion-validation gate command (a 'claude -p'
+                          seam). When a lesson reaches its threshold, the gate reviews the
+                          rule + its reusing runs and returns validated|not-validated|uncertain.
+                          ONLY 'validated' promotes; anything else (incl. gate absent or an
+                          unparseable verdict) HOLDS the lesson (counter preserved). Unset →
+                          promotion gate unavailable → every threshold lesson is held.
+  MMD_PROMOTE_GATE_TIMEOUT_MS  Gate spawn timeout (default 120000). 0 = no timeout.
 
 mmd ${VERSION}
 `;
@@ -144,6 +165,56 @@ function enrichLessons(markdown) {
 }
 
 /**
+ * Run the injected LLM promotion-validation gate for one lesson (SPEC_V090
+ * AC-3). Mirrors the v0.4.d judge seam (invokeJudge): a `claude -p`-shaped
+ * spawn behind the `MMD_PROMOTE_GATE_CMD` env override, with the sacred fallback
+ * at EVERY failure branch — gate absent, spawn error, timeout, non-zero exit, or
+ * unparseable reply all resolve to `uncertain` (→ HOLD), NEVER a fabricated
+ * `validated`. Promotion edits the constitution, so the gate is conservative.
+ *
+ * @param {{ id: string, title?: string, rule?: string }} lesson
+ * @param {string[]} reusingRuns the distinct done-run ids that reused the lesson
+ * @param {string} repoRoot
+ * @param {NodeJS.ProcessEnv} env
+ * @returns {{ verdict: string, reason: string }}
+ */
+function runPromoteGate(lesson, reusingRuns, repoRoot, env) {
+  const cmd = env.MMD_PROMOTE_GATE_CMD;
+  if (!cmd || cmd.length === 0) {
+    return gateFallback('promotion gate unavailable — set MMD_PROMOTE_GATE_CMD');
+  }
+  let prompt;
+  try {
+    prompt = buildPromoteGatePrompt({ lesson, reusingRuns });
+  } catch (err) {
+    return gateFallback(`gate prompt build failed: ${err.message}`);
+  }
+  const timeoutMs =
+    env.MMD_PROMOTE_GATE_TIMEOUT_MS !== undefined
+      ? Number(env.MMD_PROMOTE_GATE_TIMEOUT_MS)
+      : 120_000;
+  const r = spawnSync(cmd, ['-p', prompt], {
+    cwd: repoRoot,
+    env: buildSubprocessEnv(env),
+    encoding: 'utf8',
+    timeout: timeoutMs && timeoutMs > 0 ? timeoutMs : undefined,
+  });
+  if (r.error) {
+    const why = r.error.code === 'ENOENT' ? `'${cmd}' not found on PATH` : r.error.message;
+    return gateFallback(`gate could not run: ${why}`);
+  }
+  // L-006: a timeout kills the child and leaves status===null — never parse a
+  // truncated reply as a confident verdict; fall back to uncertain (→ HOLD).
+  if (r.status === null) {
+    return gateFallback(`gate timed out or was killed (signal ${r.signal || 'unknown'})`);
+  }
+  if (r.status !== 0) {
+    return gateFallback(`gate exited with code ${r.status}`);
+  }
+  return parsePromoteGateVerdict(r.stdout || '');
+}
+
+/**
  * Entry point dispatched by bin/mmd.js when argv[0] === 'document-lessons'.
  *
  * @param {string[]} rawArgs argv tokens AFTER 'document-lessons'
@@ -195,9 +266,32 @@ export async function runDocumentLessons(rawArgs) {
     }
     composers.push({ path: p, json });
   }
-  const { totalRuns, byLesson } = aggregateInjections(composers, {
+  // 2a. RAW injections (ADR-010's old signal) — kept for honest reporting only
+  // (AC-4), NO LONGER the counter driver.
+  const { byLesson } = aggregateInjections(composers, {
     onWarn: (m) => stderr.write(`warning: ${m}\n`),
   });
+
+  // 2b. VALIDATED reuses (the v0.9.0 signal): join each audit's injected ids to
+  // its run outcome (the sibling outcome.json), then count distinct done-runs
+  // per lesson (per-run deduped). This is what drives the counter.
+  const runRecords = composers.map(({ path: p, json }) => {
+    const runId =
+      (json && typeof json.run_id === 'string' && json.run_id) ||
+      (json && typeof json.runId === 'string' && json.runId) ||
+      (p ? path.basename(p).replace(/\.composer\.json$/, '') : null);
+    const matched = json && Array.isArray(json.matched) ? json.matched : [];
+    const injectedLessonIds = matched
+      .filter((m) => m && typeof m.id === 'string')
+      .map((m) => m.id);
+    const state = p ? readRunStateForComposerSync(p) : null;
+    return { runId, injectedLessonIds, state };
+  });
+  const validatedByLesson = validatedReuses(runRecords);
+  const totalRuns = new Set(runRecords.map((r) => r.runId).filter(Boolean)).size;
+  const doneRuns = new Set(
+    runRecords.filter((r) => r.state === 'done').map((r) => r.runId).filter(Boolean),
+  ).size;
 
   // 3. Parse + enrich lessons.
   let markdown;
@@ -209,45 +303,96 @@ export async function runDocumentLessons(rawArgs) {
   }
   const lessons = enrichLessons(markdown);
 
-  // 4. Compute counter mutations + promotions.
-  const { updatedLessons, toPromote } = mutateCounters(lessons, byLesson);
+  // 4. Compute counter mutations — by VALIDATED reuses NOT-yet-credited
+  // (idempotent via the durable credited-runs record), NOT by raw injections.
+  const creditedRuns = readCreditedRunsSync(repoRoot);
+  const { updatedLessons, toPromote, newlyCreditedRuns } = mutateCounters(
+    lessons,
+    validatedByLesson,
+    { creditedRuns },
+  );
   const incrementCount = updatedLessons.filter((l) => l.counterDelta > 0).length;
-  const promoteIds = new Set(toPromote.map((l) => l.id));
 
-  // 5. Summary line (AC-5 wording). totalInjections = sum of per-lesson run
-  // counts (injection events); byLesson.size = distinct lessons touched.
+  // 5. Honest summary (AC-4): RAW injections and VALIDATED reuses are shown as
+  // DISTINCT, labelled values so they are never conflated again (ADR-010).
   const totalInjections = [...byLesson.values()].reduce((s, r) => s + r.count, 0);
+  const totalValidatedReuses = [...validatedByLesson.values()].reduce((s, r) => s + r.count, 0);
   const willWord = parsed.dryRun ? 'would' : 'will';
   stdout.write(
-    `Processed ${totalRuns} run(s), ${totalInjections} injection(s) across ` +
-      `${byLesson.size} lesson(s). ${willWord} increment ${incrementCount} counter(s), ` +
-      `${willWord} promote ${toPromote.length} lesson(s).\n`,
+    `Processed ${totalRuns} run(s) (${doneRuns} done).\n` +
+      `  Raw injections (ADR-010's old signal, NOT the counter): ` +
+      `${totalInjections} across ${byLesson.size} lesson(s).\n` +
+      `  Validated reuses (injected-into-a-done-run, the promotion signal): ` +
+      `${totalValidatedReuses} across ${validatedByLesson.size} lesson(s).\n` +
+      `${willWord} increment ${incrementCount} counter(s) by newly-credited validated reuses, ` +
+      `${willWord} consider ${toPromote.length} lesson(s) for promotion (gate-validated only).\n`,
   );
 
+  // Per-lesson delta detail (printed in dry-run; the plan).
   if (parsed.dryRun) {
+    for (const l of updatedLessons) {
+      if (l.counterDelta > 0) {
+        stdout.write(
+          `  ${l.id}: +${l.counterDelta} (validated reuses ${l.validatedReuseTotal}, ` +
+            `raw injections ${byLesson.get(l.id)?.count ?? 0}, ` +
+            `counter ${l.previousCounter}→${l.counter}/${l.promoteIfN})\n`,
+        );
+      }
+    }
     for (const lesson of toPromote) {
-      const plan = await promoteLesson(lesson, repoRoot, { dryRun: true, lessonsPath });
-      stdout.write(
-        `  would promote ${plan.lessonId} → ${plan.targetModule} ` +
-          `(ADR ${path.basename(plan.adrPath)})\n`,
-      );
+      const reusing = validatedByLesson.get(lesson.id)?.runIds || [];
+      const gate = runPromoteGate(lesson, reusing, repoRoot, process.env);
+      if (gate.verdict === 'validated') {
+        const plan = await promoteLesson(lesson, repoRoot, { dryRun: true, lessonsPath });
+        stdout.write(
+          `  would PROMOTE ${plan.lessonId} → ${plan.targetModule} ` +
+            `(ADR ${path.basename(plan.adrPath)}) — gate validated\n`,
+        );
+      } else {
+        stdout.write(
+          `  would HOLD ${lesson.id} — gate ${gate.verdict}` +
+            `${gate.reason ? `: ${gate.reason}` : ''} (counter preserved, stays active)\n`,
+        );
+      }
     }
     return 0;
   }
 
-  // 6. Apply: counter updates for NON-promoted changed lessons (promoted ones
-  // are removed wholesale, so their counter need not be written), then promote.
+  // 6. Run the promotion gate for each threshold lesson FIRST so we know which
+  // are actually promoted (validated) vs held (everything else). A held lesson
+  // keeps its incremented counter; only a promoted lesson's block is removed.
+  let hadFailure = false;
+  const promotedIds = new Set();
+  const gateDecisions = [];
+  for (const lesson of toPromote) {
+    const reusing = validatedByLesson.get(lesson.id)?.runIds || [];
+    const gate = runPromoteGate(lesson, reusing, repoRoot, process.env);
+    gateDecisions.push({ lesson, gate });
+    if (gate.verdict === 'validated') promotedIds.add(lesson.id);
+  }
+
+  // 6a. Write counter updates for every incremented lesson that is NOT being
+  // promoted (held-at-threshold lessons included — their counter must persist;
+  // a promoted lesson's whole block is removed by promoteLesson below).
   const counterUpdates = new Map();
   for (const l of updatedLessons) {
-    if (l.counterDelta > 0 && !promoteIds.has(l.id)) counterUpdates.set(l.id, l.counter);
+    if (l.counterDelta > 0 && !promotedIds.has(l.id)) counterUpdates.set(l.id, l.counter);
   }
   if (counterUpdates.size > 0) {
     const next = serializeCounterUpdates(markdown, counterUpdates);
     await writeFile(lessonsPath, next, 'utf8');
   }
 
-  let hadFailure = false;
-  for (const lesson of toPromote) {
+  // 6b. Promote the gate-validated lessons; HOLD the rest with an honest note.
+  for (const { lesson, gate } of gateDecisions) {
+    if (gate.verdict !== 'validated') {
+      stdout.write(
+        `  held ${lesson.id} — gate ${gate.verdict}` +
+          `${gate.reason ? `: ${gate.reason}` : ''} (counter ${lesson.counter}/${lesson.promoteIfN} ` +
+          `preserved, stays active in lessons-learned.md)\n`,
+      );
+      continue;
+    }
     const result = await promoteLesson(lesson, repoRoot, { dryRun: false, lessonsPath });
     if (result.errors && result.errors.length) {
       hadFailure = true;
@@ -255,8 +400,19 @@ export async function runDocumentLessons(rawArgs) {
     } else {
       stdout.write(
         `  promoted ${result.lessonId} → ${result.targetModule} ` +
-          `(${path.basename(result.adrPath)})\n`,
+          `(${path.basename(result.adrPath)}) — gate validated\n`,
       );
+    }
+  }
+
+  // 7. Persist the idempotency record: the runs newly credited this pass are
+  // never counted again (AC-2). Best-effort — a write failure does not undo the
+  // counter/promotion work already applied.
+  if (Object.keys(newlyCreditedRuns).length > 0) {
+    try {
+      writeCreditedRunsSync(repoRoot, mergeCredited(creditedRuns, newlyCreditedRuns));
+    } catch (err) {
+      stderr.write(`warning: could not persist credited-runs record: ${err.message}\n`);
     }
   }
 

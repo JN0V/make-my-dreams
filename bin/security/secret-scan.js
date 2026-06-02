@@ -154,11 +154,16 @@ function isBinary(buf) {
   return false;
 }
 
+// stdio: ['ignore','pipe','ignore'] captures stdout but SILENCES git's own
+// stderr (e.g. `fatal: not a git repository`) so only MMD's honest exit-5
+// message surfaces — no confusing double-report (F5).
+const GIT_STDIO = ['ignore', 'pipe', 'ignore'];
+
 /** NUL-delimited `git` listing → string[]; null on git failure. */
 function gitListZ(root, args) {
   let out;
   try {
-    out = execFileSync('git', args, { cwd: root, encoding: 'utf8', timeout: 30000, maxBuffer: 64 * 1024 * 1024 });
+    out = execFileSync('git', args, { cwd: root, encoding: 'utf8', timeout: 30000, maxBuffer: 64 * 1024 * 1024, stdio: GIT_STDIO });
   } catch {
     return null;
   }
@@ -168,7 +173,7 @@ function gitListZ(root, args) {
 /** Read the STAGED (index) blob for a path as a Buffer; null if unreadable. */
 function readStagedBlob(root, file) {
   try {
-    return execFileSync('git', ['show', `:${file}`], { cwd: root, maxBuffer: 64 * 1024 * 1024, timeout: 30000 });
+    return execFileSync('git', ['show', `:${file}`], { cwd: root, maxBuffer: 64 * 1024 * 1024, timeout: 30000, stdio: GIT_STDIO });
   } catch {
     return null;
   }

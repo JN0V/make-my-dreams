@@ -182,6 +182,39 @@ test('@unit reports the correct 1-based line for a match on line 3', () => {
   assert.ok(hit.column >= 1);
 });
 
+// ── F2 regression: a real format key containing filler chars is NOT suppressed ─
+test('@unit a real AWS key containing 0000 / xxxx is still flagged (no false negative)', () => {
+  // '0000' and 'xxxx' occur by chance in real random keys — suppressing a
+  // format hit on them would silently wave a leak through the gate.
+  for (const body of ['0000ABCDEFGHIJKL', 'XXXX1234ABCD5678']) {
+    const findings = scanText(`key = "AKIA${body}"`);
+    assert.ok(
+      findings.some((f) => f.rule === RULES.AWS_ACCESS_KEY_ID),
+      `AKIA${body} must still be flagged`,
+    );
+  }
+  // …but the documented '…EXAMPLE' fake is still skipped.
+  assert.deepEqual(scanText('key = "AKIA' + 'IOSFODNN7EXAMPLE"'), []);
+});
+
+// ── F3: unquoted .env-style assignments are detected ─────────────────────────
+test('@unit flags an unquoted secret-like .env assignment (KEY=value)', () => {
+  const findings = scanText(`API_SECRET=${highEntropyVal()}`);
+  assert.ok(findings.some((f) => f.rule === RULES.GENERIC_HIGH_ENTROPY), JSON.stringify(findings));
+});
+
+// ── F1/F4 regression: no catastrophic backtracking on repeated keyword runs ───
+test('@unit completes quickly on a long repeated-keyword run (no ReDoS)', () => {
+  // The pathological input class for the generic rule: many keyword substrings,
+  // no '=' terminator. With unbounded quantifiers this was O(n²) and hung past
+  // 60s on ~500 KB. Bounded quantifiers must keep it well under budget.
+  const start = process.hrtime.bigint();
+  assert.doesNotThrow(() => scanText('token'.repeat(200000))); // ~1 MB
+  assert.doesNotThrow(() => scanText('apikey'.repeat(150000)));
+  const ms = Number(process.hrtime.bigint() - start) / 1e6;
+  assert.ok(ms < 1000, `expected < 1000 ms, took ${ms.toFixed(0)} ms`);
+});
+
 // ── purity / never throws ────────────────────────────────────────────────────
 test('@unit is pure and never throws on odd input', () => {
   assert.deepEqual(scanText(undefined), []);

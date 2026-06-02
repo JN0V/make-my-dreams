@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.9.1`
-- **Branch**: `main`
-- **Version**: `0.9.1` (package.json)
+- **Branch**: `slice/here-deps-gate-supply-chain-bundle-1780401804`
+- **Version**: `0.9.2` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 46 (ADR-001..ADR-046)
-- **Tests**: 1906 passing
+- **ADRs**: 47 (ADR-001..ADR-047)
+- **Tests**: 1959 passing
 - **Recent commits**:
-  - `8edcda4 docs: refresh mechanical blocks to final 1906-test count (Phase-4 regression tests)`
-  - `0c8fe65 fix(secret-scan): Phase-4 adversarial review — ReDoS, false-negative, precision (F1-F5)`
-  - `cc30f48 fix(secret-scan): skip ${...} template interpolations in the generic rule (precision)`
-  - `31ceec2 docs(secret-scan): ADR-046 + README + CLAUDE; bump to 0.9.1; refresh mechanical blocks (AC-5)`
-  - `b589b38 feat(secret-scan): opt-in pre-commit hook materialization in install-mmd.sh (AC-4)`
+  - `eac01f7 feat(deps-gate): the read-only gate bin + dispatch/USAGE/SUBCOMMANDS (AC-3/AC-4)`
+  - `2af0dc6 feat(deps-gate): polyglot adapter contract + registry (npm + python) (AC-2)`
+  - `241010c feat(deps-gate): pure language-neutral dependency-risk core (AC-1)`
+  - `3cf3b14 docs(spec): SPEC_V09B — mmd deps-gate, the second Bundle A Security brick (polyglot supply-chain gate)`
+  - `edb2568 docs(handover): Bundle A brick 1 (secret-scan v0.9.1) DONE → next is deps-gate (polyglot §VIII)`
 - **Generated**: 2026-06-02 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -39,7 +39,7 @@
 
 **THE CORE (the remaining MMD-completeness features) — progress:**
 - ✅ **Autolearning loop CLOSED (v0.9.0, differentiator #2 §6.5):** the lesson counter rises on **validated reuses** (a lesson injected into a `state=done` run, per-run-deduped, idempotent) not raw injections (ADR-010's wrong signal); promotion into the constitution is **LLM-gated** (`MMD_PROMOTE_GATE_CMD` judge) with the sacred fallback (not-validated/uncertain/unparseable/gate-absent → HOLD, never a fabricated rule change); `mmd lessons` shows raw-injections vs validated-reuses distinctly. ADR-045. **Tail still owed:** archival (lesson unused M months → archived, composer skips it).
-- 🟡 **Bundle A Security** (`§6.6`) — brick 1 DONE: **`mmd secret-scan` (v0.9.1)**, a vanilla zero-dep language-agnostic secret gate (regex+entropy; private-key/AWS/GitHub/Slack/Google/JWT + generic high-entropy; redact-never-echo; placeholder-skip + `mmd-secret-ok` allow-marker [same+next line]; `--staged` pre-commit mode + opt-in install-mmd.sh hook). ADR-046. **IMMEDIATE NEXT → Bundle A brick 2: `deps-gate`** (before a dependency is installed, verify it exists + age + download count — anti-typosquat/supply-chain; **must be polyglot per §VIII** — npm/pip/cargo/go via adapters, not npm-only). Then brick 3: worker-sandbox egress allowlist (heavier, OS-level).
+- 🟡 **Bundle A Security** (`§6.6`) — bricks 1 & 2 DONE. **Brick 1: `mmd secret-scan` (v0.9.1)**, a vanilla zero-dep language-agnostic secret gate (regex+entropy; private-key/AWS/GitHub/Slack/Google/JWT + generic high-entropy; redact-never-echo; placeholder-skip + `mmd-secret-ok` allow-marker; `--staged` pre-commit mode). ADR-046. **Brick 2: `mmd deps-gate` (v0.9.2)**, a read-only, polyglot (adapter-based §VIII), zero-dep supply-chain gate — verifies each declared dependency against its ecosystem registry (existence / age / adoption / typosquat-distance) before it is installed. Two HIGH gating findings: `unresolvable` + the `likely-typosquat` **conjunction** (near-popular AND new AND low-adoption); single signals stay advisory; a network failure degrades to honest `unverified` (exit 0, never a fabricated pass); an unsupported-only stack is refused honestly (exit 6). Pure core `lib/security/deps-assess.js` (imports NO adapter) + per-ecosystem adapters `lib/security/deps-adapters/{npm,python}.js` (cargo/go named but unbuilt) + the bin `bin/security/deps-gate.js` (injected `fetchJson` seam, bounded, READ-ONLY); the v0.9.1 opt-in hook now also runs `mmd deps-gate --since HEAD` (`MMD_INSTALL_DEPS_HOOK=1`). ADR-047. **IMMEDIATE NEXT → Bundle A brick 3: worker-sandbox egress allowlist** (heavier, OS-level). Follow-ups inside deps-gate (deferred, one file each via the registry): cargo/go adapters, known-CVE/advisory lookup, install-script analysis, `--strict`, response caching.
 - **After Bundle A:** **polyglot Reality Check** (orchestrate /qa /cso /design-review /canary by deliverable type + un-skip it in `--here`), **auto-handoff@70%** (the big design — auto-dev is monolithic today), **Bundle C/HITL** (per-action risk-scoring, OTel). Plus deferred tails: lesson **archival** (§6.5), **polyglot coverage**. See NEXT PRIORITY for the full list.
 
 **How work is launched here (the discipline `/mmd` encodes):** `mmd --here` runs DETACHED via `setsid` with `MMD_TIMEOUT_MS=0` + a human `--label` + the dream saying "commit incrementally per AC"; monitor via `status.json` state + git commits (NOT the buffered log — L-002); on green: ff-only merge + annotated tag + `mmd document-readme/handover --tests N` refresh + delete slice + `npm install -g .`. Two gotchas this session: **no backticks in the dream** (shell command-substitution corrupts the args) and **don't cite a to-be-created `SPEC_V0XX.md`/`docs/**.md` path literally** (grounding false-trip).

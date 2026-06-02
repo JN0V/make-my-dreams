@@ -1145,53 +1145,70 @@ else
 fi
 # >>> MMD_SLASH_COMMAND_MATERIALIZE_END
 
-# --- 3e. secret-scan pre-commit hook (v0.9.1, OPT-IN) ----------------------
-# The first Bundle A Security brick (MAKE_MY_DREAMS §6.6) ships a git pre-commit
-# gate that runs `mmd secret-scan --staged` and blocks a commit staging a leaked
-# credential. We ALWAYS materialize the hook as a NON-ACTIVE sample under the
-# gitignored .mmd/hooks/ (idempotent: `cat >` overwrites byte-for-byte on re-run),
-# but we NEVER enable it without the user (a pre-commit gate is a workflow change
-# the developer must opt into). Set MMD_INSTALL_SECRET_HOOK=1 to actually install
-# it into .git/hooks/pre-commit — and even then we REFUSE to clobber an existing
-# pre-commit hook (universal §VI honesty: report + skip rather than overwrite the
-# user's hook). The hook body lives between the sentinels so a test can extract it.
+# --- 3e. Bundle A Security pre-commit hook (v0.9.1 secret-scan + v0.9.2 deps-gate, OPT-IN) ---
+# The Bundle A Security bricks (MAKE_MY_DREAMS §6.6) ship a git pre-commit gate that
+# runs `mmd secret-scan --staged` (brick 1: catch a leaked credential before commit)
+# AND `mmd deps-gate --since HEAD` (brick 2: catch a poisoned/unresolvable dependency
+# before it is committed → installed). We ALWAYS materialize the hook as a NON-ACTIVE
+# sample under the gitignored .mmd/hooks/ (idempotent: `cat >` overwrites byte-for-byte
+# on re-run), but we NEVER enable it without the user (a pre-commit gate is a workflow
+# change the developer must opt into). Set MMD_INSTALL_SECRET_HOOK=1 OR
+# MMD_INSTALL_DEPS_HOOK=1 to actually install it into .git/hooks/pre-commit — and even
+# then we REFUSE to clobber an existing pre-commit hook (universal §VI honesty: report +
+# skip rather than overwrite the user's hook). The hook body lives between the sentinels
+# so a test can extract it.
 # >>> MMD_SECRET_SCAN_HOOK_MATERIALIZE_BEGIN
 MMD_HOOK_SAMPLE_DIR="$TARGET/.mmd/hooks"
 MMD_HOOK_SAMPLE="$MMD_HOOK_SAMPLE_DIR/pre-commit"
 mkdir -p "$MMD_HOOK_SAMPLE_DIR"
 cat > "$MMD_HOOK_SAMPLE" << 'MMD_HOOK_EOF'
 #!/usr/bin/env sh
-# MMD secret-scan pre-commit gate (materialized by install-mmd.sh, v0.9.1).
-# Blocks a commit when a HIGH-confidence secret is staged. Delete this file to
-# disable. It is READ-ONLY and language-agnostic (regex + entropy, no new dep).
-if command -v mmd >/dev/null 2>&1; then
-  exec mmd secret-scan --staged
-elif [ -f bin/mmd.js ]; then
-  exec node bin/mmd.js secret-scan --staged
+# MMD Bundle A Security pre-commit gate (materialized by install-mmd.sh, v0.9.2).
+# Blocks a commit when a HIGH-confidence secret is staged (secret-scan) OR a newly
+# added dependency is unresolvable / a likely typosquat (deps-gate). Delete this file
+# to disable. Both gates are READ-ONLY, polyglot, and add no new dependency. deps-gate
+# is network-bounded and degrades to an honest advisory (exit 0) when offline, so it
+# never blocks a commit on a network blink.
+run_mmd() {
+  if command -v mmd >/dev/null 2>&1; then
+    mmd "$@"
+  elif [ -f bin/mmd.js ]; then
+    node bin/mmd.js "$@"
+  else
+    echo "mmd not found on PATH; skipping MMD $1 pre-commit gate." >&2
+    return 0
+  fi
+}
+# Brick 1 — secret-scan the staged blobs.
+run_mmd secret-scan --staged || exit 1
+# Brick 2 — deps-gate the dependencies added since the last commit (fall back to a
+# full scan on the very first commit, when there is no HEAD yet).
+if git rev-parse --verify --quiet HEAD >/dev/null 2>&1; then
+  run_mmd deps-gate --since HEAD || exit 1
 else
-  echo "mmd not found on PATH; skipping MMD secret-scan pre-commit gate." >&2
-  exit 0
+  run_mmd deps-gate || exit 1
 fi
+exit 0
 MMD_HOOK_EOF
 chmod +x "$MMD_HOOK_SAMPLE" 2>/dev/null || true
-ok "Generated: .mmd/hooks/pre-commit (secret-scan gate sample — NOT active)"
+ok "Generated: .mmd/hooks/pre-commit (secret-scan + deps-gate sample — NOT active)"
 
 MMD_GIT_HOOK="$TARGET/.git/hooks/pre-commit"
-if [ "${MMD_INSTALL_SECRET_HOOK:-0}" = "1" ]; then
+if [ "${MMD_INSTALL_SECRET_HOOK:-0}" = "1" ] || [ "${MMD_INSTALL_DEPS_HOOK:-0}" = "1" ]; then
     if [ ! -d "$TARGET/.git/hooks" ]; then
-        warn "MMD_INSTALL_SECRET_HOOK=1 set but $TARGET/.git/hooks is absent (not a git repo?) — leaving the sample only."
+        warn "MMD_INSTALL_SECRET_HOOK / MMD_INSTALL_DEPS_HOOK set but $TARGET/.git/hooks is absent (not a git repo?) — leaving the sample only."
     elif [ -e "$MMD_GIT_HOOK" ]; then
-        warn "MMD_INSTALL_SECRET_HOOK=1 set but a pre-commit hook already exists — NOT overwriting it."
-        info "To chain MMD's gate, add 'mmd secret-scan --staged' to your existing $MMD_GIT_HOOK."
+        warn "MMD security hook opt-in set but a pre-commit hook already exists — NOT overwriting it."
+        info "To chain MMD's gates, add 'mmd secret-scan --staged' and 'mmd deps-gate --since HEAD' to your existing $MMD_GIT_HOOK."
     else
         cp "$MMD_HOOK_SAMPLE" "$MMD_GIT_HOOK"
         chmod +x "$MMD_GIT_HOOK" 2>/dev/null || true
-        ok "Installed: .git/hooks/pre-commit (secret-scan gate ACTIVE — opt-in honored)"
+        ok "Installed: .git/hooks/pre-commit (secret-scan + deps-gate gate ACTIVE — opt-in honored)"
     fi
 else
-    info "secret-scan pre-commit gate is OPT-IN and NOT enabled. To enable it:"
+    info "Bundle A Security pre-commit gate is OPT-IN and NOT enabled. To enable it:"
     info "  cp .mmd/hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit"
-    info "  (or re-run install-mmd.sh with MMD_INSTALL_SECRET_HOOK=1)"
+    info "  (or re-run install-mmd.sh with MMD_INSTALL_SECRET_HOOK=1 or MMD_INSTALL_DEPS_HOOK=1)"
 fi
 # >>> MMD_SECRET_SCAN_HOOK_MATERIALIZE_END
 

@@ -168,6 +168,12 @@ test('@unit does NOT flag a low-entropy secret-like assignment (precision)', () 
   assert.deepEqual(scanText('password = "aaaaaaaaaaaaaaaaaaaaaa"'), []);
 });
 
+test('@unit does NOT flag a ${...} template interpolation as a secret (precision)', () => {
+  // A secret-like identifier assigned a template-literal interpolation is code,
+  // not a literal secret (dogfood-surfaced FP in our own note strings).
+  assert.deepEqual(scanText("secretLabel = `MMD_SECRET='${env.MMD_SECRET_VALUE}'`"), []);
+});
+
 // ── line / column accuracy ───────────────────────────────────────────────────
 test('@unit reports the correct 1-based line for a match on line 3', () => {
   const text = `line one\nline two\nconst k = "${awsKeyId()}";`;

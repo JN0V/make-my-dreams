@@ -56,6 +56,19 @@
 
 set -euo pipefail
 
+# --- Make a piped install interactive ---------------------------------------
+# When this script is run via a pipe (e.g. `curl … | bash`, or invoked by the
+# one-liner install.sh which is itself piped), stdin is the pipe — not a
+# terminal — so every `[ -t 0 ]` prompt below (bun, gStack, Spec Kit, OpenSpec,
+# Ralph Loop) would silently take its non-interactive branch and SKIP the
+# install, leaving a half-working MMD. If a controlling terminal exists,
+# reconnect stdin to it so those prompts can still ask the human. In a genuine
+# non-interactive context (CI, no /dev/tty) this is a no-op and the existing
+# `MMD_AUTO_INSTALL_*` env-var path remains the way to opt in.
+if [ ! -t 0 ] && [ -r /dev/tty ]; then
+    exec < /dev/tty
+fi
+
 INSTALLER_VERSION="5.1.0"
 
 # Module identity (single source of truth for paths/names)
@@ -1720,13 +1733,18 @@ if [ "$ALL_OK" = true ]; then
     echo "║      (Standard engine ready — \`${ADV_CODE}\` module + auto-dev)    ║"
     echo "╚══════════════════════════════════════════════════════════╝"
     echo ""
-    printf "  ${BOLD}Usage in Claude Code (Standard engine, current):${NC}\n"
+    printf "  ${BOLD}Put the \`mmd\` CLI on your PATH${NC} (from this repo dir):\n"
     echo ""
-    printf "    ${CYAN}/bmad-${ADV_CODE}-auto-dev <dev description>${NC}\n"
+    printf "    ${CYAN}npm install -g .${NC}\n"
     echo ""
-    printf "  ${BOLD}Example:${NC}\n"
+    printf "  ${BOLD}Then — the easiest way in:${NC}\n"
     echo ""
-    printf "    ${CYAN}/bmad-${ADV_CODE}-auto-dev Add a REST API for user management${NC}\n"
+    printf "    ${CYAN}mmd serve${NC}                          open the web UI (for anyone)\n"
+    printf "    ${CYAN}mmd \"a drawing app for kids\"${NC}       interactive Dream Catcher, then auto-dev\n"
+    printf "    ${CYAN}mmd --here \"add a dark-mode toggle\"${NC} evolve THIS repo in place (on a slice branch)\n"
+    echo ""
+    printf "  Inside a Claude Code session you can also drive MMD by intent with ${CYAN}/mmd <what you want>${NC}.\n"
+    printf "  (Low-level alternative, still available: the ${CYAN}/bmad-${ADV_CODE}-auto-dev${NC} slash-command.)\n"
     echo ""
     if [ "$HAS_CONSTITUTION" = true ]; then
         printf "  ${GREEN}📜 Constitution detected${NC} — sub-agents will enforce its rules\n"
@@ -1734,14 +1752,7 @@ if [ "$ALL_OK" = true ]; then
         printf "  ${YELLOW}ℹ️  No constitution${NC} — create one and re-run this script to enable\n"
     fi
     echo ""
-    printf "  ${BOLD}Coming phases${NC} (see header roadmap):\n"
-    printf "    Phase B (MMD v0.2)  → FAST engine (Ralph + 1-page spec)\n"
-    printf "    Phase C (MMD v0.2b) → Bundle A Security (sandbox, deps-gate)\n"
-    printf "    Phase D (MMD v0.2c) → Project Onboarder (\`mmd discover\`)\n"
-    printf "    Phase E (MMD v0.5)  → Conductor + Observability\n"
-    printf "    Phase F (MMD v0.9)  → Worktrees parallelization\n"
-    echo ""
-    printf "  See ${CYAN}MAKE_MY_DREAMS.md${NC} §9 for the full roadmap.\n"
+    printf "  See ${CYAN}README.md${NC} (Quick start) and ${CYAN}MAKE_MY_DREAMS.md${NC} §9 for the full roadmap.\n"
     printf "  Re-run this script at any time to update or repair the installation.\n"
     echo ""
 else

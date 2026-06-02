@@ -27,6 +27,18 @@
 
 set -euo pipefail
 
+# --- Make the piped one-liner interactive -----------------------------------
+# `curl -fsSL …/install.sh | bash` makes stdin the pipe, not a terminal, so the
+# gStack prompt below — and every y/N prompt inside install-mmd.sh (bun, the
+# pillars) — would silently skip, installing NEITHER bun NOR gStack. If a
+# controlling terminal exists, reconnect stdin to it so the install stays
+# interactive (the child install-mmd.sh inherits this stdin too). A genuine
+# non-interactive context (CI, no /dev/tty) is unaffected: this is a no-op and
+# the MMD_AUTO_INSTALL_* / MMD_SKIP_GSTACK_PROMPT env-vars remain the opt-in.
+if [ ! -t 0 ] && [ -r /dev/tty ]; then
+    exec < /dev/tty
+fi
+
 # --- Colors ----------------------------------------------------------------
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 ok()   { printf "${GREEN}  ✓${NC} %s\n" "$1"; }
@@ -160,11 +172,16 @@ echo ""
 printf "  ${BOLD}Next steps:${NC}\n"
 echo ""
 printf "    cd ${CYAN}$MMD_HOME${NC}\n"
-printf "    Open a Claude Code session and try:\n"
-printf "      ${CYAN}/bmad-adv-auto-dev <your dream>${NC}\n"
+printf "    ${CYAN}npm install -g .${NC}                   put the \`mmd\` CLI on your PATH\n"
 echo ""
-printf "  ${BOLD}Scoping:${NC} read ${CYAN}MAKE_MY_DREAMS.md${NC} for the full design rationale.\n"
-printf "  ${BOLD}Bootstrap guide:${NC} ${CYAN}BOOTSTRAP.md${NC} walks through v0.0 and v0.1 step by step.\n"
+printf "    then — the easiest way in:\n"
+printf "      ${CYAN}mmd serve${NC}                          open the web UI (for anyone)\n"
+printf "      ${CYAN}mmd \"a drawing app for kids\"${NC}       interactive Dream Catcher, then auto-dev\n"
+printf "      ${CYAN}mmd --here \"add a dark-mode toggle\"${NC} evolve the current repo in place\n"
+echo ""
+printf "    Inside a Claude Code session you can also drive MMD by intent with ${CYAN}/mmd <what you want>${NC}.\n"
+echo ""
+printf "  ${BOLD}Scoping:${NC} read ${CYAN}README.md${NC} (Quick start) and ${CYAN}MAKE_MY_DREAMS.md${NC} for the full design rationale.\n"
 echo ""
 printf "  Re-run this installer any time to update: ${CYAN}curl -fsSL <url> | bash${NC}\n"
 echo ""

@@ -107,6 +107,10 @@ test('@integration install-mmd phase 0: bun absent + non-interactive stdin warns
       assert.equal(r.status, 0, `phase 0 should not fail when bun is absent + no MMD_REQUIRE_GSTACK; stderr=${r.stderr}\nstdout=${r.stdout}`);
       assert.match(r.stdout, /NOT installed/i);
       assert.match(r.stdout, /MMD_AUTO_INSTALL_BUN=1/);
+      // Honest gating (no silent half-working install): the skip must NAME the
+      // commands it disables, not just shrug. (foundation-honesty polish.)
+      assert.match(r.stdout, /UNAVAILABLE/, 'a bun skip must loudly say a capability is unavailable');
+      assert.match(r.stdout, /mmd qa|mmd cso|mmd document-release/, 'the skip must name the disabled gStack-backed commands');
     } finally {
       rmSync(fakeHome, { recursive: true, force: true });
     }

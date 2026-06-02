@@ -26,9 +26,11 @@ One-liner:
 curl -fsSL https://raw.githubusercontent.com/JN0V/make-my-dreams/main/install.sh | bash
 ```
 
-This clones MMD into `~/Documents/make-my-dreams/` (override with `MMD_HOME=/path`), installs Phase A (BMAD + adv module + auto-dev workflow + project constitution), and offers to install gStack as the next step. Prerequisites: `git`, `node` (v20+), `npx`, `claude` (Claude Code CLI). `bun` is required only for gStack and can be installed later.
+This clones MMD into `~/Documents/make-my-dreams/` (override with `MMD_HOME=/path`), installs the **foundation MMD stands on** (BMAD + the auto-dev workflow + the project constitution), and installs `bun` + gStack by default (recommended). Hard prerequisites for the MMD **core**: `git`, `node` (v20+), `npx`, `claude` (Claude Code CLI) — the core (`mmd serve`, `mmd "<dream>"`, `mmd --here`, `discover`, `document-*`, `test-health`, `secret-scan`, `deps-gate`, …) runs on these alone.
 
-> **Piped one-liner stays interactive.** `curl … | bash` makes stdin a pipe, so the installer reconnects its prompts to your terminal (`/dev/tty`) — it still asks before installing `bun` and gStack. In a true non-interactive context (CI, no terminal) those prompts are skipped; opt in there with `MMD_AUTO_INSTALL_BUN=1` / `MMD_AUTO_INSTALL_GSTACK=1` (or `MMD_SKIP_GSTACK_PROMPT=1` to silence the gStack step).
+> **The stacks MMD stands on are the foundation, not extras — but MMD is honest when one is absent.** `bun` + gStack power the review commands `mmd qa` / `mmd cso` / `mmd document-release`, so the installer offers to install them **by default**. If you decline (or in CI without a terminal), MMD does **not** silently ship a half-working install: it tells you exactly which commands are unavailable and how to enable them later. The env-vars are the **escape hatch**, not the price of entry: `MMD_AUTO_INSTALL_BUN=1` / `MMD_AUTO_INSTALL_GSTACK=1` provision them non-interactively (CI), and `MMD_SKIP_GSTACK_PROMPT=1` / declining the prompt opts out.
+
+> **Piped one-liner stays interactive.** `curl … | bash` makes stdin a pipe; the installer prompts via the controlling terminal (an actual open-test on `/dev/tty`, so a terminal-less container/CI falls cleanly through to non-interactive mode rather than crashing).
 
 Manual install (if you prefer to read the script first or operate offline):
 

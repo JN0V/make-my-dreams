@@ -173,25 +173,32 @@ else
     #   - 5-line summary of what bun is + what the curl does
     #   - y/N prompt (default N)
     #   - MMD_AUTO_INSTALL_BUN=1 skips the prompt
-    info "bun is NOT installed. bun is a fast JavaScript runtime required by gStack skills."
+    info "bun is NOT installed. bun is the JavaScript runtime gStack runs on — part"
+    info "of the foundation MMD stands on (it drives the gStack review skills)."
     info "  - Install location: \$HOME/.bun/ (no root, no apt)"
     info "  - Install command : curl -fsSL https://bun.sh/install | bash"
     info "  - Disk footprint  : ~40 MB"
     info "  - Uninstall later : rm -rf \$HOME/.bun"
-    info "  - Without bun, gStack skills (mmd ship, /qa, /cso) cannot run."
+    info "  - Without bun, the gStack-backed commands 'mmd qa', 'mmd cso' and"
+    info "    'mmd document-release' are unavailable (the MMD core works without it)."
     AUTO_INSTALL=false
     if [ "${MMD_AUTO_INSTALL_BUN:-0}" = "1" ]; then
         info "MMD_AUTO_INSTALL_BUN=1 detected — proceeding without prompt."
         AUTO_INSTALL=true
     elif [ -t 0 ]; then
-        printf "%s" "  Install bun now? [y/N] "
+        # Default is INSTALL: bun is foundation, not an afterthought. The user can
+        # still decline (the env-var is the escape hatch, not the price of entry).
+        printf "%s" "  Install bun now? [Y/n] "
         read -r reply
         case "$reply" in
-            y|Y|yes|YES) AUTO_INSTALL=true ;;
-            *) AUTO_INSTALL=false ;;
+            n|N|no|NO) AUTO_INSTALL=false ;;
+            *) AUTO_INSTALL=true ;;
         esac
     else
-        info "Non-interactive stdin — skipping prompt. Set MMD_AUTO_INSTALL_BUN=1 to auto-install."
+        # Non-interactive (CI / no terminal): we do NOT install without consent,
+        # but we are HONEST about what that disables (no silent half-working MMD).
+        info "Non-interactive stdin — not installing bun. Set MMD_AUTO_INSTALL_BUN=1 to install it."
+        info "  → Until then, 'mmd qa', 'mmd cso' and 'mmd document-release' are UNAVAILABLE."
         AUTO_INSTALL=false
     fi
 
@@ -212,7 +219,9 @@ else
             info "Remediation: run 'curl -fsSL https://bun.sh/install | bash' manually, then re-run this script."
         fi
     else
-        warn "Skipping bun install. gStack skills (mmd ship, /qa, /cso) will be unavailable."
+        warn "bun NOT installed → 'mmd qa', 'mmd cso' and 'mmd document-release' are UNAVAILABLE."
+        warn "  (The MMD core — serve, --here, auto-dev, discover, … — works without bun.)"
+        warn "  Enable later: install bun, or re-run with MMD_AUTO_INSTALL_BUN=1."
     fi
 fi
 
@@ -1267,22 +1276,28 @@ GSTACK_STATUS="NOT_INSTALLED"
 
 if [ ! -d "$GSTACK_DIR" ]; then
     info "gStack is NOT installed (~/.claude/skills/gstack/ absent)."
-    info "  - gStack provides 41 skills (/ship, /qa, /cso, /document-release, ...)"
+    info "  - gStack is part of the foundation MMD stands on: it provides the review"
+    info "    skills behind 'mmd qa', 'mmd cso' and 'mmd document-release'."
     info "  - Install command: curl -fsSL https://gstack.dev/install.sh | bash"
-    info "  - Without gStack, 'mmd ship' will fail with a remediation message."
+    info "  - Without gStack, those three commands are unavailable (the core is fine)."
     INSTALL_GSTACK=false
     if [ "${MMD_AUTO_INSTALL_GSTACK:-0}" = "1" ]; then
         info "MMD_AUTO_INSTALL_GSTACK=1 detected — proceeding without prompt."
         INSTALL_GSTACK=true
     elif [ -t 0 ]; then
-        printf "%s" "  Install gStack now? [y/N] "
+        # Default is INSTALL: gStack is foundation. Decline is still possible.
+        printf "%s" "  Install gStack now? [Y/n] "
         read -r reply
         case "$reply" in
-            y|Y|yes|YES) INSTALL_GSTACK=true ;;
-            *) INSTALL_GSTACK=false ;;
+            n|N|no|NO) INSTALL_GSTACK=false ;;
+            *) INSTALL_GSTACK=true ;;
         esac
     else
-        info "Non-interactive stdin — skipping prompt. Set MMD_AUTO_INSTALL_GSTACK=1 to auto-install."
+        info "Non-interactive stdin — not installing gStack. Set MMD_AUTO_INSTALL_GSTACK=1 to install it."
+        info "  → Until then, 'mmd qa', 'mmd cso' and 'mmd document-release' are UNAVAILABLE."
+    fi
+    if [ "$INSTALL_GSTACK" != true ]; then
+        warn "gStack NOT installed → 'mmd qa', 'mmd cso' and 'mmd document-release' are UNAVAILABLE (the MMD core works without it)."
     fi
     if [ "$INSTALL_GSTACK" = true ]; then
         if curl -fsSL https://gstack.dev/install.sh | bash; then

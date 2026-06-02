@@ -217,6 +217,25 @@ test('@unit buildTestHealthReport: a MIXED corpus runs body similarity but NAMES
   assert.match(md, /not available[\s\S]*Python/i);
 });
 
+test('@unit buildTestHealthReport: a non-§V-convention stack gets a stack-appropriate untagged note (F2), JS-only does NOT', () => {
+  // JS-only (the §V convention): NO alt-convention note (keeps the JS report unchanged).
+  const jsOnly = buildTestHealthReport(corpus({
+    tests: [{ title: 'p', stratum: null, file: 'a.test.js', line: 1 }],
+    files: [{ path: 'a.test.js', lineCount: 5, testCount: 1 }],
+    stacks: [{ displayName: 'JavaScript/TypeScript', supportsBodies: true, supportsStratification: true, supportsCoverage: false, stratumConventionLabel: 'the `@…` tag in the test title (testing.md §V)' }],
+  }), {});
+  assert.doesNotMatch(jsOnly, /stratifies via/);
+
+  // Python (a different convention): an honest stack-appropriate note appears.
+  const py = buildTestHealthReport(corpus({
+    tests: [{ title: 'test_x', stratum: null, file: 't.py', line: 1, body: null, targets: [] }],
+    files: [{ path: 't.py', lineCount: 3, testCount: 1, targets: [] }],
+    stacks: [{ displayName: 'Python', supportsBodies: false, supportsStratification: true, supportsCoverage: false, stratumConventionLabel: 'a `@pytest.mark.<stratum>` marker' }],
+  }), {});
+  assert.match(py, /Python stratifies via[\s\S]*pytest\.mark/);
+  assert.match(py, /not necessarily a §V rule violation/);
+});
+
 test('@unit buildTestHealthReport: a stack without stratification → untagged framed as expected, not a §V violation', () => {
   const s = corpus({
     tests: [{ title: 'test_x', stratum: null, file: 't.py', line: 1, body: null, targets: [] }],

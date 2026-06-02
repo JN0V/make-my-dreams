@@ -200,6 +200,34 @@ test('@unit Python adapter: a non-marker decorator line does not leak a stratum'
   assert.equal(two.stratum, null); // marker did NOT leak to the next def
 });
 
+test('@unit Python adapter: does NOT collect a def test_* nested in a def, nor a method of a non-Test class (F1 scope precision)', () => {
+  const map = {
+    'tests/test_scope.py': [
+      'def test_module_level():',
+      '    pass',
+      'def helper():',
+      '    def test_inner_helper():', // nested in a def → not collected
+      '        pass',
+      'class TestThing:',
+      '    def test_method(self):', // Test* method → collected
+      '        pass',
+      'class NotATest:',
+      '    def test_in_non_test_class(self):', // non-Test class → not collected
+      '        pass',
+    ].join('\n'),
+  };
+  const out = pythonAdapter.discoverTests({ files: Object.keys(map), readFile: fakeReader(map) });
+  assert.deepEqual(out.entries.map((e) => e.title).sort(), ['test_method', 'test_module_level']);
+});
+
+test('@unit Python adapter: declares a non-§V stratumConventionLabel (drives stack-appropriate advice — F2)', () => {
+  assert.equal(typeof pythonAdapter.stratumConventionLabel, 'string');
+  assert.match(pythonAdapter.stratumConventionLabel, /pytest\.mark/);
+  assert.doesNotMatch(pythonAdapter.stratumConventionLabel, /testing\.md §V/);
+  // The JS adapter's label IS the §V convention (so the JS report is unchanged).
+  assert.match(javascriptAdapter.stratumConventionLabel, /testing\.md §V/);
+});
+
 test('@unit Python adapter: junk input → empty, never throws', () => {
   for (const junk of [undefined, {}, { files: null }]) {
     assert.doesNotThrow(() => pythonAdapter.discoverTests(junk));

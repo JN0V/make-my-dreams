@@ -325,6 +325,7 @@ export async function runTestHealth(rawArgs) {
       supportsBodies: adapter.supportsBodies === true,
       supportsStratification: adapter.supportsStratification === true,
       supportsCoverage: adapter.supportsCoverage === true,
+      stratumConventionLabel: typeof adapter.stratumConventionLabel === 'string' ? adapter.stratumConventionLabel : '',
     });
     analyzedNames.push(adapter.displayName);
   }

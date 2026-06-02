@@ -137,6 +137,21 @@ demonstrating the core is language-neutral, not JS wearing a costume.
   unless a file by that name happens to exist.
 - Python `supportsBodies: false` means no near-duplicate detection for Python in v1 — by
   design, honestly marked, an indentation-body extractor is a separate slice.
+- Python `def test_*` collection follows pytest's scoping (module-level functions +
+  `class Test*` methods); a `def test_*` nested in another `def`, or a method of a
+  non-`Test*` class, is correctly NOT counted. The `Test*` test resolves by name
+  convention (it does not check for an `__init__`, the one pytest-skip edge), and a
+  bare `from . import sibling` (no dotted path) is not resolved to a target — both minor
+  residuals consistent with the advisory, no-dep heuristic.
+- Stack detection (`detectSignals`) probes manifests at the repo **root only** (SPEC §4
+  scoped "a handful of stacks per repo"); a monorepo with manifests only in subdirectories
+  detects no stack and hits the honest refusal rather than a fabricated report — honest,
+  but a reach gap a future slice can close by also scanning the tracked-file list.
+- The report's "untagged is a testing.md §V violation" framing is MMD's JavaScript
+  convention; a stack whose stratification convention differs (Python's pytest markers)
+  advertises a `stratumConventionLabel` and the report renders an honest stack-appropriate
+  note instead of citing `@`-tags / §V for it (so the §VIII no-leak rule holds in the
+  advice prose, not just the counting).
 
 ## Alternatives considered
 

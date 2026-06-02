@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bin/skills/cso.js — `mmd cso` subcommand entry point (SPEC_V02G AC-3).
+// bin/skills/cso.js — `mmdream cso` subcommand entry point (SPEC_V02G AC-3).
 //
 // SRP (universal.md §I.S): orchestrate the cso flow only.
 //
@@ -33,12 +33,12 @@ import { resolveSkillPath } from '../../lib/skills/_common/skill-path.js';
 const PKG_PATH = fileURLToPath(new URL('../../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
 
-const CSO_USAGE = `mmd cso — invoke the gStack 'cso' security skill (SPEC_V02G AC-3)
+const CSO_USAGE = `mmdream cso — invoke the gStack 'cso' security skill (SPEC_V02G AC-3)
 
 Usage:
-  mmd cso [<branch>]
-  mmd cso --dry-run [<branch>]
-  mmd cso --help
+  mmdream cso [<branch>]
+  mmdream cso --dry-run [<branch>]
+  mmdream cso --help
 
 Behavior:
   Reads the gStack cso (Chief Security Officer) skill at
@@ -64,7 +64,7 @@ Env vars:
   MMD_GSTACK_SKILLS_DIR       override gStack skill root (testing fixture)
   MMD_QUIET=1                 suppress live tee to stdout (log file preserved)
 
-mmd ${VERSION}
+mmdream ${VERSION}
 `;
 
 /**
@@ -127,7 +127,7 @@ export async function runCso(rawArgs) {
     : 60_000;
 
   stdout.write(
-    `mmd cso: invoking gStack 'cso' on '${branch}' (base=${baseBranch}, sha=${sha.slice(0, 7)})\n` +
+    `mmdream cso: invoking gStack 'cso' on '${branch}' (base=${baseBranch}, sha=${sha.slice(0, 7)})\n` +
     `  log: ${logPath}\n` +
     `  cmd: ${command} (PATH forced to include ~/.bun/bin)\n\n`,
   );
@@ -144,7 +144,7 @@ export async function runCso(rawArgs) {
       heartbeatIntervalMs,
     });
   } catch (err) {
-    stderr.write(`mmd cso: ${err.message}\n`);
+    stderr.write(`mmdream cso: ${err.message}\n`);
     stdout.write(
       formatCsoSummary({
         branch, baseBranch, sha,

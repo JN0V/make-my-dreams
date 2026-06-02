@@ -1,4 +1,4 @@
-// @integration tests for `mmd ship` — AC-3 (help/routing), AC-5 (dry-run).
+// @integration tests for `mmdream ship` — AC-3 (help/routing), AC-5 (dry-run).
 //
 // Strategy: set up a temp git repo, copy in the script + patterns + a minimal
 // bin/ship.js entry, then drive bin/mmd.js via spawnSync.
@@ -17,7 +17,7 @@ import { buildSubprocessEnv } from '../../lib/invoke-autodev.js';
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const MMD = path.join(REPO_ROOT, 'bin', 'mmd.js');
 
-/** Initialize a clean repo on a slice/* branch so `mmd ship` accepts it. */
+/** Initialize a clean repo on a slice/* branch so `mmdream ship` accepts it. */
 function makeShipReadyRepo() {
   const dir = mkdtempSync(path.join(tmpdir(), 'mmd-ship-dry-'));
   const git = (args) => {
@@ -55,15 +55,15 @@ function runMmd(args, opts = {}) {
   });
 }
 
-test('@integration mmd ship --help exits 0 and prints usage anchors', () => {
+test('@integration mmdream ship --help exits 0 and prints usage anchors', () => {
   const r = runMmd(['ship', '--help']);
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /mmd ship/i);
+  assert.match(r.stdout, /mmdream ship/i);
   assert.match(r.stdout, /--dry-run/);
   assert.match(r.stdout, /<branch>/);
 });
 
-test('@integration mmd ship outside a git repo exits 3', () => {
+test('@integration mmdream ship outside a git repo exits 3', () => {
   const tmp = mkdtempSync(path.join(tmpdir(), 'mmd-ship-nogit-'));
   try {
     const r = runMmd(['ship'], { cwd: tmp });
@@ -74,7 +74,7 @@ test('@integration mmd ship outside a git repo exits 3', () => {
   }
 });
 
-test('@integration mmd ship on main (protected) exits 4', () => {
+test('@integration mmdream ship on main (protected) exits 4', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'mmd-ship-main-'));
   try {
     const git = (args) => spawnSync(
@@ -92,7 +92,7 @@ test('@integration mmd ship on main (protected) exits 4', () => {
   }
 });
 
-test('@integration mmd ship --dry-run on a slice branch exits 0 and prints prompt + env + cmd', () => {
+test('@integration mmdream ship --dry-run on a slice branch exits 0 and prints prompt + env + cmd', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship', '--dry-run'], { cwd: dir });
@@ -111,7 +111,7 @@ test('@integration mmd ship --dry-run on a slice branch exits 0 and prints promp
   }
 });
 
-test('@integration mmd ship --dry-run on an unknown subcommand-style flag is rejected', () => {
+test('@integration mmdream ship --dry-run on an unknown subcommand-style flag is rejected', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship', '--bogus'], { cwd: dir });
@@ -122,7 +122,7 @@ test('@integration mmd ship --dry-run on an unknown subcommand-style flag is rej
   }
 });
 
-test('@integration mmd ship --dry-run on a feat/* branch is accepted', () => {
+test('@integration mmdream ship --dry-run on a feat/* branch is accepted', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'mmd-ship-feat-'));
   try {
     const git = (args) => {
@@ -144,7 +144,7 @@ test('@integration mmd ship --dry-run on a feat/* branch is accepted', () => {
   }
 });
 
-test('@integration mmd ship --dry-run runs in under 5 seconds (DoD §3)', () => {
+test('@integration mmdream ship --dry-run runs in under 5 seconds (DoD §3)', () => {
   const dir = makeShipReadyRepo();
   try {
     const t0 = Date.now();
@@ -157,7 +157,7 @@ test('@integration mmd ship --dry-run runs in under 5 seconds (DoD §3)', () => 
   }
 });
 
-test('@integration mmd ship --dry-run with explicit <branch> argument honors it', () => {
+test('@integration mmdream ship --dry-run with explicit <branch> argument honors it', () => {
   const dir = makeShipReadyRepo();
   try {
     // We're on slice/test-... but pass an explicit feat/* branch.
@@ -169,7 +169,7 @@ test('@integration mmd ship --dry-run with explicit <branch> argument honors it'
   }
 });
 
-test('@integration mmd ship --dry-run with explicit main argument exits 4', () => {
+test('@integration mmdream ship --dry-run with explicit main argument exits 4', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship', '--dry-run', 'main'], { cwd: dir });

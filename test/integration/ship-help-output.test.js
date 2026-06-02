@@ -1,4 +1,4 @@
-// @integration tests — `mmd ship --help` snapshot regression per SPEC_V02G
+// @integration tests — `mmdream ship --help` snapshot regression per SPEC_V02G
 // §5 commit ordering (F4 Option B) + F2 Phase-4 review (byte-identical
 // snapshot, not just substring anchors).
 //
@@ -47,12 +47,12 @@ function runMmd(args, opts = {}) {
   });
 }
 
-test('@smoke @integration mmd ship --help exits 0 and ends with the version footer', () => {
+test('@smoke @integration mmdream ship --help exits 0 and ends with the version footer', () => {
   const r = runMmd(['ship', '--help']);
   assert.equal(r.status, 0, r.stderr);
   // Per L-005 we read the version from package.json instead of hardcoding —
   // the same source bin/skills/ship.js reads.
-  const expectedFooter = `mmd ${PKG.version}`;
+  const expectedFooter = `mmdream ${PKG.version}`;
   assert.ok(
     r.stdout.includes(expectedFooter),
     `expected footer '${expectedFooter}' in stdout; got: ${r.stdout}`,
@@ -61,8 +61,8 @@ test('@smoke @integration mmd ship --help exits 0 and ends with the version foot
 
 // F2 — byte-identical snapshot. Anchors are not enough: an accidental rewrite
 // of the help text would still pass substring assertions but break user
-// muscle memory / `mmd help ship` parsers. Re-bless with UPDATE_SNAPSHOTS=1.
-test('@integration F2 — mmd ship --help is byte-identical to the snapshot', () => {
+// muscle memory / `mmdream help ship` parsers. Re-bless with UPDATE_SNAPSHOTS=1.
+test('@integration F2 — mmdream ship --help is byte-identical to the snapshot', () => {
   const r = runMmd(['ship', '--help']);
   assert.equal(r.status, 0, r.stderr);
   if (process.env.UPDATE_SNAPSHOTS === '1') {
@@ -81,11 +81,11 @@ test('@integration F2 — mmd ship --help is byte-identical to the snapshot', ()
 
 // Sanity anchor net — even if someone re-blesses with garbage, this test
 // catches obvious breakage (missing canonical lines).
-test('@integration mmd ship --help contains the canonical anchors (sanity)', () => {
+test('@integration mmdream ship --help contains the canonical anchors (sanity)', () => {
   const r = runMmd(['ship', '--help']);
   assert.equal(r.status, 0, r.stderr);
   for (const anchor of [
-    'mmd ship',
+    'mmdream ship',
     '--dry-run',
     '--help',
     '<branch>',
@@ -96,7 +96,7 @@ test('@integration mmd ship --help contains the canonical anchors (sanity)', () 
   ]) {
     assert.ok(
       r.stdout.includes(anchor),
-      `mmd ship --help must contain anchor '${anchor}'; got: ${r.stdout}`,
+      `mmdream ship --help must contain anchor '${anchor}'; got: ${r.stdout}`,
     );
   }
 });

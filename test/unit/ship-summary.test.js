@@ -14,7 +14,7 @@ const MIN_INFO = {
 
 test('@unit formatShipSummary: emits the canonical header', () => {
   const s = formatShipSummary(MIN_INFO);
-  assert.match(s, /mmd ship — summary/);
+  assert.match(s, /mmdream ship — summary/);
 });
 
 test('@unit formatShipSummary: includes branch + base + sha verbatim', () => {

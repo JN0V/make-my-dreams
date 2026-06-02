@@ -1,4 +1,4 @@
-// @integration tests for `mmd qa` — AC-2 (help/routing), AC-5 (dry-run).
+// @integration tests for `mmdream qa` — AC-2 (help/routing), AC-5 (dry-run).
 //
 // Strategy: set up a temp git repo, drive bin/mmd.js via spawnSync.
 
@@ -47,21 +47,21 @@ function runMmd(args, opts = {}) {
   });
 }
 
-test('@smoke @integration mmd qa --help exits 0 and ends with the version footer', () => {
+test('@smoke @integration mmdream qa --help exits 0 and ends with the version footer', () => {
   const r = runMmd(['qa', '--help']);
   assert.equal(r.status, 0, r.stderr);
   // L-005: version comes from the same package.json the production code reads.
   assert.ok(
-    r.stdout.includes(`mmd ${PKG.version}`),
-    `expected 'mmd ${PKG.version}' in output; got: ${r.stdout}`,
+    r.stdout.includes(`mmdream ${PKG.version}`),
+    `expected 'mmdream ${PKG.version}' in output; got: ${r.stdout}`,
   );
 });
 
-test('@integration mmd qa --help contains canonical anchors', () => {
+test('@integration mmdream qa --help contains canonical anchors', () => {
   const r = runMmd(['qa', '--help']);
   assert.equal(r.status, 0, r.stderr);
   for (const anchor of [
-    'mmd qa',
+    'mmdream qa',
     '--dry-run',
     '--help',
     '<branch>',
@@ -73,19 +73,19 @@ test('@integration mmd qa --help contains canonical anchors', () => {
   ]) {
     assert.ok(
       r.stdout.includes(anchor),
-      `mmd qa --help must contain '${anchor}'; got: ${r.stdout}`,
+      `mmdream qa --help must contain '${anchor}'; got: ${r.stdout}`,
     );
   }
 });
 
-test('@integration AC-6 — mmd qa --help mentions gstack (≥1 match)', () => {
+test('@integration AC-6 — mmdream qa --help mentions gstack (≥1 match)', () => {
   const r = runMmd(['qa', '--help']);
   assert.equal(r.status, 0);
   const matches = (r.stdout.match(/gstack/gi) || []).length;
   assert.ok(matches >= 1, `expected ≥1 gstack mention in qa --help; got ${matches}`);
 });
 
-test('@integration mmd qa outside a git repo exits 3', () => {
+test('@integration mmdream qa outside a git repo exits 3', () => {
   const tmp = mkdtempSync(path.join(tmpdir(), 'mmd-qa-nogit-'));
   try {
     const r = runMmd(['qa', '--dry-run'], { cwd: tmp });
@@ -95,7 +95,7 @@ test('@integration mmd qa outside a git repo exits 3', () => {
   }
 });
 
-test('@integration mmd qa --dry-run on a slice branch exits 0 in <5s', () => {
+test('@integration mmdream qa --dry-run on a slice branch exits 0 in <5s', () => {
   const dir = makeQaRepo();
   try {
     const t0 = Date.now();
@@ -113,8 +113,8 @@ test('@integration mmd qa --dry-run on a slice branch exits 0 in <5s', () => {
   }
 });
 
-test('@integration mmd qa --dry-run works on a non-slice branch (qa is advisory)', () => {
-  // Unlike `mmd ship`, qa does NOT enforce the slice/feat/fix/... prefix
+test('@integration mmdream qa --dry-run works on a non-slice branch (qa is advisory)', () => {
+  // Unlike `mmdream ship`, qa does NOT enforce the slice/feat/fix/... prefix
   // list — qa is read-only and may run on main.
   const dir = mkdtempSync(path.join(tmpdir(), 'mmd-qa-main-'));
   try {
@@ -131,7 +131,7 @@ test('@integration mmd qa --dry-run works on a non-slice branch (qa is advisory)
   }
 });
 
-test('@integration mmd qa --bogus is rejected with exit 2', () => {
+test('@integration mmdream qa --bogus is rejected with exit 2', () => {
   const dir = makeQaRepo();
   try {
     const r = runMmd(['qa', '--bogus'], { cwd: dir });
@@ -142,7 +142,7 @@ test('@integration mmd qa --bogus is rejected with exit 2', () => {
   }
 });
 
-test('@integration mmd qa --dry-run with explicit <branch> honors it', () => {
+test('@integration mmdream qa --dry-run with explicit <branch> honors it', () => {
   const dir = makeQaRepo();
   try {
     const r = runMmd(['qa', '--dry-run', 'feat/explicit'], { cwd: dir });
@@ -155,7 +155,7 @@ test('@integration mmd qa --dry-run with explicit <branch> honors it', () => {
 
 // F14 (Phase-4 review): suspicious branch characters are a USER ERROR
 // (exit 2), not an environment error (exit 3).
-test('@integration F14 — mmd qa with a suspicious explicit branch exits 2 (user error)', () => {
+test('@integration F14 — mmdream qa with a suspicious explicit branch exits 2 (user error)', () => {
   const dir = makeQaRepo();
   try {
     // Leading dash would otherwise be parsed as a flag by git — branch
@@ -175,7 +175,7 @@ test('@integration F14 — mmd qa with a suspicious explicit branch exits 2 (use
 // F1 (Phase-4 adversarial review): ANTHROPIC_API_KEY value must NEVER appear
 // in dry-run stdout. Users paste dry-run output into bug reports / Slack;
 // a real key in there is exfiltration.
-test('@integration F1 — mmd qa --dry-run does NOT leak ANTHROPIC_API_KEY value', () => {
+test('@integration F1 — mmdream qa --dry-run does NOT leak ANTHROPIC_API_KEY value', () => {
   const dir = makeQaRepo();
   try {
     const sentinel = 'sk-test-leak-detector-d34db33f';

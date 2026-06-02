@@ -1,4 +1,4 @@
-// @integration tests for the `mmd lessons` CLI subcommand — SPEC_V02E AC-7.
+// @integration tests for the `mmdream lessons` CLI subcommand — SPEC_V02E AC-7.
 //
 // Strategy: spawn `node bin/mmd.js lessons …` against the live repo and
 // assert on stdout + exit code. Validates the full argv → composer → output
@@ -28,14 +28,14 @@ function runMmd(args, opts = {}) {
   });
 }
 
-test('@integration mmd lessons --help: exits 0 and prints usage', () => {
+test('@integration mmdream lessons --help: exits 0 and prints usage', () => {
   const r = runMmd(['lessons', '--help']);
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /Usage:/);
-  assert.match(r.stdout, /mmd lessons match/);
+  assert.match(r.stdout, /mmdream lessons match/);
 });
 
-test('@integration mmd lessons (default): lists active lessons from the live file', () => {
+test('@integration mmdream lessons (default): lists active lessons from the live file', () => {
   const r = runMmd(['lessons']);
   assert.equal(r.status, 0, r.stderr);
   // Live docs/lessons-learned.md must yield at least 9 active lessons.
@@ -47,32 +47,32 @@ test('@integration mmd lessons (default): lists active lessons from the live fil
   assert.match(r.stdout, /INJ = raw injections.*VR = validated reuses/);
 });
 
-test('@integration mmd lessons match "git checkout to switch branches" returns L-003 (DoD §4)', () => {
+test('@integration mmdream lessons match "git checkout to switch branches" returns L-003 (DoD §4)', () => {
   const r = runMmd(['lessons', 'match', 'git checkout to switch branches']);
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /^L-003 \|/m);
 });
 
-test('@integration mmd lessons --show L-008: prints full lesson body', () => {
+test('@integration mmdream lessons --show L-008: prints full lesson body', () => {
   const r = runMmd(['lessons', '--show', 'L-008']);
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /^# L-008/m);
   assert.match(r.stdout, /\*\*Rule\*\*:/);
 });
 
-test('@integration mmd lessons --show banana: exits 2 with malformed-id error', () => {
+test('@integration mmdream lessons --show banana: exits 2 with malformed-id error', () => {
   const r = runMmd(['lessons', '--show', 'banana']);
   assert.equal(r.status, 2);
   assert.match(r.stderr, /invalid lesson id/);
 });
 
-test('@integration mmd lessons match with no prompt: exits 2', () => {
+test('@integration mmdream lessons match with no prompt: exits 2', () => {
   const r = runMmd(['lessons', 'match']);
   assert.equal(r.status, 2);
   assert.match(r.stderr, /prompt argument is required/);
 });
 
-test('@integration mmd lessons: missing docs/lessons-learned.md → exits 3', () => {
+test('@integration mmdream lessons: missing docs/lessons-learned.md → exits 3', () => {
   const tmp = mkdtempSync(path.join(tmpdir(), 'mmd-lessons-missing-'));
   try {
     const r = runMmd(['lessons'], { cwd: tmp });
@@ -83,7 +83,7 @@ test('@integration mmd lessons: missing docs/lessons-learned.md → exits 3', ()
   }
 });
 
-test('@integration mmd lessons: MMD_LESSONS_FILE override works for testing', () => {
+test('@integration mmdream lessons: MMD_LESSONS_FILE override works for testing', () => {
   const tmp = mkdtempSync(path.join(tmpdir(), 'mmd-lessons-override-'));
   try {
     const file = path.join(tmp, 'custom.md');
@@ -103,7 +103,7 @@ test('@integration mmd lessons: MMD_LESSONS_FILE override works for testing', ()
   }
 });
 
-test('@integration mmd lessons: composer-injection counts reflect .mmd/local audits', () => {
+test('@integration mmdream lessons: composer-injection counts reflect .mmd/local audits', () => {
   const tmp = mkdtempSync(path.join(tmpdir(), 'mmd-lessons-counts-'));
   try {
     // Seed minimal docs/lessons-learned.md

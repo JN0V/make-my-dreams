@@ -93,17 +93,17 @@ test('@unit both scripts gate the terminal on an actual open attempt', () => {
 
 // ── Display currency anchors (unchanged from the first fix) ─────────────────
 
-test('@unit install.sh "Next steps" lead with the current mmd CLI surface', () => {
-  assert.match(INSTALL_SH, /mmd serve/);
-  assert.match(INSTALL_SH, /mmd --here/);
-  assert.match(INSTALL_SH, /\/mmd /);
+test('@unit install.sh "Next steps" lead with the current mmdream CLI surface', () => {
+  assert.match(INSTALL_SH, /mmdream serve/);
+  assert.match(INSTALL_SH, /mmdream --here/);
+  assert.match(INSTALL_SH, /\/mmdream /);
   assert.match(INSTALL_SH, /npm install -g \./);
   assert.doesNotMatch(INSTALL_SH, /BOOTSTRAP\.md.*v0\.0 and v0\.1/);
 });
 
-test('@unit install-mmd.sh end-of-install display leads with the mmd CLI', () => {
-  assert.match(INSTALL_MMD_SH, /mmd serve/);
-  assert.match(INSTALL_MMD_SH, /mmd --here/);
+test('@unit install-mmd.sh end-of-install display leads with the mmdream CLI', () => {
+  assert.match(INSTALL_MMD_SH, /mmdream serve/);
+  assert.match(INSTALL_MMD_SH, /mmdream --here/);
   assert.match(INSTALL_MMD_SH, /npm install -g \./);
   assert.doesNotMatch(INSTALL_MMD_SH, /Coming phases/);
 });

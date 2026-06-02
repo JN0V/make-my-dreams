@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bin/handover.js — `mmd handover` subcommand entry point (SPEC_V02P AC-1/AC-5).
+// bin/handover.js — `mmdream handover` subcommand entry point (SPEC_V02P AC-1/AC-5).
 //
 // SRP (universal.md §I.S): orchestrate the handover-refresh flow only — parse
 // args, wire the real git/fs/clock dependencies into the two pure modules, and
@@ -32,11 +32,11 @@ import {
 const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
 
-const HANDOVER_USAGE = `mmd handover — refresh HANDOVER.md's mechanical State block (SPEC_V02P)
+const HANDOVER_USAGE = `mmdream handover — refresh HANDOVER.md's mechanical State block (SPEC_V02P)
 
 Usage:
-  mmd handover [--tests <N>] [--dry-run]
-  mmd handover --help
+  mmdream handover [--tests <N>] [--dry-run]
+  mmdream handover --help
 
 Behavior:
   Re-derives ONLY the mechanical "State at handover" block (latest tag, branch,
@@ -60,7 +60,7 @@ Exit codes:
   3  HANDOVER.md missing/unreadable
   4  markers absent — add the two marker lines where the State block belongs
 
-mmd ${VERSION}
+mmdream ${VERSION}
 `;
 
 /**
@@ -108,7 +108,7 @@ export async function runHandover(rawArgs) {
     stderr.write(
       `error: cannot read HANDOVER.md at ${handoverPath}: ` +
         `${err.code ? `${err.code}: ` : ''}${err.message}\n` +
-        `  mmd handover refreshes an existing HANDOVER.md; it does not create one.\n`,
+        `  mmdream handover refreshes an existing HANDOVER.md; it does not create one.\n`,
     );
     return 3;
   }

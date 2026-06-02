@@ -1,4 +1,4 @@
-// test/integration/handover-dry-run.test.js — CLI-level tests for `mmd handover`
+// test/integration/handover-dry-run.test.js — CLI-level tests for `mmdream handover`
 // (SPEC_V02P AC-5 + AC-3 end-to-end). We spawn the real bin/mmd.js child in a
 // throwaway git repo so the dispatch wiring (bin/mmd.js -> bin/handover.js) and
 // the real git/fs derivation are all covered. Tagged @integration.
@@ -148,7 +148,7 @@ test('@integration handover with missing markers → exit 4 and prints the block
 
 test('@integration handover --help exits 0', () => {
   const out = execFileSync('node', [MMD, 'handover', '--help'], { encoding: 'utf8' });
-  assert.match(out, /mmd handover/);
+  assert.match(out, /mmdream handover/);
 });
 
 test('@integration handover rejects an unknown flag with exit 2', async () => {

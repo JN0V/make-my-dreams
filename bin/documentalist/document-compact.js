@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bin/documentalist/document-compact.js — `mmd document-compact` entry point
+// bin/documentalist/document-compact.js — `mmdream document-compact` entry point
 // (SPEC_V07C AC-2). The Documentalist's first ACTION: archive the root
 // SPEC_V*.md sprawl into docs/specs/ with an index and rewritten references.
 //
@@ -49,18 +49,18 @@ const INDEX_NAME = 'INDEX.md';
 // Matches an MMD root SPEC filename (the sprawl pattern). Anchored — exact name.
 const SPEC_FILE_RE = /^SPEC_V.*\.md$/;
 
-const USAGE = `mmd document-compact — the Documentalist archives the root SPEC sprawl (SPEC_V07C)
+const USAGE = `mmdream document-compact — the Documentalist archives the root SPEC sprawl (SPEC_V07C)
 
 Usage:
-  mmd document-compact [--dry-run]
-  mmd document-compact --help
+  mmdream document-compact [--dry-run]
+  mmdream document-compact --help
 
 Behavior:
   Gathers the root SPEC_V*.md files, plans their relocation into ${ARCHIVE_DIR}/,
   then \`git mv\`s each (history preserved), writes ${ARCHIVE_DIR}/${INDEX_NAME}
   (one entry per SPEC, newest-first), and rewrites references to the moved files
   (\`SPEC_V0XX.md\` → \`${ARCHIVE_DIR}/SPEC_V0XX.md\`) across tracked markdown.
-  Prints a short summary. Run \`mmd document-review\` afterwards to confirm no
+  Prints a short summary. Run \`mmdream document-review\` afterwards to confirm no
   dangling SPEC references (the v0.7.b Drift detector validates the rewrite).
 
   MOVE-ONLY + idempotent + reversible: it never edits doc prose, never deletes,
@@ -79,7 +79,7 @@ Exit codes:
   5  not a git repository
   6  a precondition failed (untracked SPEC) or git mv failed — not half-applied
 
-mmd ${VERSION}
+mmdream ${VERSION}
 `;
 
 /**
@@ -100,7 +100,7 @@ export function parseDocumentCompactArgs(rawArgs) {
     else if (tok === '--help' || tok === '-h') out.help = true;
     else {
       out.error = {
-        message: `unknown document-compact arg: '${tok}'. Run 'mmd document-compact --help' to see supported flags.`,
+        message: `unknown document-compact arg: '${tok}'. Run 'mmdream document-compact --help' to see supported flags.`,
         exitCode: 2,
       };
       return out;
@@ -281,7 +281,7 @@ export async function runDocumentCompact(rawArgs) {
   if (!inside.ok || inside.stdout.trim() !== 'true') {
     stderr.write(
       `error: ${root} is not a git repository.\n`
-      + '  mmd document-compact uses `git mv` to preserve each SPEC\'s history; it cannot run here.\n',
+      + '  mmdream document-compact uses `git mv` to preserve each SPEC\'s history; it cannot run here.\n',
     );
     return 5;
   }
@@ -383,7 +383,7 @@ export async function runDocumentCompact(rawArgs) {
     + `Rewrote ${refsRewritten} reference${refsRewritten === 1 ? '' : 's'} `
     + `(SPEC_V0XX.md → ${ARCHIVE_DIR}/SPEC_V0XX.md) across ${filesChanged} file${filesChanged === 1 ? '' : 's'}\n`
     + `Root SPEC sprawl resolved. Changes are staged/working — review and commit them yourself.\n`
-    + `Run \`mmd document-review\` to confirm no dangling SPEC references.\n`,
+    + `Run \`mmdream document-review\` to confirm no dangling SPEC references.\n`,
   );
   return 0;
 }

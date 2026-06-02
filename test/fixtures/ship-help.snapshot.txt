@@ -1,9 +1,9 @@
-mmd ship — invoke the gStack 'ship' skill on a slice branch (SPEC_V02F)
+mmdream ship — invoke the gStack 'ship' skill on a slice branch (SPEC_V02F)
 
 Usage:
-  mmd ship [<branch>]
-  mmd ship --dry-run [<branch>]
-  mmd ship --help
+  mmdream ship [<branch>]
+  mmdream ship --dry-run [<branch>]
+  mmdream ship --help
 
 Behavior:
   Reads the gStack ship skill at ~/.claude/skills/gstack/ship/SKILL.md and
@@ -26,4 +26,4 @@ Env vars:
   MMD_SHIP_CMD           override 'claude' command (testing fixture)
   MMD_QUIET=1            suppress live tee to stdout (log file preserved)
 
-mmd 0.9.2
+mmdream 0.9.2

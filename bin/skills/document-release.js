@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bin/skills/document-release.js — `mmd document-release` subcommand entry
+// bin/skills/document-release.js — `mmdream document-release` subcommand entry
 // point (SPEC_V02G AC-4).
 //
 // SRP (universal.md §I.S): orchestrate the document-release flow only.
@@ -40,12 +40,12 @@ import { resolveSkillPath } from '../../lib/skills/_common/skill-path.js';
 const PKG_PATH = fileURLToPath(new URL('../../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
 
-const DOCUMENT_RELEASE_USAGE = `mmd document-release — invoke the gStack 'document-release' skill (SPEC_V02G AC-4)
+const DOCUMENT_RELEASE_USAGE = `mmdream document-release — invoke the gStack 'document-release' skill (SPEC_V02G AC-4)
 
 Usage:
-  mmd document-release [<from>] [<to>]
-  mmd document-release --dry-run [<from>] [<to>]
-  mmd document-release --help
+  mmdream document-release [<from>] [<to>]
+  mmdream document-release --dry-run [<from>] [<to>]
+  mmdream document-release --help
 
 Defaults:
   <from> = git describe --tags --abbrev=0  (last tag in the repo)
@@ -74,7 +74,7 @@ Env vars:
   MMD_GSTACK_SKILLS_DIR            override gStack skill root (testing)
   MMD_QUIET=1                      suppress live tee to stdout
 
-mmd ${VERSION}
+mmdream ${VERSION}
 `;
 
 /**
@@ -161,7 +161,7 @@ export async function runDocumentRelease(rawArgs) {
     : 60_000;
 
   stdout.write(
-    `mmd document-release: invoking gStack 'document-release' for range ` +
+    `mmdream document-release: invoking gStack 'document-release' for range ` +
     `${fromRef}..${toRef}\n` +
     `  draft: ${outputPath}\n` +
     `  log  : ${logPath}\n` +
@@ -180,7 +180,7 @@ export async function runDocumentRelease(rawArgs) {
       heartbeatIntervalMs,
     });
   } catch (err) {
-    stderr.write(`mmd document-release: ${err.message}\n`);
+    stderr.write(`mmdream document-release: ${err.message}\n`);
     stdout.write(
       formatDocumentReleaseSummary({
         fromRef, toRef, fromSha, toSha, outputPath,

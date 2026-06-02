@@ -162,11 +162,11 @@ header "Phase 4 — gStack (optional but recommended)"
 if [ -d "$HOME/.claude/skills/gstack" ]; then
     ok "gStack already installed at ~/.claude/skills/gstack"
 elif [ "${MMD_SKIP_GSTACK:-0}" = "1" ] || [ "$MMD_SKIP_GSTACK_PROMPT" = "1" ]; then
-    warn "gStack skipped (MMD_SKIP_GSTACK=1) → 'mmd qa', 'mmd cso', 'mmd document-release' UNAVAILABLE."
+    warn "gStack skipped (MMD_SKIP_GSTACK=1) → 'mmdream qa', 'mmdream cso', 'mmdream document-release' UNAVAILABLE."
     echo "    Install later: git clone https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && bun install"
 else
     info "gStack is part of the foundation MMD stands on — it provides the review skills"
-    info "behind 'mmd qa', 'mmd cso' and 'mmd document-release'. Installed by default."
+    info "behind 'mmdream qa', 'mmdream cso' and 'mmdream document-release'. Installed by default."
     # gStack is FOUNDATION → install by DEFAULT, interactive or not. A real
     # terminal gets a courtesy [Y/n] (declining == opting out); no terminal
     # (curl|bash, CI) installs anyway. Opt out entirely with MMD_SKIP_GSTACK=1.
@@ -178,7 +178,7 @@ else
     fi
     if [ "$DO_GSTACK" = true ]; then
         if ! command -v bun >/dev/null 2>&1 && [ ! -x "$HOME/.bun/bin/bun" ]; then
-            warn "bun not found → cannot install gStack now; 'mmd qa', 'mmd cso', 'mmd document-release' UNAVAILABLE."
+            warn "bun not found → cannot install gStack now; 'mmdream qa', 'mmdream cso', 'mmdream document-release' UNAVAILABLE."
             echo "    install-mmd.sh installs bun by default — re-run, or set MMD_SKIP_GSTACK=1 to stop asking."
         else
             git clone --depth=1 https://github.com/garrytan/gstack.git "$HOME/.claude/skills/gstack"
@@ -186,7 +186,7 @@ else
             ok "gStack installed"
         fi
     else
-        warn "gStack NOT installed → 'mmd qa', 'mmd cso', 'mmd document-release' UNAVAILABLE (the MMD core is fine)."
+        warn "gStack NOT installed → 'mmdream qa', 'mmdream cso', 'mmdream document-release' UNAVAILABLE (the MMD core is fine)."
         echo "    Install later: git clone https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && (cd ~/.claude/skills/gstack && bun install)"
     fi
 fi
@@ -203,11 +203,11 @@ printf "    cd ${CYAN}$MMD_HOME${NC}\n"
 printf "    ${CYAN}npm install -g .${NC}                   put the \`mmd\` CLI on your PATH\n"
 echo ""
 printf "    then — the easiest way in:\n"
-printf "      ${CYAN}mmd serve${NC}                          open the web UI (for anyone)\n"
-printf "      ${CYAN}mmd \"a drawing app for kids\"${NC}       interactive Dream Catcher, then auto-dev\n"
-printf "      ${CYAN}mmd --here \"add a dark-mode toggle\"${NC} evolve the current repo in place\n"
+printf "      ${CYAN}mmdream serve${NC}                          open the web UI (for anyone)\n"
+printf "      ${CYAN}mmdream \"a drawing app for kids\"${NC}       interactive Dream Catcher, then auto-dev\n"
+printf "      ${CYAN}mmdream --here \"add a dark-mode toggle\"${NC} evolve the current repo in place\n"
 echo ""
-printf "    Inside a Claude Code session you can also drive MMD by intent with ${CYAN}/mmd <what you want>${NC}.\n"
+printf "    Inside a Claude Code session you can also drive MMD by intent with ${CYAN}/mmdream <what you want>${NC}.\n"
 echo ""
 printf "  ${BOLD}Scoping:${NC} read ${CYAN}README.md${NC} (Quick start) and ${CYAN}MAKE_MY_DREAMS.md${NC} for the full design rationale.\n"
 echo ""

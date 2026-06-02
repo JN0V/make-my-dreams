@@ -1,4 +1,4 @@
-// @integration tests for `mmd ship` — AC-4 (real spawn) + AC-7 (audit hook).
+// @integration tests for `mmdream ship` — AC-4 (real spawn) + AC-7 (audit hook).
 //
 // CRITICAL: never let a test invoke the real claude CLI. Every test that
 // reaches invokeClaudeShip MUST set MMD_SHIP_CMD=<test/fixtures/fake-claude-ship.sh>.
@@ -8,7 +8,7 @@
 //   2. The subprocess env contained ~/.bun/bin in PATH
 //   3. Output was tee'd to .mmd/local/ship-runs/<ts>.log
 //   4. The summary mentions the branch, log file, audit table (AC-7)
-//   5. Subprocess exit code is propagated as the mmd ship exit code
+//   5. Subprocess exit code is propagated as the mmdream ship exit code
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -62,7 +62,7 @@ function runMmd(args, opts = {}) {
   });
 }
 
-test('@integration mmd ship (fake claude): exits 0 on a slice branch, spawns the fixture', () => {
+test('@integration mmdream ship (fake claude): exits 0 on a slice branch, spawns the fixture', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship'], { cwd: dir });
@@ -83,12 +83,12 @@ test('@integration mmd ship (fake claude): exits 0 on a slice branch, spawns the
   }
 });
 
-test('@integration mmd ship (fake claude): summary includes branch + sha + log path', () => {
+test('@integration mmdream ship (fake claude): summary includes branch + sha + log path', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship'], { cwd: dir });
     assert.equal(r.status, 0, r.stderr);
-    assert.match(r.stdout, /mmd ship — summary/i);
+    assert.match(r.stdout, /mmdream ship — summary/i);
     assert.match(r.stdout, /slice\/test-fake-ship-1779999999/);
     assert.match(r.stdout, /Log file/);
   } finally {
@@ -96,7 +96,7 @@ test('@integration mmd ship (fake claude): summary includes branch + sha + log p
   }
 });
 
-test('@integration mmd ship (fake claude): AC-7 audit-pillars table appears in summary', () => {
+test('@integration mmdream ship (fake claude): AC-7 audit-pillars table appears in summary', () => {
   const dir = makeShipReadyRepo();
   try {
     // To make audit-pillars resolvable, we need the scripts/ dir + git binary
@@ -126,7 +126,7 @@ test('@integration mmd ship (fake claude): AC-7 audit-pillars table appears in s
   }
 });
 
-test('@integration mmd ship (fake claude failing): propagates non-zero exit code', () => {
+test('@integration mmdream ship (fake claude failing): propagates non-zero exit code', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship'], {
@@ -142,7 +142,7 @@ test('@integration mmd ship (fake claude failing): propagates non-zero exit code
   }
 });
 
-test('@integration mmd ship: missing claude binary exits 4 with clear message', () => {
+test('@integration mmdream ship: missing claude binary exits 4 with clear message', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship'], {
@@ -150,13 +150,13 @@ test('@integration mmd ship: missing claude binary exits 4 with clear message', 
       shipCmd: '/no/such/binary/at/all',
     });
     assert.equal(r.status, 4, `expected exit 4; stderr=${r.stderr}\nstdout=${r.stdout}`);
-    assert.match(r.stderr, /not found|spawn|mmd ship/i);
+    assert.match(r.stderr, /not found|spawn|mmdream ship/i);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('@integration mmd ship: fake-claude receives -p --output-format text <prompt>', () => {
+test('@integration mmdream ship: fake-claude receives -p --output-format text <prompt>', () => {
   const dir = makeShipReadyRepo();
   try {
     const r = runMmd(['ship'], { cwd: dir });

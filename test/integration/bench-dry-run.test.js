@@ -1,4 +1,4 @@
-// @integration end-to-end test for `mmd bench --dry-run`.
+// @integration end-to-end test for `mmdream bench --dry-run`.
 // Spec: SPEC_V02B AC-1 + AC-2 + AC-3 + AC-4 + AC-5 + AC-6 (gate + isolation +
 // metrics + aggregate + exit code) in the dry-run path.
 //
@@ -63,7 +63,7 @@ function runBench(args, opts = {}) {
   });
 }
 
-test('@integration mmd bench --dry-run exits 0 in under 30s with all 5 dreams green (AC-1 + AC-6 + AC-3)', () => {
+test('@integration mmdream bench --dry-run exits 0 in under 30s with all 5 dreams green (AC-1 + AC-6 + AC-3)', () => {
   const tmp = makeBenchTmp();
   try {
     const startedNs = process.hrtime.bigint();
@@ -92,7 +92,7 @@ test('@integration mmd bench --dry-run exits 0 in under 30s with all 5 dreams gr
   }
 });
 
-test('@integration mmd bench --dry-run produces summary.json + report.md + per-dream metrics.json (AC-4 + AC-5)', () => {
+test('@integration mmdream bench --dry-run produces summary.json + report.md + per-dream metrics.json (AC-4 + AC-5)', () => {
   const tmp = makeBenchTmp();
   try {
     const r = runBench(['--dry-run'], { cwd: tmp });
@@ -137,7 +137,7 @@ test('@integration mmd bench --dry-run produces summary.json + report.md + per-d
   }
 });
 
-test('@integration mmd bench --dry-run updates bench/runs/latest symlink (AC-5)', () => {
+test('@integration mmdream bench --dry-run updates bench/runs/latest symlink (AC-5)', () => {
   const tmp = makeBenchTmp();
   try {
     const r = runBench(['--dry-run'], { cwd: tmp });
@@ -151,7 +151,7 @@ test('@integration mmd bench --dry-run updates bench/runs/latest symlink (AC-5)'
   }
 });
 
-test('@integration mmd bench (no --dry-run, no MMD_BENCH_REAL) exits 2 with gate message (AC-1)', () => {
+test('@integration mmdream bench (no --dry-run, no MMD_BENCH_REAL) exits 2 with gate message (AC-1)', () => {
   const tmp = makeBenchTmp();
   try {
     // Even with MMD_AUTODEV_CMD set, the gate fires BEFORE we look at the env
@@ -179,13 +179,13 @@ test('@integration mmd bench (no --dry-run, no MMD_BENCH_REAL) exits 2 with gate
   }
 });
 
-test('@integration mmd bench --help exits 0 and lists every documented flag (AC-1)', () => {
+test('@integration mmdream bench --help exits 0 and lists every documented flag (AC-1)', () => {
   const r = spawnSync('node', [MMD, 'bench', '--help'], {
     encoding: 'utf8',
     timeout: 10000,
   });
   assert.equal(r.status, 0);
-  assert.match(r.stdout, /mmd bench/);
+  assert.match(r.stdout, /mmdream bench/);
   assert.match(r.stdout, /--dry-run/);
   assert.match(r.stdout, /--engine/);
   assert.match(r.stdout, /--dreams/);
@@ -194,7 +194,7 @@ test('@integration mmd bench --help exits 0 and lists every documented flag (AC-
   assert.match(r.stdout, /MMD_BENCH_REAL/);
 });
 
-test('@integration mmd bench --dry-run with crashing autodev exits 7 and lists failing dreams on stderr (AC-6)', () => {
+test('@integration mmdream bench --dry-run with crashing autodev exits 7 and lists failing dreams on stderr (AC-6)', () => {
   const tmp = makeBenchTmp();
   try {
     const FIXTURE_FAIL_BENCH = path.join(
@@ -211,7 +211,7 @@ test('@integration mmd bench --dry-run with crashing autodev exits 7 and lists f
   }
 });
 
-test('@integration mmd bench --dry-run --dreams kid-01-drawing-camera-overlay only runs the filtered dream', () => {
+test('@integration mmdream bench --dry-run --dreams kid-01-drawing-camera-overlay only runs the filtered dream', () => {
   const tmp = makeBenchTmp();
   try {
     const r = runBench(['--dry-run', '--dreams', 'kid-01-drawing-camera-overlay'], {

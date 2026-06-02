@@ -1,4 +1,4 @@
-// @integration tests for `mmd cso` — AC-3 (help/routing), dry-run.
+// @integration tests for `mmdream cso` — AC-3 (help/routing), dry-run.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -45,17 +45,17 @@ function runMmd(args, opts = {}) {
   });
 }
 
-test('@smoke @integration mmd cso --help exits 0', () => {
+test('@smoke @integration mmdream cso --help exits 0', () => {
   const r = runMmd(['cso', '--help']);
   assert.equal(r.status, 0, r.stderr);
-  assert.ok(r.stdout.includes(`mmd ${PKG.version}`));
+  assert.ok(r.stdout.includes(`mmdream ${PKG.version}`));
 });
 
-test('@integration mmd cso --help contains canonical anchors', () => {
+test('@integration mmdream cso --help contains canonical anchors', () => {
   const r = runMmd(['cso', '--help']);
   assert.equal(r.status, 0);
   for (const anchor of [
-    'mmd cso',
+    'mmdream cso',
     '--dry-run',
     '--help',
     '~/.claude/skills/gstack/cso/SKILL.md',
@@ -64,17 +64,17 @@ test('@integration mmd cso --help contains canonical anchors', () => {
     'MMD_GSTACK_SKILLS_DIR',
     'gstack',
   ]) {
-    assert.ok(r.stdout.includes(anchor), `mmd cso --help missing anchor '${anchor}'`);
+    assert.ok(r.stdout.includes(anchor), `mmdream cso --help missing anchor '${anchor}'`);
   }
 });
 
-test('@integration AC-6 — mmd cso --help mentions gstack (≥1)', () => {
+test('@integration AC-6 — mmdream cso --help mentions gstack (≥1)', () => {
   const r = runMmd(['cso', '--help']);
   const matches = (r.stdout.match(/gstack/gi) || []).length;
   assert.ok(matches >= 1);
 });
 
-test('@integration mmd cso outside a git repo exits 3', () => {
+test('@integration mmdream cso outside a git repo exits 3', () => {
   const tmp = mkdtempSync(path.join(tmpdir(), 'mmd-cso-nogit-'));
   try {
     const r = runMmd(['cso', '--dry-run'], { cwd: tmp });
@@ -84,7 +84,7 @@ test('@integration mmd cso outside a git repo exits 3', () => {
   }
 });
 
-test('@integration mmd cso --dry-run on a slice branch exits 0 in <5s', () => {
+test('@integration mmdream cso --dry-run on a slice branch exits 0 in <5s', () => {
   const dir = makeCsoRepo();
   try {
     const t0 = Date.now();
@@ -99,7 +99,7 @@ test('@integration mmd cso --dry-run on a slice branch exits 0 in <5s', () => {
   }
 });
 
-test('@integration mmd cso --dry-run prompt mentions security audit categories', () => {
+test('@integration mmdream cso --dry-run prompt mentions security audit categories', () => {
   const dir = makeCsoRepo();
   try {
     const r = runMmd(['cso', '--dry-run'], { cwd: dir });
@@ -112,7 +112,7 @@ test('@integration mmd cso --dry-run prompt mentions security audit categories',
   }
 });
 
-test('@integration mmd cso --bogus is rejected with exit 2', () => {
+test('@integration mmdream cso --bogus is rejected with exit 2', () => {
   const dir = makeCsoRepo();
   try {
     const r = runMmd(['cso', '--bogus'], { cwd: dir });

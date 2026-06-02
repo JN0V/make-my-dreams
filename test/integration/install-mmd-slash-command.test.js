@@ -1,5 +1,5 @@
 // @integration tests for the install-mmd.sh step that materializes the tracked
-// /mmd operator slash command into .claude/commands/mmd.md (v0.7.5).
+// /mmdream operator slash command into .claude/commands/mmdream.md (v0.7.5).
 //
 // Strategy mirrors install-mmd.test.js: we do NOT run the full installer (it
 // spawns heavy `npx bmad-method` work). Instead we EXTRACT the single step block
@@ -25,10 +25,10 @@ import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = path.resolve(fileURLToPath(import.meta.url), '..', '..', '..');
 const INSTALLER = path.join(REPO_ROOT, 'install-mmd.sh');
-const TRACKED_SOURCE = path.join(REPO_ROOT, 'assets', 'claude-commands', 'mmd.md');
+const TRACKED_SOURCE = path.join(REPO_ROOT, 'assets', 'claude-commands', 'mmdream.md');
 
 /**
- * Extract the "/mmd command materialization" step from install-mmd.sh into a
+ * Extract the "/mmdream command materialization" step from install-mmd.sh into a
  * runnable temp script, with the standard helper preamble the other install
  * tests use. The step is delimited by the BEGIN/END sentinels; if they move,
  * this throws loudly (so the test fails honestly rather than silently passing
@@ -66,7 +66,7 @@ exit 0
   return scriptPath;
 }
 
-test('@integration install step materializes assets/claude-commands/mmd.md → .claude/commands/mmd.md', () => {
+test('@integration install step materializes assets/claude-commands/mmdream.md → .claude/commands/mmdream.md', () => {
   const step = extractMmdCommandStep();
   try {
     const target = mkdtempSync(path.join(tmpdir(), 'mmd-target-'));
@@ -77,13 +77,13 @@ test('@integration install step materializes assets/claude-commands/mmd.md → .
         env: { PATH: '/usr/bin:/bin', HOME: target, MMD_SRC_DIR: REPO_ROOT },
       });
       assert.equal(r.status, 0, `step should exit 0; stdout=${r.stdout}\nstderr=${r.stderr}`);
-      const dest = path.join(target, '.claude', 'commands', 'mmd.md');
-      assert.ok(existsSync(dest), 'mmd.md must be materialized under .claude/commands/');
+      const dest = path.join(target, '.claude', 'commands', 'mmdream.md');
+      assert.ok(existsSync(dest), 'mmdream.md must be materialized under .claude/commands/');
       // Byte-for-byte: the installed command IS the tracked source (no drift).
       assert.equal(
         readFileSync(dest, 'utf8'),
         readFileSync(TRACKED_SOURCE, 'utf8'),
-        'materialized .claude/commands/mmd.md must match the tracked source exactly',
+        'materialized .claude/commands/mmdream.md must match the tracked source exactly',
       );
     } finally {
       rmSync(target, { recursive: true, force: true });
@@ -101,7 +101,7 @@ test('@integration install step is idempotent — a second run leaves the same f
       const env = { PATH: '/usr/bin:/bin', HOME: target, MMD_SRC_DIR: REPO_ROOT };
       const first = spawnSync('bash', [step, target], { encoding: 'utf8', timeout: 15000, env });
       assert.equal(first.status, 0, `first run should exit 0; stderr=${first.stderr}`);
-      const dest = path.join(target, '.claude', 'commands', 'mmd.md');
+      const dest = path.join(target, '.claude', 'commands', 'mmdream.md');
       const after1 = readFileSync(dest, 'utf8');
       const second = spawnSync('bash', [step, target], { encoding: 'utf8', timeout: 15000, env });
       assert.equal(second.status, 0, `second run should exit 0; stderr=${second.stderr}`);
@@ -120,7 +120,7 @@ test('@integration install step degrades gracefully when the source is absent (h
     const target = mkdtempSync(path.join(tmpdir(), 'mmd-target-'));
     const emptySrc = mkdtempSync(path.join(tmpdir(), 'mmd-emptysrc-'));
     try {
-      // Point MMD_SRC_DIR at a dir with NO assets/claude-commands/mmd.md.
+      // Point MMD_SRC_DIR at a dir with NO assets/claude-commands/mmdream.md.
       const r = spawnSync('bash', [step, target], {
         encoding: 'utf8',
         timeout: 15000,
@@ -131,8 +131,8 @@ test('@integration install step degrades gracefully when the source is absent (h
       assert.equal(r.status, 0, `missing source must not fail the step; stderr=${r.stderr}`);
       assert.match(r.stdout, /not found|skip/i, 'must log an honest skip when the source is absent');
       assert.ok(
-        !existsSync(path.join(target, '.claude', 'commands', 'mmd.md')),
-        'must not create mmd.md when the tracked source is missing',
+        !existsSync(path.join(target, '.claude', 'commands', 'mmdream.md')),
+        'must not create mmdream.md when the tracked source is missing',
       );
     } finally {
       rmSync(target, { recursive: true, force: true });
@@ -143,11 +143,11 @@ test('@integration install step degrades gracefully when the source is absent (h
   }
 });
 
-test('@integration install step materializes /mmd GLOBALLY (~/.claude) so it is available in every session', () => {
-  // The fix for "/mmd not available after install": a project-scoped command
+test('@integration install step materializes /mmdream GLOBALLY (~/.claude) so it is available in every session', () => {
+  // The fix for "/mmdream not available after install": a project-scoped command
   // only shows up inside that project. With HOME and TARGET distinct (the real
   // one-liner case — you install MMD but work elsewhere), the GLOBAL personal
-  // command must be written so `/mmd` works in any Claude Code session.
+  // command must be written so `/mmdream` works in any Claude Code session.
   const step = extractMmdCommandStep();
   try {
     const home = mkdtempSync(path.join(tmpdir(), 'mmd-home-'));
@@ -159,9 +159,9 @@ test('@integration install step materializes /mmd GLOBALLY (~/.claude) so it is 
         env: { PATH: '/usr/bin:/bin', HOME: home, MMD_SRC_DIR: REPO_ROOT },
       });
       assert.equal(r.status, 0, `step should exit 0; stdout=${r.stdout}\nstderr=${r.stderr}`);
-      const globalDest = path.join(home, '.claude', 'commands', 'mmd.md');
-      const projectDest = path.join(target, '.claude', 'commands', 'mmd.md');
-      assert.ok(existsSync(globalDest), '/mmd must be materialized GLOBALLY at ~/.claude/commands/mmd.md');
+      const globalDest = path.join(home, '.claude', 'commands', 'mmdream.md');
+      const projectDest = path.join(target, '.claude', 'commands', 'mmdream.md');
+      assert.ok(existsSync(globalDest), '/mmdream must be materialized GLOBALLY at ~/.claude/commands/mmdream.md');
       assert.ok(existsSync(projectDest), 'and also in the project .claude/commands/ (dogfood/back-compat)');
       const tracked = readFileSync(TRACKED_SOURCE, 'utf8');
       assert.equal(readFileSync(globalDest, 'utf8'), tracked, 'global copy must match the tracked source');

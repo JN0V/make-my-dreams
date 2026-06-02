@@ -1,4 +1,4 @@
-// test/integration/test-health.test.js — CLI-level tests for `mmd test-health`
+// test/integration/test-health.test.js — CLI-level tests for `mmdream test-health`
 // (SPEC_V076 AC-3). We spawn the real bin/mmd.js child in a throwaway git repo
 // so the dispatch wiring, the real git ls-files gather, the scan + build, the
 // single-file write, the --dry-run, the env-override + fallback, and --help are
@@ -160,7 +160,7 @@ test('@integration test-health: --help prints usage and exits 0', async () => {
   try {
     const r = runMmd(dir, ['--help']);
     assert.equal(r.status, 0, r.stderr);
-    assert.match(r.stdout, /mmd test-health/);
+    assert.match(r.stdout, /mmdream test-health/);
     assert.match(r.stdout, /READ-ONLY/);
   } finally {
     await rm(dir, { recursive: true, force: true });

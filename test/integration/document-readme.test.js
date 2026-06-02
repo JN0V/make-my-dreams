@@ -24,7 +24,7 @@ const CHANGELOG_START = '<!-- mmd:readme:changelog:start -->';
 const CHANGELOG_END = '<!-- mmd:readme:changelog:end -->';
 
 // README fixture: human prose around BOTH marker pairs. The prose mentions
-// `mmd serve` so the drift report has something documented; it deliberately
+// `mmdream serve` so the drift report has something documented; it deliberately
 // omits some subcommands so the report is non-empty (AC-5) — that's expected.
 const README = [
   '# Fixture Project',
@@ -46,7 +46,7 @@ const README = [
   '',
   '## Usage',
   '',
-  'Run `mmd serve` to start. irreplaceable human notes here.',
+  'Run `mmdream serve` to start. irreplaceable human notes here.',
   '',
 ].join('\n');
 
@@ -164,13 +164,13 @@ test('@integration document-readme (write) refreshes both blocks, preserves pros
 test('@integration document-readme prints a doc-drift report (informational, exit 0, no README write)', async () => {
   const dir = await makeRepo();
   try {
-    // The fixture documents `mmd serve` but NOT e.g. `mmd bench`/`mmd handover`,
+    // The fixture documents `mmdream serve` but NOT e.g. `mmdream bench`/`mmdream handover`,
     // so the drift report must be non-empty AND list bench. It must still exit 0
     // and must NOT add the drifted names to the README (writes nothing for drift).
     const r = run(dir, ['--tests', '1']);
     assert.equal(r.status, 0, r.stderr);
     assert.match(r.stdout, /Doc-drift report:/);
-    assert.match(r.stdout, /subcommand: mmd bench/);
+    assert.match(r.stdout, /subcommand: mmdream bench/);
     const written = await readFile(path.join(dir, 'README.md'), 'utf8');
     // the drift report content is NOT written into the README
     assert.ok(!written.includes('Doc-drift report'));
@@ -200,7 +200,7 @@ test('@integration document-readme with a missing marker pair → exit 4 and pri
 
 test('@integration document-readme --help exits 0', () => {
   const out = execFileSync('node', [MMD, 'document-readme', '--help'], { encoding: 'utf8' });
-  assert.match(out, /mmd document-readme/);
+  assert.match(out, /mmdream document-readme/);
 });
 
 test('@integration document-readme rejects an unknown flag with exit 2', async () => {

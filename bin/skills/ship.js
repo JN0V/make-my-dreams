@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bin/skills/ship.js — `mmd ship` subcommand entry point (SPEC_V02F AC-3..AC-7,
+// bin/skills/ship.js — `mmdream ship` subcommand entry point (SPEC_V02F AC-3..AC-7,
 // refactored per SPEC_V02G §5 — moved from bin/ship.js, with import paths
 // adjusted one level deeper).
 //
@@ -51,12 +51,12 @@ import { resolveSkillPath } from '../../lib/skills/_common/skill-path.js';
 const PKG_PATH = fileURLToPath(new URL('../../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
 
-const SHIP_USAGE = `mmd ship — invoke the gStack 'ship' skill on a slice branch (SPEC_V02F)
+const SHIP_USAGE = `mmdream ship — invoke the gStack 'ship' skill on a slice branch (SPEC_V02F)
 
 Usage:
-  mmd ship [<branch>]
-  mmd ship --dry-run [<branch>]
-  mmd ship --help
+  mmdream ship [<branch>]
+  mmdream ship --dry-run [<branch>]
+  mmdream ship --help
 
 Behavior:
   Reads the gStack ship skill at ~/.claude/skills/gstack/ship/SKILL.md and
@@ -79,7 +79,7 @@ Env vars:
   MMD_SHIP_CMD           override 'claude' command (testing fixture)
   MMD_QUIET=1            suppress live tee to stdout (log file preserved)
 
-mmd ${VERSION}
+mmdream ${VERSION}
 `;
 
 /**
@@ -197,7 +197,7 @@ export async function runShip(rawArgs) {
     : 60_000;
 
   stdout.write(
-    `mmd ship: invoking gStack 'ship' on '${branch}' (base=${baseBranch}, sha=${sha.slice(0, 7)})\n` +
+    `mmdream ship: invoking gStack 'ship' on '${branch}' (base=${baseBranch}, sha=${sha.slice(0, 7)})\n` +
     `  log: ${logPath}\n` +
     `  cmd: ${command} (PATH forced to include ~/.bun/bin)\n\n`,
   );
@@ -214,7 +214,7 @@ export async function runShip(rawArgs) {
       heartbeatIntervalMs,
     });
   } catch (err) {
-    stderr.write(`mmd ship: ${err.message}\n`);
+    stderr.write(`mmdream ship: ${err.message}\n`);
     // AC-7: the audit is advisory — surface it even when the subprocess failed
     // to spawn, so the user at least sees the pillar table for the slice.
     const auditOutput = runAuditPillars({ cwd: root, baseBranch });

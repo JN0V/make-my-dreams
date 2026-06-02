@@ -1,4 +1,4 @@
-// @integration tests for `mmd document-release` — AC-4 (help/routing/refs).
+// @integration tests for `mmdream document-release` — AC-4 (help/routing/refs).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -43,17 +43,17 @@ function runMmd(args, opts = {}) {
   });
 }
 
-test('@smoke @integration mmd document-release --help exits 0', () => {
+test('@smoke @integration mmdream document-release --help exits 0', () => {
   const r = runMmd(['document-release', '--help']);
   assert.equal(r.status, 0, r.stderr);
-  assert.ok(r.stdout.includes(`mmd ${PKG.version}`));
+  assert.ok(r.stdout.includes(`mmdream ${PKG.version}`));
 });
 
-test('@integration mmd document-release --help contains canonical anchors', () => {
+test('@integration mmdream document-release --help contains canonical anchors', () => {
   const r = runMmd(['document-release', '--help']);
   assert.equal(r.status, 0);
   for (const anchor of [
-    'mmd document-release',
+    'mmdream document-release',
     '<from>',
     '<to>',
     '--dry-run',
@@ -66,13 +66,13 @@ test('@integration mmd document-release --help contains canonical anchors', () =
   }
 });
 
-test('@integration AC-6 — mmd document-release --help mentions gstack (≥1)', () => {
+test('@integration AC-6 — mmdream document-release --help mentions gstack (≥1)', () => {
   const r = runMmd(['document-release', '--help']);
   const matches = (r.stdout.match(/gstack/gi) || []).length;
   assert.ok(matches >= 1);
 });
 
-test('@integration mmd document-release outside a git repo exits 3', () => {
+test('@integration mmdream document-release outside a git repo exits 3', () => {
   const tmp = mkdtempSync(path.join(tmpdir(), 'mmd-dr-nogit-'));
   try {
     const r = runMmd(['document-release', '--dry-run'], { cwd: tmp });
@@ -82,7 +82,7 @@ test('@integration mmd document-release outside a git repo exits 3', () => {
   }
 });
 
-test('@integration mmd document-release with no tags + no <from> exits 4', () => {
+test('@integration mmdream document-release with no tags + no <from> exits 4', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'mmd-dr-notags-'));
   try {
     const git = (args) => spawnSync(
@@ -99,7 +99,7 @@ test('@integration mmd document-release with no tags + no <from> exits 4', () =>
   }
 });
 
-test('@integration mmd document-release --dry-run with tag + HEAD exits 0 in <5s', () => {
+test('@integration mmdream document-release --dry-run with tag + HEAD exits 0 in <5s', () => {
   const dir = makeRepoWithTag();
   try {
     const t0 = Date.now();
@@ -114,7 +114,7 @@ test('@integration mmd document-release --dry-run with tag + HEAD exits 0 in <5s
   }
 });
 
-test('@integration mmd document-release --dry-run with explicit refs honors both', () => {
+test('@integration mmdream document-release --dry-run with explicit refs honors both', () => {
   const dir = makeRepoWithTag();
   try {
     const r = runMmd(['document-release', '--dry-run', 'v0.0.1', 'HEAD'], { cwd: dir });
@@ -126,7 +126,7 @@ test('@integration mmd document-release --dry-run with explicit refs honors both
   }
 });
 
-test('@integration mmd document-release with invalid <from> exits 4', () => {
+test('@integration mmdream document-release with invalid <from> exits 4', () => {
   const dir = makeRepoWithTag();
   try {
     const r = runMmd(['document-release', '--dry-run', 'no-such-ref'], { cwd: dir });
@@ -137,7 +137,7 @@ test('@integration mmd document-release with invalid <from> exits 4', () => {
   }
 });
 
-test('@integration mmd document-release --dry-run prompt mentions the output path', () => {
+test('@integration mmdream document-release --dry-run prompt mentions the output path', () => {
   const dir = makeRepoWithTag();
   try {
     const r = runMmd(['document-release', '--dry-run'], { cwd: dir });
@@ -150,7 +150,7 @@ test('@integration mmd document-release --dry-run prompt mentions the output pat
   }
 });
 
-test('@integration mmd document-release --bogus exits 2', () => {
+test('@integration mmdream document-release --bogus exits 2', () => {
   const r = runMmd(['document-release', '--bogus']);
   assert.equal(r.status, 2);
   assert.match(r.stderr, /unknown document-release arg/);

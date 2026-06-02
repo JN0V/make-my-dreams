@@ -15,17 +15,19 @@ import { detectDrift } from '../../lib/readme-sync/detect-drift.js';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const read = (rel) => readFileSync(path.join(ROOT, rel), 'utf8');
 
-test('@unit README documents the mmd document-readme subcommand', () => {
-  assert.match(read('README.md'), /mmd document-readme/);
+test('@unit README documents the mmdream document-readme subcommand', () => {
+  assert.match(read('README.md'), /mmdream document-readme/);
 });
 
-test('@unit CLAUDE.md mentions mmd document-readme', () => {
-  assert.match(read('CLAUDE.md'), /mmd document-readme/);
+test('@unit CLAUDE.md mentions mmdream document-readme', () => {
+  assert.match(read('CLAUDE.md'), /mmdream document-readme/);
 });
 
 test('@unit ADR-025 documents the doc-sync design', () => {
   const adr = read('docs/adr/025-document-readme-doc-sync.md');
   assert.match(adr, /ADR-025/);
+  // ADR-025 is a HISTORICAL record (written when the command was `mmd`); it is
+  // intentionally NOT renamed, so it still says `mmd document-readme`.
   assert.match(adr, /mmd document-readme/);
   assert.match(adr, /marker/i);
   assert.match(adr, /tag annotation/i);

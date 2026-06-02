@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bin/skills/qa.js — `mmd qa` subcommand entry point (SPEC_V02G AC-2).
+// bin/skills/qa.js — `mmdream qa` subcommand entry point (SPEC_V02G AC-2).
 //
 // SRP (universal.md §I.S): orchestrate the qa flow only. Every step lives in
 // a dedicated lib/skills/qa/* module so this file stays a thin coordinator.
@@ -34,12 +34,12 @@ import { resolveSkillPath } from '../../lib/skills/_common/skill-path.js';
 const PKG_PATH = fileURLToPath(new URL('../../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
 
-const QA_USAGE = `mmd qa — invoke the gStack 'qa' skill on a slice (SPEC_V02G AC-2)
+const QA_USAGE = `mmdream qa — invoke the gStack 'qa' skill on a slice (SPEC_V02G AC-2)
 
 Usage:
-  mmd qa [<branch>]
-  mmd qa --dry-run [<branch>]
-  mmd qa --help
+  mmdream qa [<branch>]
+  mmdream qa --dry-run [<branch>]
+  mmdream qa --help
 
 Behavior:
   Reads the gStack qa skill at ~/.claude/skills/gstack/qa/SKILL.md and
@@ -65,7 +65,7 @@ Env vars:
   MMD_GSTACK_SKILLS_DIR       override gStack skill root (testing fixture)
   MMD_QUIET=1                 suppress live tee to stdout (log file preserved)
 
-mmd ${VERSION}
+mmdream ${VERSION}
 `;
 
 /**
@@ -132,7 +132,7 @@ export async function runQa(rawArgs) {
     : 60_000;
 
   stdout.write(
-    `mmd qa: invoking gStack 'qa' on '${branch}' (base=${baseBranch}, sha=${sha.slice(0, 7)})\n` +
+    `mmdream qa: invoking gStack 'qa' on '${branch}' (base=${baseBranch}, sha=${sha.slice(0, 7)})\n` +
     `  log: ${logPath}\n` +
     `  cmd: ${command} (PATH forced to include ~/.bun/bin)\n\n`,
   );
@@ -149,7 +149,7 @@ export async function runQa(rawArgs) {
       heartbeatIntervalMs,
     });
   } catch (err) {
-    stderr.write(`mmd qa: ${err.message}\n`);
+    stderr.write(`mmdream qa: ${err.message}\n`);
     stdout.write(
       formatQaSummary({
         branch, baseBranch, sha,

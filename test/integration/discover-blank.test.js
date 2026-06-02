@@ -1,4 +1,4 @@
-// @integration tests for `mmd discover` Case C (Blank — no SDD methodology).
+// @integration tests for `mmdream discover` Case C (Blank — no SDD methodology).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -20,7 +20,7 @@ function makeTmpFixture(srcDir) {
   return dst;
 }
 
-test('@integration mmd discover (Blank): detected case is Blank + suggested next step matches spec', () => {
+test('@integration mmdream discover (Blank): detected case is Blank + suggested next step matches spec', () => {
   const dir = makeTmpFixture(FIXTURE);
   try {
     const r = spawnSync('node', [MMD, 'discover', '.'], {
@@ -30,7 +30,7 @@ test('@integration mmd discover (Blank): detected case is Blank + suggested next
     const report = readFileSync(path.join(dir, 'mmd-discovery-report.md'), 'utf8');
     assert.match(report, /Blank \(no SDD methodology\)/);
     assert.match(report, /## Suggested next step/);
-    assert.match(report, /mmd --here/);
+    assert.match(report, /mmdream --here/);
     // Nothing was ingested (no methodologies).
     assert.match(report, /\(nothing to ingest\)/);
   } finally {
@@ -38,7 +38,7 @@ test('@integration mmd discover (Blank): detected case is Blank + suggested next
   }
 });
 
-test('@integration mmd discover (Blank): non-git directory without --force-non-git → exit 4', () => {
+test('@integration mmdream discover (Blank): non-git directory without --force-non-git → exit 4', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'mmd-disc-nogit-'));
   try {
     cpSync(FIXTURE, dir, { recursive: true });
@@ -53,7 +53,7 @@ test('@integration mmd discover (Blank): non-git directory without --force-non-g
   }
 });
 
-test('@integration mmd discover --force-non-git: works on a non-git directory (exit 0)', () => {
+test('@integration mmdream discover --force-non-git: works on a non-git directory (exit 0)', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'mmd-disc-force-'));
   try {
     cpSync(FIXTURE, dir, { recursive: true });
@@ -66,7 +66,7 @@ test('@integration mmd discover --force-non-git: works on a non-git directory (e
   }
 });
 
-test('@integration mmd discover: non-existent path → exit 3', () => {
+test('@integration mmdream discover: non-existent path → exit 3', () => {
   const r = spawnSync('node', [MMD, 'discover', '/nonexistent-path-xyz-9999'], {
     cwd: REPO_ROOT, encoding: 'utf8', timeout: 30000,
   });
@@ -74,12 +74,12 @@ test('@integration mmd discover: non-existent path → exit 3', () => {
   assert.match(r.stderr, /does not exist|not a directory/);
 });
 
-test('@integration mmd discover --help → exit 0 with usage', () => {
+test('@integration mmdream discover --help → exit 0 with usage', () => {
   const r = spawnSync('node', [MMD, 'discover', '--help'], {
     cwd: REPO_ROOT, encoding: 'utf8', timeout: 30000,
   });
   assert.equal(r.status, 0);
-  assert.match(r.stdout, /mmd discover — Project Onboarder/);
+  assert.match(r.stdout, /mmdream discover — Project Onboarder/);
   assert.match(r.stdout, /--approve/);
   assert.match(r.stdout, /--refresh/);
   assert.match(r.stdout, /--infer-with-claude/);

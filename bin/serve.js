@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bin/serve.js — `mmd serve` CLI subcommand entrypoint (v0.2.5).
+// bin/serve.js — `mmdream serve` CLI subcommand entrypoint (v0.2.5).
 // SRP (constitution §I.S): env parsing + lifecycle (boot, browser-open, shutdown).
 // All HTTP routing / SSE / spawning lives in lib/server.js.
 //

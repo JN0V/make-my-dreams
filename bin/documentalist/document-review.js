@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bin/documentalist/document-review.js — `mmd document-review` entry point
+// bin/documentalist/document-review.js — `mmdream document-review` entry point
 // (SPEC_V07A AC-3). The Documentalist's coherence-review subcommand: gather a
 // deterministic inventory of MMD's surface, reconcile it against the §9 roadmap
 // (heuristic), render a coherence report, and write EXACTLY ONE file —
@@ -45,7 +45,7 @@ import { adapterFor, unanalyzedLanguageFor } from '../../lib/code-graph/adapters
 // The curated "truth docs" scanned for drift/conformance (SPEC_V07B AC-3/AC-4).
 // These are the OPERATIONAL docs that claim artifacts exist NOW. We DELIBERATELY
 // exclude MAKE_MY_DREAMS.md (the design/roadmap doc — intentionally aspirational,
-// full of forward-looking `mmd watch`/`mmd dream` prose; it is already covered by
+// full of forward-looking `mmdream watch`/`mmdream dream` prose; it is already covered by
 // the designed-vs-built reconciliation) and the frozen SPEC_V*.md history. This
 // is the precision-first choice (AC-4): a drift section that cries wolf over
 // design prose is useless. All docs/adr/*.md are added dynamically.
@@ -78,12 +78,12 @@ export const REPORT_REL_PATH = path.join('docs', 'coherence-review.md');
 const CLAUDE_CMD = env.MMD_DOCUMENT_REVIEW_CMD || 'claude';
 const CLAUDE_TIMEOUT_MS = Number(env.MMD_DOCUMENT_REVIEW_TIMEOUT_MS) || 60000;
 
-const USAGE = `mmd document-review — the Documentalist's coherence review (SPEC_V07A)
+const USAGE = `mmdream document-review — the Documentalist's coherence review (SPEC_V07A)
 
 Usage:
-  mmd document-review [--with-claude] [--dry-run]
-  mmd document-review --since <ref>
-  mmd document-review --help
+  mmdream document-review [--with-claude] [--dry-run]
+  mmdream document-review --since <ref>
+  mmdream document-review --help
 
 Behavior:
   Gathers a deterministic inventory of MMD's surface (subcommands, git tags,
@@ -126,7 +126,7 @@ Exit codes:
   4  MAKE_MY_DREAMS.md unreadable (no roadmap to reconcile)
   5  --since: git diff failed (not a git repo, or a bad/unknown <ref>)
 
-mmd ${VERSION}
+mmdream ${VERSION}
 `;
 
 /**
@@ -154,7 +154,7 @@ export function parseDocumentReviewArgs(rawArgs) {
       const val = rawArgs[i + 1];
       if (typeof val !== 'string' || val.length === 0 || val.startsWith('-')) {
         out.error = {
-          message: "--since requires a git ref (e.g. 'mmd document-review --since main').",
+          message: "--since requires a git ref (e.g. 'mmdream document-review --since main').",
           exitCode: 2,
         };
         return out;
@@ -163,7 +163,7 @@ export function parseDocumentReviewArgs(rawArgs) {
       i += 1; // consume the value
     } else {
       out.error = {
-        message: `unknown document-review arg: '${tok}'. Run 'mmd document-review --help' to see supported flags.`,
+        message: `unknown document-review arg: '${tok}'. Run 'mmdream document-review --help' to see supported flags.`,
         exitCode: 2,
       };
       return out;
@@ -176,7 +176,7 @@ export function parseDocumentReviewArgs(rawArgs) {
  * The repo's REAL subcommand set — the authority for subcommand conformance.
  *
  * The argv-parser SUBCOMMANDS export is the documented list, but it can lag the
- * actual dispatch (e.g. `mmd lessons` is dispatched in bin/mmd.js yet missing
+ * actual dispatch (e.g. `mmdream lessons` is dispatched in bin/mmd.js yet missing
  * from SUBCOMMANDS). Truth over tidiness (the whole point of this slice): derive
  * the real set from what bin/mmd.js ACTUALLY dispatches (`rawArgs[0] === '<name>'`)
  * unioned with SUBCOMMANDS. A third-party repo with no bin/mmd.js → SUBCOMMANDS
@@ -658,7 +658,7 @@ export async function runDocumentReview(rawArgs, injected = {}) {
   } catch (err) {
     stderr.write(
       `error: cannot read MAKE_MY_DREAMS.md at ${root}: ${err.code ? `${err.code}: ` : ''}${err.message}\n` +
-      '  mmd document-review reconciles the §9 roadmap against the inventory; it needs that file.\n',
+      '  mmdream document-review reconciles the §9 roadmap against the inventory; it needs that file.\n',
     );
     return 4;
   }

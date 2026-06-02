@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bin/security/deps-gate.js — `mmd deps-gate` entry point (SPEC_V09B AC-3). The
+// bin/security/deps-gate.js — `mmdream deps-gate` entry point (SPEC_V09B AC-3). The
 // second Bundle A Security brick: a read-only, polyglot supply-chain GATE — catch a
 // POISONED dependency before it is installed (a typosquat/slopsquat or an
 // unresolvable package).
@@ -67,12 +67,12 @@ const FETCH_CONCURRENCY = 6;
 // How many lines per severity group before we cap with an honest "+N more".
 const MAX_LINES_PER_GROUP = 50;
 
-const USAGE = `mmd deps-gate — polyglot supply-chain dependency gate (Bundle A Security, SPEC_V09B)
+const USAGE = `mmdream deps-gate — polyglot supply-chain dependency gate (Bundle A Security, SPEC_V09B)
 
 Usage:
-  mmd deps-gate                  Check every declared dependency across supported manifests
-  mmd deps-gate --since <ref>    Check only the dependencies ADDED since <ref>
-  mmd deps-gate --help
+  mmdream deps-gate                  Check every declared dependency across supported manifests
+  mmdream deps-gate --since <ref>    Check only the dependencies ADDED since <ref>
+  mmdream deps-gate --help
 
 Behavior:
   For each declared dependency, asks its ecosystem registry "does this exist, how
@@ -114,7 +114,7 @@ Exit codes:
   5  not a git repo / bad ref
   6  only unsupported stacks present (honest §VIII refusal)
 
-mmd ${VERSION}
+mmdream ${VERSION}
 `;
 
 // stdio: capture stdout, SILENCE git's own stderr so only MMD's honest message
@@ -147,7 +147,7 @@ export function parseDepsGateArgs(rawArgs) {
     } else if (tok === '--help' || tok === '-h') out.help = true;
     else {
       out.error = {
-        message: `unknown deps-gate arg: '${tok}'. Run 'mmd deps-gate --help' to see supported flags.`,
+        message: `unknown deps-gate arg: '${tok}'. Run 'mmdream deps-gate --help' to see supported flags.`,
         exitCode: 2,
       };
       return out;
@@ -294,7 +294,7 @@ export async function runDepsGate(rawArgs, deps = {}) {
   if (trackedFiles === null) {
     err.write(
       `error: cannot list git-tracked files at ${root} (not a git repo, or git failed).\n` +
-      '  mmd deps-gate reads dependency manifests via git; it needs a git repo.\n',
+      '  mmdream deps-gate reads dependency manifests via git; it needs a git repo.\n',
     );
     return 5;
   }
@@ -303,7 +303,7 @@ export async function runDepsGate(rawArgs, deps = {}) {
   if (parsed.since !== null && !refIsValid(root, parsed.since)) {
     err.write(
       `error: '${parsed.since}' is not a valid git ref at ${root}.\n` +
-      '  mmd deps-gate --since needs a ref that resolves to a commit (e.g. HEAD, main, a SHA).\n',
+      '  mmdream deps-gate --since needs a ref that resolves to a commit (e.g. HEAD, main, a SHA).\n',
     );
     return 5;
   }

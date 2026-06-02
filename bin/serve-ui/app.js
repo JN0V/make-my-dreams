@@ -505,8 +505,8 @@
       resultTitle.textContent = '⚠️ Ça n\'a pas marché. Essaie encore. / Something didn\'t work. Try again.';
       if (logBuffer.length === 0) {
         resultMessage.textContent =
-          'Aucune information disponible. Vérifie le terminal où tu as lancé `mmd serve`. ' +
-          '/ No information available. Check the terminal where you started `mmd serve`.';
+          'Aucune information disponible. Vérifie le terminal où tu as lancé `mmdream serve`. ' +
+          '/ No information available. Check the terminal where you started `mmdream serve`.';
         resultDebug.hidden = true;
       } else {
         resultMessage.textContent = 'Derniers messages avant l\'erreur : / Last messages before the error:';

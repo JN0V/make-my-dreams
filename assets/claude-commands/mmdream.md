@@ -1,13 +1,13 @@
 ---
-name: 'mmd'
+name: 'mmdream'
 description: 'Drive Make My Dreams (MMD) from a Claude Code session with the right operator discipline — routes your intent to a detached --here slice, a greenfield dream, or a bare subcommand, and applies all the operational rules (timeout, label, commit-per-AC, honest monitoring) so you do not have to remember the incantations.'
 ---
 
-# /mmd — the MMD operator playbook
+# /mmdream — the MMD operator playbook
 
 You are driving **Make My Dreams (MMD)** on behalf of the user. They typed:
 
-> /mmd $ARGUMENTS
+> /mmdream $ARGUMENTS
 
 `$ARGUMENTS` is the user's **intent** in plain language. Your job is to ROUTE it to the
 right MMD action and run that action with MMD's full operator discipline — so the user
@@ -52,7 +52,7 @@ rules applied. Use `setsid` (NOT `nohup` — `nohup … &` does not survive shel
 L-001) and keep the launch command minimal so a tool timeout can't half-fire it:
 
 ```bash
-setsid bash -c 'export PATH="$HOME/.bun/bin:$HOME/.nvm/versions/node/v20.19.5/bin:$PATH" MMD_TIMEOUT_MS=0 MMD_DREAM_MAX_LEN=4000 && cd <REPO_ROOT> && mmd --here --label "<readable-slug>" "<DREAM>" > /tmp/mmd-<slug>.log 2>&1' </dev/null >/dev/null 2>&1 & disown ; echo "launched at $(date +%H:%M:%S)"
+setsid bash -c 'export PATH="$HOME/.bun/bin:$HOME/.nvm/versions/node/v20.19.5/bin:$PATH" MMD_TIMEOUT_MS=0 MMD_DREAM_MAX_LEN=4000 && cd <REPO_ROOT> && mmdream --here --label "<readable-slug>" "<DREAM>" > /tmp/mmd-<slug>.log 2>&1' </dev/null >/dev/null 2>&1 & disown ; echo "launched at $(date +%H:%M:%S)"
 ```
 
 Operational rules baked into that command — every one is mandatory:
@@ -109,7 +109,7 @@ this as an offer with the exact commands; let the user confirm before touching `
 If the run **fails** (exit 6 tamper/seal, exit 7 behavioral-gap, exit 8 setup, non-zero,
 or `state == failed`): report the exit code and what it means, point at `status.json` and
 the log, and ask how to proceed. Do NOT retry blindly — if it stalled, suggest
-`mmd unblock <slice>` (the 5-Whys session, ai-coding.md §VI).
+`mmdream unblock <slice>` (the 5-Whys session, ai-coding.md §VI).
 
 ### Route (b) — a greenfield dream (a brand-new app)
 
@@ -120,7 +120,7 @@ Run MMD with the dream (no `--here`). With bun + node 20 on PATH:
 
 ```bash
 export PATH="$HOME/.bun/bin:$HOME/.nvm/versions/node/v20.19.5/bin:$PATH"
-mmd "<DREAM>"
+mmdream "<DREAM>"
 ```
 
 MMD catches the dream, derives a slug, and scaffolds under
@@ -136,7 +136,7 @@ Triggers when the intent names a read-only / utility subcommand directly, e.g.
 
 ```bash
 export PATH="$HOME/.bun/bin:$HOME/.nvm/versions/node/v20.19.5/bin:$PATH"
-mmd <subcommand> [args]
+mmdream <subcommand> [args]
 ```
 
 Report the result plainly. These are fast and mostly read-only (e.g. `document-review`

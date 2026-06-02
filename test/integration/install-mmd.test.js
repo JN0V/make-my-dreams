@@ -86,7 +86,7 @@ exit 0
   return scriptPath;
 }
 
-test('@integration install-mmd phase 0: bun absent + non-interactive stdin warns and continues', () => {
+test('@integration install-mmdream phase 0: bun absent + non-interactive stdin warns and continues', () => {
   const phase0 = extractPhase0();
   try {
     // Sandbox HOME so the test never touches the developer's real ~/.bun.
@@ -113,7 +113,7 @@ test('@integration install-mmd phase 0: bun absent + non-interactive stdin warns
       // Honest gating (no silent half-working install): the skip must NAME the
       // commands it disables, not just shrug. (foundation-honesty polish.)
       assert.match(r.stdout, /UNAVAILABLE/, 'a bun skip must loudly say a capability is unavailable');
-      assert.match(r.stdout, /mmd qa|mmd cso|mmd document-release/, 'the skip must name the disabled gStack-backed commands');
+      assert.match(r.stdout, /mmdream qa|mmdream cso|mmdream document-release/, 'the skip must name the disabled gStack-backed commands');
     } finally {
       rmSync(fakeHome, { recursive: true, force: true });
     }
@@ -122,7 +122,7 @@ test('@integration install-mmd phase 0: bun absent + non-interactive stdin warns
   }
 });
 
-test('@integration install-mmd phase 0: bun absent + MMD_REQUIRE_GSTACK=1 exits 1', () => {
+test('@integration install-mmdream phase 0: bun absent + MMD_REQUIRE_GSTACK=1 exits 1', () => {
   const phase0 = extractPhase0();
   try {
     const fakeHome = mkdtempSync(path.join(tmpdir(), 'mmd-fakehome-'));
@@ -150,7 +150,7 @@ test('@integration install-mmd phase 0: bun absent + MMD_REQUIRE_GSTACK=1 exits 
   }
 });
 
-test('@integration install-mmd phase 0: bun present at $HOME/.bun/bin/bun is detected via the file fallback', () => {
+test('@integration install-mmdream phase 0: bun present at $HOME/.bun/bin/bun is detected via the file fallback', () => {
   const phase0 = extractPhase0();
   try {
     const fakeHome = mkdtempSync(path.join(tmpdir(), 'mmd-fakehome-'));
@@ -183,7 +183,7 @@ test('@integration install-mmd phase 0: bun present at $HOME/.bun/bin/bun is det
   }
 });
 
-test('@integration install-mmd phase 6: gStack absent + non-interactive stdin warns and continues', () => {
+test('@integration install-mmdream phase 6: gStack absent + non-interactive stdin warns and continues', () => {
   const phase6 = extractPhase6();
   try {
     const fakeHome = mkdtempSync(path.join(tmpdir(), 'mmd-fakehome-'));
@@ -210,7 +210,7 @@ test('@integration install-mmd phase 6: gStack absent + non-interactive stdin wa
   }
 });
 
-test('@integration install-mmd phase 6: gStack absent + MMD_REQUIRE_GSTACK=1 exits 1', () => {
+test('@integration install-mmdream phase 6: gStack absent + MMD_REQUIRE_GSTACK=1 exits 1', () => {
   const phase6 = extractPhase6();
   try {
     const fakeHome = mkdtempSync(path.join(tmpdir(), 'mmd-fakehome-'));
@@ -238,7 +238,7 @@ test('@integration install-mmd phase 6: gStack absent + MMD_REQUIRE_GSTACK=1 exi
   }
 });
 
-test('@integration install-mmd phase 6: gStack present-but-broken + MMD_REQUIRE_GSTACK=1 exits 2', () => {
+test('@integration install-mmdream phase 6: gStack present-but-broken + MMD_REQUIRE_GSTACK=1 exits 2', () => {
   const phase6 = extractPhase6();
   try {
     const fakeHome = mkdtempSync(path.join(tmpdir(), 'mmd-fakehome-'));
@@ -270,7 +270,7 @@ test('@integration install-mmd phase 6: gStack present-but-broken + MMD_REQUIRE_
   }
 });
 
-test('@integration install-mmd phase 6: gStack present + functional gstack-config produces OK', () => {
+test('@integration install-mmdream phase 6: gStack present + functional gstack-config produces OK', () => {
   const phase6 = extractPhase6();
   try {
     const fakeHome = mkdtempSync(path.join(tmpdir(), 'mmd-fakehome-'));

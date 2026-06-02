@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// bin/lessons.js — `mmd lessons` subcommand entry point.
+// bin/lessons.js — `mmdream lessons` subcommand entry point.
 //
 // SPEC_V02E AC-7: introspect the lessons-learned.md file + composer audits.
 //
 // Sub-actions:
-//   mmd lessons                    list every active lesson + injection count
-//   mmd lessons match "<prompt>"   show which lessons would be injected for input
-//   mmd lessons --show <id>        print the full lesson body
-//   mmd lessons --help             usage + exit 0
+//   mmdream lessons                    list every active lesson + injection count
+//   mmdream lessons match "<prompt>"   show which lessons would be injected for input
+//   mmdream lessons --show <id>        print the full lesson body
+//   mmdream lessons --help             usage + exit 0
 //
 // Exit codes:
 //   0  ok
@@ -33,17 +33,17 @@ import {
 const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
 
-const LESSONS_USAGE = `mmd lessons — introspect docs/lessons-learned.md + composer activity (SPEC_V02E AC-7)
+const LESSONS_USAGE = `mmdream lessons — introspect docs/lessons-learned.md + composer activity (SPEC_V02E AC-7)
 
 Usage:
-  mmd lessons                       List every active lesson (id, title, keyword count, injection count)
-  mmd lessons match "<prompt>"      Show which lessons would be injected for that prompt
-  mmd lessons match "<prompt>" --context <subcommand>
+  mmdream lessons                       List every active lesson (id, title, keyword count, injection count)
+  mmdream lessons match "<prompt>"      Show which lessons would be injected for that prompt
+  mmdream lessons match "<prompt>" --context <subcommand>
                                     Same, but pre-filter by the lesson 'Applies to' field
                                     (SPEC_V02L AC-5). <subcommand> accepts the hyphen form
                                     (mmd-qa, mmd---here) or a quoted spaced form ("mmd qa").
-  mmd lessons --show <L-NNN>        Print one lesson (title, status, keywords, rule)
-  mmd lessons --help, -h            Print this usage and exit 0
+  mmdream lessons --show <L-NNN>        Print one lesson (title, status, keywords, rule)
+  mmdream lessons --help, -h            Print this usage and exit 0
 
 Behavior:
   Reads docs/lessons-learned.md from the current working directory's repo
@@ -60,12 +60,12 @@ Exit codes:
   3  docs/lessons-learned.md missing
 
 Env vars:
-  MMD_COMPOSER_DISABLED=1           Bypass composition (mmd lessons match
+  MMD_COMPOSER_DISABLED=1           Bypass composition (mmdream lessons match
                                     still works — it inspects the file).
   MMD_LESSONS_FILE                  Override the lessons-learned.md path
                                     (defaults to <cwd>/docs/lessons-learned.md)
 
-mmd ${VERSION}
+mmdream ${VERSION}
 `;
 
 /**
@@ -103,7 +103,7 @@ export function parseLessonsArgs(rawArgs) {
 
   // F1 (Phase-4 review): --context is only meaningful for `match`. Reject it
   // up-front (BEFORE the --show / list branches) rather than silently
-  // ignoring it — e.g. `mmd lessons --show L-001 --context mmd-qa` must error,
+  // ignoring it — e.g. `mmdream lessons --show L-001 --context mmd-qa` must error,
   // not print the lesson as if no context was given (failure-honesty).
   if (context && args[0] !== 'match') {
     return {
@@ -160,6 +160,8 @@ export function parseLessonsArgs(rawArgs) {
  * verbatim; otherwise the FIRST hyphen after a leading `mmd` is turned into a
  * space, leaving the remainder intact.
  *
+ * The context value is the composer matching key — it stays `mmd …` (matched
+ * against lessons' `Applies to`), NOT the renamed executable. So:
  *   mmd-qa               → 'mmd qa'
  *   mmd-document-release → 'mmd document-release'
  *   mmd---here           → 'mmd --here'
@@ -277,7 +279,7 @@ function formatList(activeLessons, stats, validated, lessonsPath) {
       `Composer activity: ${stats.totalRuns} run(s) audited, ${stats.autoInjectedRuns} auto-injected (avg ${stats.avgInjectedPerRun.toFixed(2)} lesson(s) per run).`,
     );
   } else {
-    lines.push('Composer activity: none recorded yet (run `mmd --here ...` or `mmd ship ...` to populate `.mmd/local/`).');
+    lines.push('Composer activity: none recorded yet (run `mmdream --here ...` or `mmdream ship ...` to populate `.mmd/local/`).');
   }
   lines.push('');
   // INJ = raw injection events (ADR-010's old signal). VR = validated reuses =
@@ -321,7 +323,7 @@ function formatLessonShow(lesson) {
 function formatMatchList(prompt, matched, totalActive, ctxInfo = null) {
   const lines = [];
   const preview = prompt.length > 80 ? prompt.slice(0, 77) + '...' : prompt;
-  lines.push(`mmd lessons match — input: "${preview}"`);
+  lines.push(`mmdream lessons match — input: "${preview}"`);
   lines.push(`Active lessons considered: ${totalActive}`);
   lines.push(`Matched: ${matched.length}`);
   // SPEC_V02L AC-5: when a context filter was applied, surface how many were

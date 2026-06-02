@@ -1,4 +1,4 @@
-// @integration tests for `mmd unblock --dry-run` + routing — SPEC_V02J AC-3, DoD §3.
+// @integration tests for `mmdream unblock --dry-run` + routing — SPEC_V02J AC-3, DoD §3.
 //
 // Strategy: temp git repo on a slice/* branch, drop in a fixture status.json,
 // drive bin/mmd.js via spawnSync. NEVER spawns real claude (dry-run path).
@@ -63,10 +63,10 @@ function runMmd(args, opts = {}) {
   });
 }
 
-test('@integration mmd unblock --help exits 0 with usage anchors', () => {
+test('@integration mmdream unblock --help exits 0 with usage anchors', () => {
   const r = runMmd(['unblock', '--help']);
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /mmd unblock/);
+  assert.match(r.stdout, /mmdream unblock/);
   assert.match(r.stdout, /--dry-run/);
   assert.match(r.stdout, /--force/);
   assert.match(r.stdout, /no-commit-since-N-min/);

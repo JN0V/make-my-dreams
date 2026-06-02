@@ -39,7 +39,7 @@
 #     Sandbox config, deps-gate Worker, secret scanning hooks
 #
 #   ☐ PHASE D (planned for MMD v0.2c) — Project Onboarder
-#     `mmd discover` command + `.mmd/shared/` vs `.mmd/local/` structure
+#     `mmdream discover` command + `.mmd/shared/` vs `.mmd/local/` structure
 #
 #   ☐ PHASE E (planned for MMD v0.5)  — Conductor + Bundle C Observability
 #     Stateless hierarchical orchestration + OpenTelemetry + risk-scoring
@@ -160,7 +160,7 @@ elif [ -x "$BUN_PATH_BIN" ]; then
     # Verify it FUNCTIONALLY responds to --version.
     if BUN_VER="$("$BUN_PATH_BIN" --version 2>&1)"; then
         warn "bun installed at ${BUN_PATH_BIN} (version: ${BUN_VER}) but NOT on shell PATH."
-        info "MMD's bin/mmd shim prepends \$HOME/.bun/bin to PATH automatically."
+        info "MMD's bin/mmdream shim prepends \$HOME/.bun/bin to PATH automatically."
         info "For interactive shells, add this to your ~/.bashrc or ~/.zshrc:"
         info "  export PATH=\"\$HOME/.bun/bin:\$PATH\""
         BUN_OK=true
@@ -182,7 +182,7 @@ else
     info "  - Install command : curl -fsSL https://bun.sh/install | bash"
     info "  - Disk footprint  : ~40 MB"
     info "  - Uninstall later : rm -rf \$HOME/.bun"
-    info "  - Opt out with MMD_SKIP_BUN=1 (then 'mmd qa'/'cso'/'document-release' stay unavailable)."
+    info "  - Opt out with MMD_SKIP_BUN=1 (then 'mmdream qa'/'cso'/'document-release' stay unavailable)."
     AUTO_INSTALL=false
     if [ "${MMD_SKIP_BUN:-0}" = "1" ]; then
         info "MMD_SKIP_BUN=1 — opting out of bun (foundation)."
@@ -207,7 +207,7 @@ else
     if [ "$AUTO_INSTALL" = true ]; then
         info "Installing bun via the official curl pipe..."
         # The official bun installer writes to \$HOME/.bun/. We do NOT modify the
-        # user's shell rc files — MMD's bin/mmd shim handles PATH for MMD subprocesses.
+        # user's shell rc files — MMD's bin/mmdream shim handles PATH for MMD subprocesses.
         if curl -fsSL https://bun.sh/install | bash; then
             if [ -x "$BUN_PATH_BIN" ] && BUN_VER="$("$BUN_PATH_BIN" --version 2>&1)"; then
                 ok "bun installed and verified: ${BUN_VER} (at ${BUN_PATH_BIN})"
@@ -221,7 +221,7 @@ else
             info "Remediation: run 'curl -fsSL https://bun.sh/install | bash' manually, then re-run this script."
         fi
     else
-        warn "bun NOT installed → 'mmd qa', 'mmd cso' and 'mmd document-release' are UNAVAILABLE."
+        warn "bun NOT installed → 'mmdream qa', 'mmdream cso' and 'mmdream document-release' are UNAVAILABLE."
         warn "  (The MMD core — serve, --here, auto-dev, discover, … — works without bun.)"
         warn "  Re-run WITHOUT MMD_SKIP_BUN to install it (it installs by default)."
     fi
@@ -1166,11 +1166,11 @@ COMMAND_EOF
 
 ok "Generated: .claude/commands/bmad-${ADV_CODE}-auto-dev.md"
 
-# --- 3d. /mmd operator slash command (v0.7.5) ------------------------------
-# The /mmd Claude Code slash command encodes the MMD operator playbook so a
+# --- 3d. /mmdream operator slash command (v0.7.5) ------------------------------
+# The /mmdream Claude Code slash command encodes the MMD operator playbook so a
 # user (or Claude) can drive MMD with the right discipline from a session
 # without remembering the CLI incantations. Its single source of truth is the
-# TRACKED file assets/claude-commands/mmd.md (NOT under the gitignored
+# TRACKED file assets/claude-commands/mmdream.md (NOT under the gitignored
 # .claude/). We copy it idempotently (cp overwrites on re-run; mkdir -p is a
 # no-op when the dir exists). MMD_SRC_DIR is resolved at the top of this script
 # (overridable via env — the DI seam the install test uses). If the source is
@@ -1178,38 +1178,38 @@ ok "Generated: .claude/commands/bmad-${ADV_CODE}-auto-dev.md"
 # skip with an honest warning rather than fabricate the file (universal §VI).
 #
 # TWO destinations:
-#   1. GLOBAL ~/.claude/commands/mmd.md — Claude Code personal command, available
+#   1. GLOBAL ~/.claude/commands/mmdream.md — Claude Code personal command, available
 #      in EVERY session regardless of which project you open. This is what makes
 #      `/mmd` usable after a one-liner install: the operator playbook is generic,
 #      not tied to one repo. (Without it, `/mmd` only showed up inside the MMD
-#      checkout where install ran — the "/mmd not available" report.)
-#   2. PROJECT $TARGET/.claude/commands/mmd.md — kept for the MMD repo's own
+#      checkout where install ran — the "/mmdream not available" report.)
+#   2. PROJECT $TARGET/.claude/commands/mmdream.md — kept for the MMD repo's own
 #      dogfooding + for a project where you ran `install-mmd.sh .` explicitly.
 # >>> MMD_SLASH_COMMAND_MATERIALIZE_BEGIN
-MMD_CMD_SRC="$MMD_SRC_DIR/assets/claude-commands/mmd.md"
-MMD_CMD_DST="$TARGET/.claude/commands/mmd.md"
-MMD_CMD_DST_GLOBAL="$HOME/.claude/commands/mmd.md"
+MMD_CMD_SRC="$MMD_SRC_DIR/assets/claude-commands/mmdream.md"
+MMD_CMD_DST="$TARGET/.claude/commands/mmdream.md"
+MMD_CMD_DST_GLOBAL="$HOME/.claude/commands/mmdream.md"
 if [ -f "$MMD_CMD_SRC" ]; then
     # Global first — this is the one that makes `/mmd` available everywhere.
     mkdir -p "$(dirname "$MMD_CMD_DST_GLOBAL")"
     cp "$MMD_CMD_SRC" "$MMD_CMD_DST_GLOBAL"
-    ok "Generated: ~/.claude/commands/mmd.md (/mmd available in every Claude Code session)"
+    ok "Generated: ~/.claude/commands/mmdream.md (/mmdream available in every Claude Code session)"
     # Project copy (skip if it would duplicate the global one, e.g. TARGET == \$HOME).
     if [ "$MMD_CMD_DST" != "$MMD_CMD_DST_GLOBAL" ]; then
         mkdir -p "$(dirname "$MMD_CMD_DST")"
         cp "$MMD_CMD_SRC" "$MMD_CMD_DST"
-        ok "Generated: .claude/commands/mmd.md (project-scoped copy for $TARGET)"
+        ok "Generated: .claude/commands/mmdream.md (project-scoped copy for $TARGET)"
     fi
 else
-    warn "/mmd source not found at $MMD_CMD_SRC — skipping the /mmd slash command."
-    info "Run install-mmd.sh from a full MMD checkout to materialize the /mmd slash command."
+    warn "/mmdream source not found at $MMD_CMD_SRC — skipping the /mmdream slash command."
+    info "Run install-mmd.sh from a full MMD checkout to materialize the /mmdream slash command."
 fi
 # >>> MMD_SLASH_COMMAND_MATERIALIZE_END
 
 # --- 3e. Bundle A Security pre-commit hook (v0.9.1 secret-scan + v0.9.2 deps-gate, OPT-IN) ---
 # The Bundle A Security bricks (MAKE_MY_DREAMS §6.6) ship a git pre-commit gate that
-# runs `mmd secret-scan --staged` (brick 1: catch a leaked credential before commit)
-# AND `mmd deps-gate --since HEAD` (brick 2: catch a poisoned/unresolvable dependency
+# runs `mmdream secret-scan --staged` (brick 1: catch a leaked credential before commit)
+# AND `mmdream deps-gate --since HEAD` (brick 2: catch a poisoned/unresolvable dependency
 # before it is committed → installed). We ALWAYS materialize the hook as a NON-ACTIVE
 # sample under the gitignored .mmd/hooks/ (idempotent: `cat >` overwrites byte-for-byte
 # on re-run), but we NEVER enable it without the user (a pre-commit gate is a workflow
@@ -1231,12 +1231,12 @@ cat > "$MMD_HOOK_SAMPLE" << 'MMD_HOOK_EOF'
 # is network-bounded and degrades to an honest advisory (exit 0) when offline, so it
 # never blocks a commit on a network blink.
 run_mmd() {
-  if command -v mmd >/dev/null 2>&1; then
-    mmd "$@"
+  if command -v mmdream >/dev/null 2>&1; then
+    mmdream "$@"
   elif [ -f bin/mmd.js ]; then
     node bin/mmd.js "$@"
   else
-    echo "mmd not found on PATH; skipping MMD $1 pre-commit gate." >&2
+    echo "mmdream not found on PATH; skipping MMD $1 pre-commit gate." >&2
     return 0
   fi
 }
@@ -1260,7 +1260,7 @@ if [ "${MMD_INSTALL_SECRET_HOOK:-0}" = "1" ] || [ "${MMD_INSTALL_DEPS_HOOK:-0}" 
         warn "MMD_INSTALL_SECRET_HOOK / MMD_INSTALL_DEPS_HOOK set but $TARGET/.git/hooks is absent (not a git repo?) — leaving the sample only."
     elif [ -e "$MMD_GIT_HOOK" ]; then
         warn "MMD security hook opt-in set but a pre-commit hook already exists — NOT overwriting it."
-        info "To chain MMD's gates, add 'mmd secret-scan --staged' and 'mmd deps-gate --since HEAD' to your existing $MMD_GIT_HOOK."
+        info "To chain MMD's gates, add 'mmdream secret-scan --staged' and 'mmdream deps-gate --since HEAD' to your existing $MMD_GIT_HOOK."
     else
         cp "$MMD_HOOK_SAMPLE" "$MMD_GIT_HOOK"
         chmod +x "$MMD_GIT_HOOK" 2>/dev/null || true
@@ -1295,7 +1295,7 @@ GSTACK_STATUS="NOT_INSTALLED"
 if [ ! -d "$GSTACK_DIR" ]; then
     info "gStack is NOT installed (~/.claude/skills/gstack/ absent)."
     info "  - gStack is part of the foundation MMD stands on: it provides the review"
-    info "    skills behind 'mmd qa', 'mmd cso' and 'mmd document-release'."
+    info "    skills behind 'mmdream qa', 'mmdream cso' and 'mmdream document-release'."
     info "  - Install command: git clone https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && (cd ~/.claude/skills/gstack && bun install)"
     info "  - Without gStack, those three commands are unavailable (the core is fine)."
     info "  - Opt out with MMD_SKIP_GSTACK=1 (else it installs by default)."
@@ -1320,7 +1320,7 @@ if [ ! -d "$GSTACK_DIR" ]; then
         INSTALL_GSTACK=true
     fi
     if [ "$INSTALL_GSTACK" != true ]; then
-        warn "gStack NOT installed → 'mmd qa', 'mmd cso' and 'mmd document-release' are UNAVAILABLE (the MMD core works without it)."
+        warn "gStack NOT installed → 'mmdream qa', 'mmdream cso' and 'mmdream document-release' are UNAVAILABLE (the MMD core works without it)."
     fi
     if [ "$INSTALL_GSTACK" = true ]; then
         # Install via git clone + `bun install` — the real, resolvable source on
@@ -1417,7 +1417,7 @@ else
     info "Spec Kit is NOT installed (specify not on PATH)."
     info "  - Spec Kit provides a versioned constitution + spec-driven workflow."
     info "  - Install command: uv tool install specify-cli  (fallback: pip install specify-cli)"
-    info "  - Without Spec Kit, 'mmd discover' won't import Spec Kit constitutions from this machine."
+    info "  - Without Spec Kit, 'mmdream discover' won't import Spec Kit constitutions from this machine."
     INSTALL_SPEC_KIT=false
     if [ "${MMD_AUTO_INSTALL_SPEC_KIT:-0}" = "1" ]; then
         info "MMD_AUTO_INSTALL_SPEC_KIT=1 detected — proceeding without prompt."
@@ -1455,7 +1455,7 @@ else
             info "  Remediation: install manually — see https://github.com/github/spec-kit"
         fi
     else
-        warn "Spec Kit: NOT installed (user declined). MMD continues; \`mmd discover\` won't import Spec Kit constitutions from this machine."
+        warn "Spec Kit: NOT installed (user declined). MMD continues; \`mmdream discover\` won't import Spec Kit constitutions from this machine."
     fi
 fi
 
@@ -1509,7 +1509,7 @@ else
     info "OpenSpec is NOT installed (openspec not on PATH)."
     info "  - OpenSpec provides a lightweight, spec-first workflow."
     info "  - Install command: npm install -g openspec"
-    info "  - Without OpenSpec, 'mmd discover' won't import OpenSpec change proposals from this machine."
+    info "  - Without OpenSpec, 'mmdream discover' won't import OpenSpec change proposals from this machine."
     if [ "$(id -u)" != "0" ]; then
         info "  - Note: 'npm install -g' may require sudo on this machine. MMD will NOT sudo for you;"
         info "    if the install fails with EACCES, re-run the npm command manually with the right privileges."
@@ -1542,7 +1542,7 @@ else
             info "  Remediation: run 'npm install -g openspec' manually (may need sudo), then re-run this script."
         fi
     else
-        warn "OpenSpec: NOT installed (user declined). MMD continues; 'mmd discover' won't import OpenSpec proposals from this machine."
+        warn "OpenSpec: NOT installed (user declined). MMD continues; 'mmdream discover' won't import OpenSpec proposals from this machine."
     fi
 fi
 
@@ -1804,11 +1804,11 @@ if [ "$ALL_OK" = true ]; then
     echo ""
     printf "  ${BOLD}Then — the easiest way in:${NC}\n"
     echo ""
-    printf "    ${CYAN}mmd serve${NC}                          open the web UI (for anyone)\n"
-    printf "    ${CYAN}mmd \"a drawing app for kids\"${NC}       interactive Dream Catcher, then auto-dev\n"
-    printf "    ${CYAN}mmd --here \"add a dark-mode toggle\"${NC} evolve THIS repo in place (on a slice branch)\n"
+    printf "    ${CYAN}mmdream serve${NC}                          open the web UI (for anyone)\n"
+    printf "    ${CYAN}mmdream \"a drawing app for kids\"${NC}       interactive Dream Catcher, then auto-dev\n"
+    printf "    ${CYAN}mmdream --here \"add a dark-mode toggle\"${NC} evolve THIS repo in place (on a slice branch)\n"
     echo ""
-    printf "  Inside a Claude Code session you can also drive MMD by intent with ${CYAN}/mmd <what you want>${NC}.\n"
+    printf "  Inside a Claude Code session you can also drive MMD by intent with ${CYAN}/mmdream <what you want>${NC}.\n"
     printf "  (Low-level alternative, still available: the ${CYAN}/bmad-${ADV_CODE}-auto-dev${NC} slash-command.)\n"
     echo ""
     if [ "$HAS_CONSTITUTION" = true ]; then

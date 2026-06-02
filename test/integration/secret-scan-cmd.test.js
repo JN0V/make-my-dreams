@@ -1,4 +1,4 @@
-// test/integration/secret-scan-cmd.test.js — CLI-level tests for `mmd secret-scan`
+// test/integration/secret-scan-cmd.test.js — CLI-level tests for `mmdream secret-scan`
 // (SPEC_V091 AC-2 + AC-3). We spawn the real bin/mmd.js child in throwaway git
 // repos so the dispatch wiring, the real git gather (ls-files / --cached / --since),
 // binary skipping, gitignore skipping, the gate exit codes, and READ-ONLY behavior
@@ -237,7 +237,7 @@ test('@integration --staged and --since together is a usage error (exit 2)', asy
 test('@integration --help exits 0 and a non-git dir exits 5', async () => {
   const help = runScan(REPO_ROOT, ['--help']);
   assert.equal(help.status, 0);
-  assert.match(help.stdout, /mmd secret-scan/);
+  assert.match(help.stdout, /mmdream secret-scan/);
 
   const dir = await mkdtemp(path.join(tmpdir(), 'mmd-secretscan-nogit-'));
   try {

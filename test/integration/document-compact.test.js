@@ -43,7 +43,7 @@ async function makeRepo() {
   await writeFile(path.join(dir, 'SPEC_V06A.md'), '# Make My Dreams — v0.6.a Spec: third-party readiness\n\nbody three\n');
   // A multi-digit-minor SPEC like MMD's real SPEC_V025.md (v0.2.5) — guards the
   // version parse against fabricating "v0.25" and mis-sorting it to the top.
-  await writeFile(path.join(dir, 'SPEC_V025.md'), '# Make My Dreams — v0.2.5 Spec: mmd serve\n\nbody serve\n');
+  await writeFile(path.join(dir, 'SPEC_V025.md'), '# Make My Dreams — v0.2.5 Spec: mmdream serve\n\nbody serve\n');
 
   // README references the SPECs as a link, an anchored link, and bare prose.
   await writeFile(
@@ -268,7 +268,7 @@ test('@integration document-compact: --help → exit 0 with usage; unknown flag 
   try {
     const help = runMmd(dir, ['--help']);
     assert.equal(help.status, 0);
-    assert.match(help.stdout, /mmd document-compact/);
+    assert.match(help.stdout, /mmdream document-compact/);
     assert.match(help.stdout, /--dry-run/);
 
     const bad = runMmd(dir, ['--bogus']);

@@ -1,4 +1,4 @@
-// test/integration/deps-gate.test.js — AC-3 + AC-4 for `mmd deps-gate` (SPEC_V09B).
+// test/integration/deps-gate.test.js — AC-3 + AC-4 for `mmdream deps-gate` (SPEC_V09B).
 // The network-dependent cases call the exported runDepsGate() in-process with an
 // injected FAKE fetcher + a fixed `now` + a captured output stream, in throwaway git
 // repos — so they are fully OFFLINE and deterministic. The refusal / argv / dispatch
@@ -190,7 +190,7 @@ test('@integration a Cargo.toml-only repo is refused honestly (exit 6, names Rus
 test('@integration --help exits 0; --since with no value exits 2; non-git dir exits 5', async () => {
   const help = spawnSync('node', [MMD, 'deps-gate', '--help'], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 30000, env: { ...process.env, MMD_SKIP_SETUP: '1' } });
   assert.equal(help.status, 0);
-  assert.match(help.stdout, /mmd deps-gate/);
+  assert.match(help.stdout, /mmdream deps-gate/);
 
   const badArg = spawnSync('node', [MMD, 'deps-gate', '--since'], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 30000, env: { ...process.env, MMD_SKIP_SETUP: '1' } });
   assert.equal(badArg.status, 2, badArg.stdout + badArg.stderr);

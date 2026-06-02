@@ -1,4 +1,4 @@
-// @integration tests for `mmd discover` Case A (Rich = Spec Kit + BMAD).
+// @integration tests for `mmdream discover` Case A (Rich = Spec Kit + BMAD).
 // Copies the fixture into an isolated tmp dir + git init, then runs the
 // real `node bin/discover.js .` inside it and asserts on the produced
 // report + .mmd/shared/ artifacts.
@@ -26,7 +26,7 @@ function makeTmpFixture(srcDir) {
   return dst;
 }
 
-test('@integration mmd discover (Rich): exit 0 + report has expected case + sections', () => {
+test('@integration mmdream discover (Rich): exit 0 + report has expected case + sections', () => {
   const dir = makeTmpFixture(FIXTURE);
   try {
     const r = spawnSync('node', [MMD, 'discover', '.'], {
@@ -45,7 +45,7 @@ test('@integration mmd discover (Rich): exit 0 + report has expected case + sect
   }
 });
 
-test('@integration mmd discover (Rich): ingests Spec Kit constitution + BMAD stories', () => {
+test('@integration mmdream discover (Rich): ingests Spec Kit constitution + BMAD stories', () => {
   const dir = makeTmpFixture(FIXTURE);
   try {
     const r = spawnSync('node', [MMD, 'discover', '.'], {
@@ -65,7 +65,7 @@ test('@integration mmd discover (Rich): ingests Spec Kit constitution + BMAD sto
   }
 });
 
-test('@integration mmd discover (Rich): writes scan.json + inferred.md', () => {
+test('@integration mmdream discover (Rich): writes scan.json + inferred.md', () => {
   const dir = makeTmpFixture(FIXTURE);
   try {
     const r = spawnSync('node', [MMD, 'discover', '.'], {
@@ -85,7 +85,7 @@ test('@integration mmd discover (Rich): writes scan.json + inferred.md', () => {
   }
 });
 
-test('@integration mmd discover --approve flips PENDING → VALIDATED', () => {
+test('@integration mmdream discover --approve flips PENDING → VALIDATED', () => {
   const dir = makeTmpFixture(FIXTURE);
   try {
     const first = spawnSync('node', [MMD, 'discover', '.'], { cwd: dir, encoding: 'utf8', timeout: 30000 });
@@ -102,7 +102,7 @@ test('@integration mmd discover --approve flips PENDING → VALIDATED', () => {
   }
 });
 
-test('@integration mmd discover --approve with no report → exit 2 + friendly error', () => {
+test('@integration mmdream discover --approve with no report → exit 2 + friendly error', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'mmd-disc-empty-'));
   try {
     spawnSync('git', ['init', '-q'], { cwd: dir });
@@ -110,7 +110,7 @@ test('@integration mmd discover --approve with no report → exit 2 + friendly e
       cwd: dir, encoding: 'utf8', timeout: 30000,
     });
     assert.equal(r.status, 2);
-    assert.match(r.stderr, /no.*found.*mmd discover/);
+    assert.match(r.stderr, /no.*found.*mmdream discover/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -48,7 +48,7 @@ test('@integration discover gitignores its scratch (idempotent, marked block)', 
   const dir = makeDiscoveredRepo('gi');
   try {
     const gi1 = readFileSync(path.join(dir, '.gitignore'), 'utf8');
-    assert.match(gi1, /# MMD discovery scratch \(auto-added by mmd discover\)/);
+    assert.match(gi1, /# MMD discovery scratch \(auto-added by mmdream discover\)/);
     assert.match(gi1, /^\.mmd\/$/m);
     assert.match(gi1, /^mmd-discovery-report\.md$/m);
 

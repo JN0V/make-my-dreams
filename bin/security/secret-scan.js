@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bin/security/secret-scan.js — `mmd secret-scan` entry point (SPEC_V091 AC-2).
+// bin/security/secret-scan.js — `mmdream secret-scan` entry point (SPEC_V091 AC-2).
 // The first Bundle A Security brick: a security GATE for autonomous dev — catch a
 // leaked credential before it is committed.
 //
@@ -50,13 +50,13 @@ try {
 // vendored asset, not source; reading it whole would waste memory for no signal).
 const MAX_SCAN_BYTES = 5_000_000;
 
-const USAGE = `mmd secret-scan — scan for leaked credentials (Bundle A Security gate, SPEC_V091)
+const USAGE = `mmdream secret-scan — scan for leaked credentials (Bundle A Security gate, SPEC_V091)
 
 Usage:
-  mmd secret-scan                 Scan every git-tracked text file (default)
-  mmd secret-scan --staged        Scan ONLY the staged diff (pre-commit gate)
-  mmd secret-scan --since <ref>   Scan files changed since <ref>
-  mmd secret-scan --help
+  mmdream secret-scan                 Scan every git-tracked text file (default)
+  mmdream secret-scan --staged        Scan ONLY the staged diff (pre-commit gate)
+  mmdream secret-scan --since <ref>   Scan files changed since <ref>
+  mmdream secret-scan --help
 
 Behavior:
   Detects high-confidence secret formats — private keys, AWS access key ids,
@@ -92,7 +92,7 @@ Exit codes:
   2  user/argv error
   5  cannot read the file list from git (not a git repo / git failed / bad ref)
 
-mmd ${VERSION}
+mmdream ${VERSION}
 `;
 
 /**
@@ -122,7 +122,7 @@ export function parseSecretScanArgs(rawArgs) {
     } else if (tok === '--help' || tok === '-h') out.help = true;
     else {
       out.error = {
-        message: `unknown secret-scan arg: '${tok}'. Run 'mmd secret-scan --help' to see supported flags.`,
+        message: `unknown secret-scan arg: '${tok}'. Run 'mmdream secret-scan --help' to see supported flags.`,
         exitCode: 2,
       };
       return out;
@@ -251,7 +251,7 @@ export async function runSecretScan(rawArgs) {
     const surface = parsed.staged ? '--staged diff' : parsed.since !== null ? `--since ${parsed.since}` : 'git ls-files';
     stderr.write(
       `error: cannot read the file list (${surface}) at ${root}.\n` +
-      '  mmd secret-scan needs a git repo' +
+      '  mmdream secret-scan needs a git repo' +
       (parsed.since !== null ? ` and a valid ref ('${parsed.since}').\n` : '.\n'),
     );
     return 5;

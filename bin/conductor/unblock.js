@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bin/conductor/unblock.js — `mmd unblock` subcommand entry point (SPEC_V02J AC-3).
+// bin/conductor/unblock.js — `mmdream unblock` subcommand entry point (SPEC_V02J AC-3).
 //
 // SRP (universal.md §I.S): orchestrate the unblock flow only. Each step lives
 // in a dedicated lib/conductor/* module so this file stays a thin coordinator:
@@ -40,13 +40,13 @@ const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
 
 const ADR_LINK = 'docs/adr/011-five-whys-escalation.md';
 
-const UNBLOCK_USAGE = `mmd unblock — run a 5-Whys stuck-recovery session on a slice branch (SPEC_V02J)
+const UNBLOCK_USAGE = `mmdream unblock — run a 5-Whys stuck-recovery session on a slice branch (SPEC_V02J)
 
 Usage:
-  mmd unblock [<slice-branch>]
-  mmd unblock --dry-run [<slice-branch>]
-  mmd unblock --force [<slice-branch>]
-  mmd unblock --help
+  mmdream unblock [<slice-branch>]
+  mmdream unblock --dry-run [<slice-branch>]
+  mmdream unblock --force [<slice-branch>]
+  mmdream unblock --help
 
 Behavior:
   Runs the deterministic stall detector against the slice's .mmd/shared/status.json,
@@ -91,7 +91,7 @@ Env vars:
 
 See ${ADR_LINK} for the design rationale.
 
-mmd ${VERSION}
+mmdream ${VERSION}
 `;
 
 // Map a recommended_action to its exit code (AC-3).
@@ -106,7 +106,7 @@ const ACTION_EXIT = Object.freeze({
 /**
  * Resolve the slice branch + repo root. The branch must be a `slice/*` branch
  * (AC-3: default = current branch; else exit 4). Other failure (not a git repo)
- * also maps to exit 4 — `mmd unblock` only ever runs against a slice branch.
+ * also maps to exit 4 — `mmdream unblock` only ever runs against a slice branch.
  *
  * @param {string} root
  * @param {string|null} explicitBranch
@@ -121,7 +121,7 @@ async function resolveSliceBranch(root, explicitBranch) {
         ok: false,
         exitCode: 4,
         message:
-          'mmd unblock: not inside a git repository (or git unavailable). ' +
+          'mmdream unblock: not inside a git repository (or git unavailable). ' +
           'Run from a slice/* branch, or pass <slice-branch> explicitly.',
       };
     }
@@ -130,7 +130,7 @@ async function resolveSliceBranch(root, explicitBranch) {
       return {
         ok: false,
         exitCode: 4,
-        message: 'mmd unblock: could not read the current branch.',
+        message: 'mmdream unblock: could not read the current branch.',
       };
     }
     branch = cur.stdout.trim();
@@ -140,7 +140,7 @@ async function resolveSliceBranch(root, explicitBranch) {
       ok: false,
       exitCode: 4,
       message:
-        `mmd unblock: '${branch || '(empty)'}' is not a slice branch. ` +
+        `mmdream unblock: '${branch || '(empty)'}' is not a slice branch. ` +
         `unblock only operates on slice/* branches. Pass an explicit slice/<name>.`,
     };
   }
@@ -258,7 +258,7 @@ export async function runUnblock(rawArgs) {
 
   // ── --dry-run: detector only, never spawn claude ────────────────────────
   if (parsed.dryRun) {
-    stdout.write(`mmd unblock --dry-run on '${branch}'\n`);
+    stdout.write(`mmdream unblock --dry-run on '${branch}'\n`);
     stdout.write(`  stalled: ${detection.stalled}\n`);
     stdout.write(
       `  signals: ${detection.signals.length > 0 ? detection.signals.join(', ') : '(none)'}\n`,
@@ -277,7 +277,7 @@ export async function runUnblock(rawArgs) {
 
   // ── No --force and not stalled → nothing to do (exit 5) ─────────────────
   if (!parsed.force && !detection.stalled) {
-    stdout.write(`mmd unblock: no stall detected on '${branch}'. Nothing to do.\n`);
+    stdout.write(`mmdream unblock: no stall detected on '${branch}'. Nothing to do.\n`);
     stdout.write('  (use --force to run a 5-Whys session anyway.)\n');
     return 5;
   }
@@ -298,7 +298,7 @@ export async function runUnblock(rawArgs) {
   };
 
   stdout.write(
-    `mmd unblock: ${parsed.force ? '(forced) ' : ''}running 5-Whys session on '${branch}'...\n`,
+    `mmdream unblock: ${parsed.force ? '(forced) ' : ''}running 5-Whys session on '${branch}'...\n`,
   );
 
   const result = await runFiveWhys({
@@ -330,7 +330,7 @@ export async function runUnblock(rawArgs) {
   } catch (err) {
     // error-handling.md §III: writing the audit file is best-effort; the
     // recommendation itself is the load-bearing output. Warn, do not fail.
-    stderr.write(`mmd unblock: warning — could not write session file: ${err.message}\n`);
+    stderr.write(`mmdream unblock: warning — could not write session file: ${err.message}\n`);
   }
 
   // ── Print summary + exit with the mapped code ───────────────────────────

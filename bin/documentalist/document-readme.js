@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bin/documentalist/document-readme.js — `mmd document-readme` entry point
+// bin/documentalist/document-readme.js — `mmdream document-readme` entry point
 // (SPEC_V03D AC-1/AC-4/AC-5/AC-6).
 //
 // SRP (universal.md §I.S): orchestrate the README doc-sync flow only — parse
@@ -54,11 +54,11 @@ const TOP_LEVEL_FLAGS = Object.freeze([
   '--fast', '--here', '--label', '--catch', '--no-catch', '--skip-onboarding',
 ]);
 
-const USAGE = `mmd document-readme — refresh README.md's mechanical Status + Changelog blocks (SPEC_V03D)
+const USAGE = `mmdream document-readme — refresh README.md's mechanical Status + Changelog blocks (SPEC_V03D)
 
 Usage:
-  mmd document-readme [--tests <N>] [--dry-run]
-  mmd document-readme --help
+  mmdream document-readme [--tests <N>] [--dry-run]
+  mmdream document-readme --help
 
 Behavior:
   Re-derives ONLY the two mechanical blocks and rewrites them in place between
@@ -86,7 +86,7 @@ Exit codes:
   3  README.md missing/unreadable
   4  a marker pair absent — add the two marker lines where the block belongs
 
-mmd ${VERSION}
+mmdream ${VERSION}
 `;
 
 /**
@@ -101,7 +101,7 @@ function formatDriftReport(drift) {
     return 'Doc-drift report: none — every subcommand and top-level flag is mentioned in README.md.';
   }
   const lines = ['Doc-drift report: the following are NOT mentioned in README.md (informational):'];
-  for (const s of subcommands) lines.push(`  - subcommand: mmd ${s}`);
+  for (const s of subcommands) lines.push(`  - subcommand: mmdream ${s}`);
   for (const f of flags) lines.push(`  - flag: ${f}`);
   lines.push('  (Run prose-doc updates manually — document-readme never edits the README narrative.)');
   return lines.join('\n');
@@ -152,7 +152,7 @@ export async function runDocumentReadme(rawArgs) {
     stderr.write(
       `error: cannot read README.md at ${readmePath}: ` +
         `${err.code ? `${err.code}: ` : ''}${err.message}\n` +
-        `  mmd document-readme refreshes an existing README.md; it does not create one.\n`,
+        `  mmdream document-readme refreshes an existing README.md; it does not create one.\n`,
     );
     return 3;
   }

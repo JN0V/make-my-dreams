@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bin/documentalist/document-lessons.js — `mmd document-lessons` entry point.
+// bin/documentalist/document-lessons.js — `mmdream document-lessons` entry point.
 //
 // SPEC_V02I AC-1 + AC-5: the "Documentalist lite". Scans every composer audit
 // under .mmd/local/, deduplicates by run, increments each matched lesson's
@@ -47,10 +47,10 @@ import { buildSubprocessEnv } from '../../lib/invoke-autodev.js';
 const PKG_PATH = fileURLToPath(new URL('../../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
 
-const USAGE = `mmd document-lessons — Documentalist lite: increment lesson counters + auto-promote (SPEC_V02I)
+const USAGE = `mmdream document-lessons — Documentalist lite: increment lesson counters + auto-promote (SPEC_V02I)
 
 Usage:
-  mmd document-lessons [--dry-run] [--since <ts>]
+  mmdream document-lessons [--dry-run] [--since <ts>]
 
 Flags:
   --dry-run        Print what WOULD change; modify no files. Exit 0.
@@ -86,7 +86,7 @@ Env vars:
                           promotion gate unavailable → every threshold lesson is held.
   MMD_PROMOTE_GATE_TIMEOUT_MS  Gate spawn timeout (default 120000). 0 = no timeout.
 
-mmd ${VERSION}
+mmdream ${VERSION}
 `;
 
 /**
@@ -130,7 +130,7 @@ export function parseDocumentLessonsArgs(rawArgs) {
     return {
       ...out,
       error: {
-        message: `unknown document-lessons arg: '${tok}'. Run 'mmd document-lessons --help'.`,
+        message: `unknown document-lessons arg: '${tok}'. Run 'mmdream document-lessons --help'.`,
         exitCode: 2,
       },
     };

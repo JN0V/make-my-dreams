@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// bin/bench.js — `mmd bench` subcommand entry point.
+// bin/bench.js — `mmdream bench` subcommand entry point.
 //
 // SRP (universal.md §I.S): orchestration only. All FS / parsing logic lives
 // in lib/bench/* + lib/argv-parser.js (parseBenchArgs).
 //
-// Spec: SPEC_V02B AC-1..AC-7. The mission validation in §1: "mmd bench
+// Spec: SPEC_V02B AC-1..AC-7. The mission validation in §1: "mmdream bench
 // --dry-run exits 0 in under 30 s with a generated report".
 
 import { mkdir, writeFile, symlink, readFile, lstat, unlink } from 'node:fs/promises';
@@ -23,11 +23,11 @@ import { classifyBenchExit, failingDreamIds } from '../lib/bench/exit-codes.js';
 const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
 
-const BENCH_USAGE = `mmd bench — run the dream-bench v0 harness (SPEC_V02B)
+const BENCH_USAGE = `mmdream bench — run the dream-bench v0 harness (SPEC_V02B)
 
 Usage:
-  mmd bench [--dry-run] [--engine <fast|standard|deep>] [--dreams <id1,id2,...>] [--out-dir <path>]
-  mmd bench --help
+  mmdream bench [--dry-run] [--engine <fast|standard|deep>] [--dreams <id1,id2,...>] [--out-dir <path>]
+  mmdream bench --help
 
 Flags:
   --dry-run                 Use the fake-autodev fixture instead of the real auto-dev
@@ -37,7 +37,7 @@ Flags:
   --out-dir <path>          Override bench/runs/<run-id>/ (default: auto-generated).
 
 Gate:
-  Without MMD_BENCH_REAL=1 (and without --dry-run), 'mmd bench' refuses because
+  Without MMD_BENCH_REAL=1 (and without --dry-run), 'mmdream bench' refuses because
   a real run takes hours. Set MMD_BENCH_REAL=1 to confirm, or pass --dry-run.
 
 Exit codes (AC-6):
@@ -143,14 +143,14 @@ export async function runBench(rawArgs) {
     : path.join(runsRoot, runId);
   await mkdir(runDir, { recursive: true });
 
-  stdout.write(`[mmd bench] run-id=${runId}\n`);
-  stdout.write(`[mmd bench] engine=${opts.engine} dry-run=${opts.dryRun} dreams=${dreams.length}\n`);
-  stdout.write(`[mmd bench] out-dir=${runDir}\n`);
+  stdout.write(`[mmdream bench] run-id=${runId}\n`);
+  stdout.write(`[mmdream bench] engine=${opts.engine} dry-run=${opts.dryRun} dreams=${dreams.length}\n`);
+  stdout.write(`[mmdream bench] out-dir=${runDir}\n`);
 
   const started_at = new Date().toISOString();
   const metrics = [];
   for (const dream of dreams) {
-    stdout.write(`[mmd bench] starting ${dream.id} ...\n`);
+    stdout.write(`[mmdream bench] starting ${dream.id} ...\n`);
     const m = await runOneDream({
       dream,
       runDir,
@@ -159,7 +159,7 @@ export async function runBench(rawArgs) {
     });
     metrics.push(m);
     stdout.write(
-      `[mmd bench] ${dream.id} done: exit=${m.exit_code} rc=${m.reality_check.passed ? 'pass' : 'fail'} ` +
+      `[mmdream bench] ${dream.id} done: exit=${m.exit_code} rc=${m.reality_check.passed ? 'pass' : 'fail'} ` +
         `dur=${m.duration_seconds.toFixed(2)}s\n`,
     );
   }
@@ -190,16 +190,16 @@ export async function runBench(rawArgs) {
       // Symlink failure is not fatal — log and continue. On filesystems that
       // disallow symlinks (some Windows configs) the user can still find the
       // run via the run-id printed above.
-      stderr.write(`[mmd bench] warning: could not update latest symlink: ${err.message}\n`);
+      stderr.write(`[mmdream bench] warning: could not update latest symlink: ${err.message}\n`);
     }
   }
 
   const exitCode = classifyBenchExit(metrics);
   if (exitCode !== 0) {
     const failing = failingDreamIds(metrics);
-    stderr.write(`[mmd bench] failing dreams: ${failing.join(', ')}\n`);
+    stderr.write(`[mmdream bench] failing dreams: ${failing.join(', ')}\n`);
   }
-  stdout.write(`[mmd bench] report: ${path.join(runDir, 'report.md')}\n`);
+  stdout.write(`[mmdream bench] report: ${path.join(runDir, 'report.md')}\n`);
   return exitCode;
 }
 

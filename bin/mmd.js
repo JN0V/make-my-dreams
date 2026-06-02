@@ -56,43 +56,43 @@ const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
 // the first-run setup guard spawns it against the target repo (AC-3).
 const INSTALL_SCRIPT = fileURLToPath(new URL('../install-mmd.sh', import.meta.url));
 
-const USAGE = `mmd ${VERSION} — Make My Dreams CLI
+const USAGE = `mmdream ${VERSION} — Make My Dreams CLI
 
 Usage:
-  mmd "<dream description>"            Generate a PWA fulfilling the dream
+  mmdream "<dream description>"            Generate a PWA fulfilling the dream
                                        (on a TTY: an interactive Dream Catcher
                                        dialogue refines it first — v0.3.b)
-  mmd --fast "<dream>"                 Trimmed auto-dev pipeline (target <=10 min)
-  mmd --sealed "<dream>"               Sealed-test oracle: a tester writes blind acceptance
+  mmdream --fast "<dream>"                 Trimmed auto-dev pipeline (target <=10 min)
+  mmdream --sealed "<dream>"               Sealed-test oracle: a tester writes blind acceptance
                                        tests, MMD seals them (hash), auto-dev implements, then
                                        MMD verifies the seal (tamper = fail) + re-runs them (v0.4.a;
                                        composes with --here since v0.4.b)
-  mmd --here "<change>"                Modify the current git repo in place (v0.2a)
-  mmd bench [--dry-run]                Run the dream-bench v0 harness (v0.2b)
-  mmd ship [<branch>] [--dry-run]      Invoke gStack ship skill on the current slice (v0.2.f)
-  mmd qa [<branch>] [--dry-run]        Invoke gStack qa skill — test stratification + adversarial pass (v0.2.g)
-  mmd cso [<branch>] [--dry-run]       Invoke gStack cso skill — security review per Bundle A (v0.2.g)
-  mmd document-release [<from>] [<to>] Invoke gStack document-release skill — release-notes draft (v0.2.g)
-  mmd discover [<path>]                Project Onboarder for brownfield repos (v0.2c)
-  mmd lessons                          Introspect docs/lessons-learned.md + composer audits (v0.2e)
-  mmd document-lessons [--dry-run]     Increment lesson counters + auto-promote at threshold (v0.2.i)
-  mmd unblock [<branch>] [--dry-run]   Run a 5-Whys stuck-recovery session on a slice (v0.2.j)
-  mmd handover [--tests N] [--dry-run] Refresh HANDOVER.md's mechanical State block (v0.2.p)
-  mmd document-readme [--tests N] [--dry-run]
+  mmdream --here "<change>"                Modify the current git repo in place (v0.2a)
+  mmdream bench [--dry-run]                Run the dream-bench v0 harness (v0.2b)
+  mmdream ship [<branch>] [--dry-run]      Invoke gStack ship skill on the current slice (v0.2.f)
+  mmdream qa [<branch>] [--dry-run]        Invoke gStack qa skill — test stratification + adversarial pass (v0.2.g)
+  mmdream cso [<branch>] [--dry-run]       Invoke gStack cso skill — security review per Bundle A (v0.2.g)
+  mmdream document-release [<from>] [<to>] Invoke gStack document-release skill — release-notes draft (v0.2.g)
+  mmdream discover [<path>]                Project Onboarder for brownfield repos (v0.2c)
+  mmdream lessons                          Introspect docs/lessons-learned.md + composer audits (v0.2e)
+  mmdream document-lessons [--dry-run]     Increment lesson counters + auto-promote at threshold (v0.2.i)
+  mmdream unblock [<branch>] [--dry-run]   Run a 5-Whys stuck-recovery session on a slice (v0.2.j)
+  mmdream handover [--tests N] [--dry-run] Refresh HANDOVER.md's mechanical State block (v0.2.p)
+  mmdream document-readme [--tests N] [--dry-run]
                                        Refresh README.md's Status + Changelog blocks; report doc drift (v0.3.d)
-  mmd document-review [--with-claude] [--dry-run]
+  mmdream document-review [--with-claude] [--dry-run]
                                        Documentalist coherence review — designed-vs-built + doc-health (v0.7.a)
-  mmd document-compact [--dry-run]     Documentalist active compaction — archive root SPEC_V*.md into docs/specs/ (v0.7.c)
-  mmd test-health [--dry-run]          Test Curator — test-corpus health (stratification/untagged/oversized) → docs/test-health.md (v0.7.6)
-  mmd secret-scan [--staged | --since <ref>]
+  mmdream document-compact [--dry-run]     Documentalist active compaction — archive root SPEC_V*.md into docs/specs/ (v0.7.c)
+  mmdream test-health [--dry-run]          Test Curator — test-corpus health (stratification/untagged/oversized) → docs/test-health.md (v0.7.6)
+  mmdream secret-scan [--staged | --since <ref>]
                                        Bundle A Security — scan for leaked credentials; gates (exit 1) on a
                                        high-confidence finding. Language-agnostic, vanilla, READ-ONLY (v0.9.1)
-  mmd deps-gate [--since <ref>]        Bundle A Security — polyglot supply-chain gate; verifies each declared
+  mmdream deps-gate [--since <ref>]        Bundle A Security — polyglot supply-chain gate; verifies each declared
                                        dependency against its registry and gates (exit 1) on an unresolvable
                                        package or a likely typosquat. Adapter-based (§VIII), READ-ONLY (v0.9.2)
-  mmd serve                            Start the local web mode (v0.2.5)
-  mmd --version                        Print version and exit
-  mmd --help, -h                       Print this usage and exit
+  mmdream serve                            Start the local web mode (v0.2.5)
+  mmdream --version                        Print version and exit
+  mmdream --help, -h                       Print this usage and exit
 
 Engine flags (mutually exclusive):
   --fast                               FAST engine — trimmed auto-dev (v0.2)
@@ -427,7 +427,7 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
   // do NOT record a symlinked path in status.json (audit trail integrity)
   // while git operates on the real path. path.resolve alone does not follow
   // symlinks. realpath() rejects with ENOENT if the path does not exist —
-  // which is the right failure mode for `mmd --here` (cwd MUST exist).
+  // which is the right failure mode for `mmdream --here` (cwd MUST exist).
   let absTargetDir;
   try {
     absTargetDir = await realpath(path.resolve(targetDir));
@@ -464,7 +464,7 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
       // v0.6.b AC-3 — discover-then---here friction fix: a tree dirtied ONLY by
       // MMD-managed scratch (`.mmd/`, `mmd-discovery-report.md`, `.gitignore`)
       // counts as clean, so the documented "run discover, read the suggestions,
-      // then mmd --here" flow needs no manual stash. ANY non-MMD dirty path
+      // then mmdream --here" flow needs no manual stash. ANY non-MMD dirty path
       // still refuses (exit 4) — F7 intact: the post-setup `git add -A` can
       // never sweep a user's real uncommitted work into the setup commit.
       if (s.status === 0 && !isTreeCleanIgnoringMmd(s.stdout)) {
@@ -644,7 +644,7 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
   const timestamp = `${nowIso().replace(/[:.]/g, '-')}-${process.pid}`;
   const logPath = path.join(absTargetDir, '.mmd', 'local', 'runs', `${timestamp}.log`);
 
-  // v0.4.b AC-3 — `mmd --here --sealed`: run the SAME surface-agnostic sealed
+  // v0.4.b AC-3 — `mmdream --here --sealed`: run the SAME surface-agnostic sealed
   // pipeline as greenfield, with a --here coder (buildHerePrompt told the sealed
   // dir is read-only + invokeAutodev on the slice branch). The sealed dir lives
   // in the target repo's gitignored .mmd/shared/sealed-tests/; the tester grounds
@@ -857,7 +857,7 @@ async function maybeSuggestNpmTest(targetDir) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// v0.4.a — sealed-test oracle (`mmd --sealed "<dream>"`). SPEC_V04A Bundle B.
+// v0.4.a — sealed-test oracle (`mmdream --sealed "<dream>"`). SPEC_V04A Bundle B.
 // ─────────────────────────────────────────────────────────────────────────
 
 /**
@@ -1006,8 +1006,8 @@ function invokeJudge({ demoDir, prompt, logPath, timeoutMs }) {
  *   TESTER → SEAL (+ empty-seal AND incomplete-seal integrity guards)
  *          → CODER (injected callback) → VERIFY → re-run sealed tests → BLAST.
  *
- * The ONLY thing that differs between the greenfield (`mmd --sealed`) and the
- * self/brownfield (`mmd --here --sealed`) surfaces is the CODER step — so the
+ * The ONLY thing that differs between the greenfield (`mmdream --sealed`) and the
+ * self/brownfield (`mmdream --here --sealed`) surfaces is the CODER step — so the
  * coder is injected as an async callback `coder(sealedDir) -> invokeResult`
  * ({ code }). Everything else (the blind tester, the hash seal, both integrity
  * guards, tamper enforcement, the independent re-run, blast radius, and the
@@ -1232,7 +1232,7 @@ async function runSealedPipeline({
 }
 
 /**
- * The `mmd --sealed` greenfield orchestration (SPEC_V04A AC-4): a thin wrapper
+ * The `mmdream --sealed` greenfield orchestration (SPEC_V04A AC-4): a thin wrapper
  * over runSealedPipeline (v0.4.b AC-1) that injects the greenfield CODER
  * (buildCoderPrompt + invokeAutodev on demoDir) and the greenfield status
  * writers. Behaviour is byte-for-byte unchanged from v0.4.a — the v0.4.a
@@ -1304,7 +1304,7 @@ async function runSealedGreenfield({
 
 async function main() {
   const rawArgs = argv.slice(2);
-  // Subcommand dispatch happens FIRST so that `mmd bench --help` routes to
+  // Subcommand dispatch happens FIRST so that `mmdream bench --help` routes to
   // the bench subcommand's help (not the top-level USAGE). Mirrors POSIX
   // `git <subcmd> --help` semantics. v0.2.5 `serve` predates this rule and
   // is also dispatched first per the same logic.
@@ -1317,64 +1317,64 @@ async function main() {
     return runBench(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'ship') {
-    // v0.2.f AC-3: `mmd ship` subcommand. Dispatched here for the same
+    // v0.2.f AC-3: `mmdream ship` subcommand. Dispatched here for the same
     // reasons as `bench` (must not parse as a dream string equal to "ship").
     // v0.2.g: moved to bin/skills/ship.js per the AC-1 refactor.
     const { runShip } = await import('./skills/ship.js');
     return runShip(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'qa') {
-    // v0.2.g AC-2: `mmd qa` subcommand. Dispatched here (before checkGate)
+    // v0.2.g AC-2: `mmdream qa` subcommand. Dispatched here (before checkGate)
     // so AC-5 gate-bypass holds structurally for read-only/advisory commands.
     const { runQa } = await import('./skills/qa.js');
     return runQa(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'cso') {
-    // v0.2.g AC-3: `mmd cso` subcommand. Same dispatch contract as qa.
+    // v0.2.g AC-3: `mmdream cso` subcommand. Same dispatch contract as qa.
     const { runCso } = await import('./skills/cso.js');
     return runCso(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'document-release') {
-    // v0.2.g AC-4: `mmd document-release` subcommand. Same dispatch contract.
+    // v0.2.g AC-4: `mmdream document-release` subcommand. Same dispatch contract.
     const { runDocumentRelease } = await import('./skills/document-release.js');
     return runDocumentRelease(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'discover') {
-    // v0.2c AC-1: `mmd discover` subcommand. Dispatched here for the same
+    // v0.2c AC-1: `mmdream discover` subcommand. Dispatched here for the same
     // reason as `ship`/`bench` (must not parse as a dream string).
     const { runDiscover } = await import('./discover.js');
     return runDiscover(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'lessons') {
-    // v0.2e AC-7: `mmd lessons` introspection subcommand. Dispatched here
+    // v0.2e AC-7: `mmdream lessons` introspection subcommand. Dispatched here
     // (before checkGate / argv parsing) — read-only, gate-bypassing like
     // qa/cso/document-release.
     const { runLessons } = await import('./lessons.js');
     return runLessons(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'document-lessons') {
-    // v0.2.i AC-1: `mmd document-lessons` — Documentalist lite. Dispatched here
+    // v0.2.i AC-1: `mmdream document-lessons` — Documentalist lite. Dispatched here
     // (before checkGate / argv parsing) for the same reason as the others: it
     // must not parse as a dream string. Increments lesson counters + auto-promotes.
     const { runDocumentLessons } = await import('./documentalist/document-lessons.js');
     return runDocumentLessons(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'unblock') {
-    // v0.2.j AC-3: `mmd unblock` subcommand. Dispatched here (before checkGate
+    // v0.2.j AC-3: `mmdream unblock` subcommand. Dispatched here (before checkGate
     // / argv parsing) for the same reason as ship/qa — must not parse as a
     // dream string equal to "unblock". Runs the 5-Whys stuck-recovery session.
     const { runUnblock } = await import('./conductor/unblock.js');
     return runUnblock(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'handover') {
-    // v0.2.p AC-1: `mmd handover` subcommand. Dispatched here (before checkGate
+    // v0.2.p AC-1: `mmdream handover` subcommand. Dispatched here (before checkGate
     // / argv parsing) for the same reason as unblock/ship — must not parse as a
     // dream string equal to "handover". Refreshes HANDOVER.md's State block.
     const { runHandover } = await import('./handover.js');
     return runHandover(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'document-readme') {
-    // v0.3.d AC-1: `mmd document-readme` subcommand. Dispatched here (before
+    // v0.3.d AC-1: `mmdream document-readme` subcommand. Dispatched here (before
     // checkGate / argv parsing) for the same reason as handover — must not parse
     // as a dream string equal to "document-readme". Applies the handover pattern
     // to README.md: refreshes the Status + Changelog mechanical blocks in place.
@@ -1382,7 +1382,7 @@ async function main() {
     return runDocumentReadme(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'document-review') {
-    // v0.7.a AC-3: `mmd document-review` subcommand. Dispatched here (before
+    // v0.7.a AC-3: `mmdream document-review` subcommand. Dispatched here (before
     // checkGate / argv parsing) for the same reason as the document-* family —
     // it must not parse as a dream string equal to "document-review". The
     // Documentalist's coherence review: gather inventory → reconcile the §9
@@ -1391,7 +1391,7 @@ async function main() {
     return runDocumentReview(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'document-compact') {
-    // v0.7.c AC-2: `mmd document-compact` subcommand. Dispatched here (before
+    // v0.7.c AC-2: `mmdream document-compact` subcommand. Dispatched here (before
     // checkGate / argv parsing) for the same reason as the document-* family —
     // it must not parse as a dream string equal to "document-compact". The
     // Documentalist's first action: archive the root SPEC_V*.md sprawl into
@@ -1401,7 +1401,7 @@ async function main() {
     return runDocumentCompact(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'test-health') {
-    // v0.7.6 AC-3: `mmd test-health` subcommand. Dispatched here (before
+    // v0.7.6 AC-3: `mmdream test-health` subcommand. Dispatched here (before
     // checkGate / argv parsing) for the same reason as the document-* family —
     // it must not parse as a dream string equal to "test-health". The Test
     // Curator: gather the git-tracked test files → scan for stratification tags
@@ -1410,7 +1410,7 @@ async function main() {
     return runTestHealth(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'secret-scan') {
-    // v0.9.1 AC-2: `mmd secret-scan` subcommand — the first Bundle A Security
+    // v0.9.1 AC-2: `mmdream secret-scan` subcommand — the first Bundle A Security
     // brick. Dispatched here (before checkGate / argv parsing) for the same
     // reason as the family — it must not parse as a dream string equal to
     // "secret-scan". A language-agnostic, vanilla (regex + Shannon entropy)
@@ -1420,7 +1420,7 @@ async function main() {
     return runSecretScan(rawArgs.slice(1));
   }
   if (rawArgs[0] === 'deps-gate') {
-    // v0.9.2 AC-3: `mmd deps-gate` subcommand — the second Bundle A Security
+    // v0.9.2 AC-3: `mmdream deps-gate` subcommand — the second Bundle A Security
     // brick. Dispatched here (before checkGate / argv parsing) for the same
     // reason as the family — it must not parse as a dream string equal to
     // "deps-gate". A read-only, polyglot (adapter-based, §VIII), vanilla
@@ -1439,7 +1439,7 @@ async function main() {
   }
 
   // v0.2 — POSIX-style argv parsing with mutex + unknown-flag rejection (E13/E14).
-  // Note: empty-string positional ('' from `mmd ""`) is preserved by parseArgv
+  // Note: empty-string positional ('' from `mmdream ""`) is preserved by parseArgv
   // so the empty-check below fires with exit 2 (tests assert code 2).
   const { flags, positional, error: argvError } = parseArgv(rawArgs);
   if (argvError) {
@@ -1508,14 +1508,14 @@ async function main() {
   if (flags.catch && !stdin.isTTY) {
     stderr.write(
       'error: --catch needs an interactive terminal (a TTY) to run the dialogue. ' +
-        'Run mmd directly in a terminal, or drop --catch to launch with the verbatim dream.\n',
+        'Run mmdream directly in a terminal, or drop --catch to launch with the verbatim dream.\n',
     );
     return 2;
   }
 
   // v0.2c AC-7: greenfield path consults the gate too. The greenfield use
   // case is "no demo/<slug>/ yet" but the cwd itself may still be a
-  // brownfield (e.g. user runs `mmd "tiny PWA"` from inside their existing
+  // brownfield (e.g. user runs `mmdream "tiny PWA"` from inside their existing
   // project root with a package.json). Gate fires only when cwd looks like
   // brownfield AND no validated report exists.
   if (!skipOnboarding) {
@@ -1595,7 +1595,7 @@ async function main() {
     if (choice === 'resume') {
       // E7: refuse --resume when demoDir is a symlink. Defends against social
       // engineering where an attacker pre-creates demo/<slug> -> /tmp/fake so
-      // `mmd "<dream>" --resume` reports a misleading "state: done" sourced
+      // `mmdream "<dream>" --resume` reports a misleading "state: done" sourced
       // from outside ./demo/. Mirrors the --fresh symlink check.
       const absDemoDir = path.resolve(demoDir);
       const lst = await lstat(absDemoDir).catch(() => null);

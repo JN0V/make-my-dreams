@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bin/discover.js — `mmd discover` subcommand entry point (SPEC_V02C AC-1..AC-5).
+// bin/discover.js — `mmdream discover` subcommand entry point (SPEC_V02C AC-1..AC-5).
 //
 // SRP (universal.md §I.S): orchestrate SCAN → INGEST → INFER → REPORT only.
 // Every phase lives in a dedicated lib/discover/* module:
@@ -36,16 +36,16 @@ import { assertSafeWritePath } from '../lib/discover/safe-write.js';
 const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
 
-const DISCOVER_USAGE = `mmd discover — Project Onboarder for brownfield repos (SPEC_V02C)
+const DISCOVER_USAGE = `mmdream discover — Project Onboarder for brownfield repos (SPEC_V02C)
 
 Usage:
-  mmd discover [<path>]                     Scan + ingest + infer + report
-  mmd discover --approve [<path>]           Mark mmd-discovery-report.md as VALIDATED
-  mmd discover --refresh [<path>]           Re-run from scratch (overwrites last.md)
-  mmd discover --infer-with-claude [<path>] LLM-augmented INFER (deferred to v0.2c+)
-  mmd discover --no-report-update [<path>]  Scan only; do NOT touch the root report
-  mmd discover --force-non-git [<path>]     Allow scanning a non-git directory
-  mmd discover --help, -h                   Print this usage and exit 0
+  mmdream discover [<path>]                     Scan + ingest + infer + report
+  mmdream discover --approve [<path>]           Mark mmd-discovery-report.md as VALIDATED
+  mmdream discover --refresh [<path>]           Re-run from scratch (overwrites last.md)
+  mmdream discover --infer-with-claude [<path>] LLM-augmented INFER (deferred to v0.2c+)
+  mmdream discover --no-report-update [<path>]  Scan only; do NOT touch the root report
+  mmdream discover --force-non-git [<path>]     Allow scanning a non-git directory
+  mmdream discover --help, -h                   Print this usage and exit 0
 
 Path defaults to cwd. Writes ONLY in <path>/.mmd/, <path>/docs/ (NEW files),
 and <path>/mmd-discovery-report.md. Never modifies existing user code.
@@ -56,7 +56,7 @@ Exit codes:
   3  path doesn't exist or is not a directory
   4  not a git repo (override with --force-non-git)
 
-mmd ${VERSION}
+mmdream ${VERSION}
 `;
 
 /**
@@ -75,11 +75,11 @@ async function resolveTargetPath(maybeRel) {
     return {
       ok: false,
       exitCode: 3,
-      message: `mmd discover: target path does not exist: '${abs}' (${err.code || err.message})`,
+      message: `mmdream discover: target path does not exist: '${abs}' (${err.code || err.message})`,
     };
   }
   if (!s.isDirectory()) {
-    return { ok: false, exitCode: 3, message: `mmd discover: target is not a directory: '${abs}'` };
+    return { ok: false, exitCode: 3, message: `mmdream discover: target is not a directory: '${abs}'` };
   }
   return { ok: true, abs };
 }
@@ -105,7 +105,7 @@ async function readConstitutionText(targetDir) {
 // SPEC_V06B AC-3 — the marked, idempotent gitignore block for discover's own
 // scratch outputs. The marker line is how we detect an already-present block on
 // re-run (idempotent), so it must stay byte-stable.
-const GITIGNORE_MARKER = '# MMD discovery scratch (auto-added by mmd discover)';
+const GITIGNORE_MARKER = '# MMD discovery scratch (auto-added by mmdream discover)';
 const GITIGNORE_BLOCK = [
   GITIGNORE_MARKER,
   '.mmd/',
@@ -114,7 +114,7 @@ const GITIGNORE_BLOCK = [
 
 /**
  * SPEC_V06B AC-3 — ensure discover's scratch outputs are `.gitignore`d in the
- * target, so the documented discover→`mmd --here` flow leaves a tree the
+ * target, so the documented discover→`mmdream --here` flow leaves a tree the
  * first-run guard treats as clean (no manual stash). Idempotent (the marker
  * guards against duplicate blocks), creates `.gitignore` if absent, and ONLY
  * appends — it never reorders or clobbers existing entries, and never touches
@@ -175,8 +175,8 @@ export async function runDiscover(rawArgs) {
     const existing = await readReport(targetDir);
     if (existing === null) {
       stderr.write(
-        `error: mmd discover --approve: no ${reportPathFor(targetDir)} found. ` +
-        `Run \`mmd discover\` first.\n`,
+        `error: mmdream discover --approve: no ${reportPathFor(targetDir)} found. ` +
+        `Run \`mmdream discover\` first.\n`,
       );
       return 2;
     }
@@ -196,18 +196,18 @@ export async function runDiscover(rawArgs) {
     const lastPath = path.join(targetDir, '.mmd', 'shared', 'project-onboarder', 'last.md');
     await assertSafeWritePath(targetDir, lastPath);
     await writeFile(lastPath, updated, 'utf8');
-    stdout.write(`mmd discover --approve: report marked VALIDATED at ${reportPath}\n`);
+    stdout.write(`mmdream discover --approve: report marked VALIDATED at ${reportPath}\n`);
     return 0;
   }
 
   // Discovery flow: SCAN → INGEST → INFER → REPORT.
-  stdout.write(`mmd discover: scanning ${targetDir}\n`);
+  stdout.write(`mmdream discover: scanning ${targetDir}\n`);
   const scanData = await runScan(targetDir);
 
   // Non-git enforcement (AC-1 exit 4) — unless --force-non-git.
   if (!scanData.git.is_git_repo && !parsed.forceNonGit) {
     stderr.write(
-      `error: mmd discover: target is not a git repo. ` +
+      `error: mmdream discover: target is not a git repo. ` +
       `Pass --force-non-git to override (warning: brownfield assumptions weaken without git history).\n`,
     );
     return 4;
@@ -220,20 +220,20 @@ export async function runDiscover(rawArgs) {
   // for future use; the scan/ingest/infer always run today.
   if (scanData.already_onboarded && !parsed.refresh) {
     stdout.write(
-      'mmd discover: target already onboarded (VALIDATED report found). ' +
+      'mmdream discover: target already onboarded (VALIDATED report found). ' +
       'Re-running anyway; pass --refresh for an explicit overwrite.\n',
     );
   }
 
   await writeScan(targetDir, scanData);
-  stdout.write('mmd discover: SCAN complete\n');
+  stdout.write('mmdream discover: SCAN complete\n');
 
   const ingestData = await runIngest(targetDir);
-  stdout.write('mmd discover: INGEST complete\n');
+  stdout.write('mmdream discover: INGEST complete\n');
 
   const inferredMd = await runInfer(targetDir, scanData, { useClaude: parsed.inferWithClaude });
   await writeInferred(targetDir, inferredMd);
-  stdout.write('mmd discover: INFER complete\n');
+  stdout.write('mmdream discover: INFER complete\n');
 
   const caseLabel = classify(scanData);
   // AC-2 — read the project's constitution (if any) so the report can offer
@@ -250,27 +250,27 @@ export async function runDiscover(rawArgs) {
   });
   const written = await writeReport(targetDir, report, { skipRootReport: parsed.noReportUpdate });
   if (written.rootPath) {
-    stdout.write(`mmd discover: REPORT written to ${written.rootPath}\n`);
+    stdout.write(`mmdream discover: REPORT written to ${written.rootPath}\n`);
   } else {
-    stdout.write(`mmd discover: REPORT snapshot written to ${written.lastPath} (root unchanged: --no-report-update)\n`);
+    stdout.write(`mmdream discover: REPORT snapshot written to ${written.lastPath} (root unchanged: --no-report-update)\n`);
   }
 
   // AC-3 — ensure discover's own scratch (.mmd/, mmd-discovery-report.md) is
-  // gitignored so the documented discover→`mmd --here` flow needs no manual
+  // gitignored so the documented discover→`mmdream --here` flow needs no manual
   // stash. Idempotent + append-only; only ever touches .gitignore.
   try {
     const gi = await ensureScratchGitignored(targetDir);
-    if (gi === 'created') stdout.write('mmd discover: created .gitignore with the MMD scratch block\n');
-    else if (gi === 'appended') stdout.write('mmd discover: added the MMD scratch block to .gitignore\n');
+    if (gi === 'created') stdout.write('mmdream discover: created .gitignore with the MMD scratch block\n');
+    else if (gi === 'appended') stdout.write('mmdream discover: added the MMD scratch block to .gitignore\n');
   } catch (err) {
     // Non-fatal: a gitignore write failure must not lose the discovery work.
-    stderr.write(`mmd discover: could not update .gitignore (${err.message}) — gitignore the scratch manually if needed.\n`);
+    stderr.write(`mmdream discover: could not update .gitignore (${err.message}) — gitignore the scratch manually if needed.\n`);
   }
-  stdout.write(`mmd discover: detected case = ${caseLabel}\n`);
+  stdout.write(`mmdream discover: detected case = ${caseLabel}\n`);
   if (!parsed.noReportUpdate) {
     stdout.write(
-      `Next: review the report, then \`mmd discover --approve\` to clear the gate ` +
-      `for \`mmd --here\` / \`mmd <dream>\`.\n`,
+      `Next: review the report, then \`mmdream discover --approve\` to clear the gate ` +
+      `for \`mmdream --here\` / \`mmdream <dream>\`.\n`,
     );
   }
   return 0;

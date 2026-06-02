@@ -72,7 +72,7 @@ test('@unit buildSummary: rejects non-array metrics', () => {
 test('@unit buildReportMd: contains the AC-5 table headings + a summary paragraph', () => {
   const s = buildSummary({ metrics: SAMPLE_METRICS, ...SAMPLE_META });
   const md = buildReportMd(s);
-  assert.match(md, /^# mmd bench — run /m);
+  assert.match(md, /^# mmdream bench — run /m);
   assert.match(md, /\| Dream id \| Engine \| Duration \| Exit \| Reality check \| Phase 4 findings \|/);
   assert.match(md, /`kid-01`/);
   assert.match(md, /`kid-02`/);

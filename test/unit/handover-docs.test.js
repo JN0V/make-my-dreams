@@ -13,8 +13,8 @@ import { parseLessons } from '../../lib/composer/parse-lessons.js';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const read = (rel) => readFileSync(path.join(ROOT, rel), 'utf8');
 
-test('@unit README lists the mmd handover subcommand', () => {
-  assert.match(read('README.md'), /mmd handover/);
+test('@unit README lists the mmdream handover subcommand', () => {
+  assert.match(read('README.md'), /mmdream handover/);
 });
 
 test('@unit ADR-020 documents the handover subcommand', () => {

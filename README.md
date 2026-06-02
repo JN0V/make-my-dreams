@@ -416,33 +416,57 @@ Knobs:
 
 Matching is deterministic, sub-100ms on the live `docs/lessons-learned.md` regardless of size, capped at 5 injections per prompt by score with ties broken by id ascending. No LLM call, no embedding model — see [ADR-010](./docs/adr/010-composer-minimal-keyword-overlap.md) for why keyword-overlap over semantic matching.
 
-### Document lessons (`mmd document-lessons`) — *new in v0.2.i*
+### Document lessons (`mmd document-lessons`) — *new in v0.2.i; autolearning loop CLOSED in v0.9.0*
 
 The composer (above) injects lessons; `mmd document-lessons` closes the *other*
-half of the autolearning loop — **promotion**. It is the "Documentalist lite": a
-deterministic, no-LLM subcommand that scans every `.mmd/local/**/*.composer.json`
-audit, deduplicates by run, increments each matched lesson's reuse counter in
-`docs/lessons-learned.md`, and **auto-promotes** any lesson that reaches its own
+half of the autolearning loop — **promotion**. It scans every
+`.mmd/local/**/*.composer.json` audit, increments each lesson's reuse counter in
+`docs/lessons-learned.md`, and **promotes** any lesson that reaches its own
 `**To promote if**: N` threshold — appending its Rule to the right constitution
 module, removing it from `docs/lessons-learned.md`, and writing a promotion ADR.
 
+**v0.9.0 closed the loop on the right signal (differentiator #2).** The counter
+no longer rises on **raw injections** — ADR-010 itself had named that the wrong
+signal ("the composer matching keywords is not the same as a validated re-use"),
+so a lesson that merely *appeared* in prompts used to climb toward MMD's own
+constitution with no evidence it ever helped. Now:
+
+- **The counter rises on a deterministic VALIDATED REUSE** — a lesson injected
+  into a run that completed `state=done`, counted **once per distinct run** (a
+  cheap, reproducible, weak-but-honest proxy). A lesson injected only into
+  **failed** runs gets nothing. Each run writes a durable `<runId>.outcome.json`
+  next to its composer audit; `validatedReuses` joins the two. Crediting is
+  **idempotent** (a `.mmd/local/credited-runs.json` record) so re-running never
+  double-counts a run.
+- **Promotion is gated by an injected LLM validation** — because promotion edits
+  MMD's own constitution. At threshold, an injected judge (the
+  `MMD_PROMOTE_GATE_CMD` `claude -p` seam) reviews the rule + its reusing runs:
+  **only an explicit `validated` promotes**; `not-validated` / `uncertain` /
+  unparseable / **gate-absent** all **HOLD** the lesson (counter preserved, an
+  honest note) — the **sacred fallback, never a fabricated constitution change**.
+- **Raw injections (INJ) vs validated reuses (VR) are shown distinctly** in
+  `mmd lessons` and in this command's summary, so the two are never conflated.
+
 ```bash
-mmd document-lessons --dry-run            # preview: counters + promotions, no writes
-mmd document-lessons                      # apply increments + promotions
+mmd document-lessons --dry-run            # preview: per-lesson deltas + gate verdicts, no writes
+mmd document-lessons                      # apply increments; gate-validated lessons promote
 mmd document-lessons --since 2026-05-01   # only audits newer than <ts>
 mmd document-lessons --help
 ```
 
 The destination module is taken from the lesson's own `**To promote if**` line
 (e.g. "promote to testing.md"), defaulting to `ai-coding.md`. Milestone lessons
-(`Status: milestone` — L-010/011/013/014) are never touched. Promotion is
-best-effort across its three file ops; a partial failure exits `6` and reports
-on stderr rather than pretending success. Exit codes: `0` ok / `2` user-argv
-error / `5` no composer.json found at all / `6` partial failure. Pure-function
-library (`lib/documentalist/{aggregate-injections,mutate-counters,promote-lesson,serialize-lessons}.js`),
+(`Status: milestone`) are never touched. Promotion is best-effort across its
+three file ops; a partial failure exits `6` and reports on stderr rather than
+pretending success. Exit codes: `0` ok / `2` user-argv error / `5` no
+composer.json found at all / `6` partial failure. Pure-function libraries
+(`lib/autolearn/{validated-reuse,promote-gate,run-outcome}.js`,
+`lib/documentalist/{aggregate-injections,mutate-counters,promote-lesson,serialize-lessons}.js`),
 with a byte-identity round-trip guarantee on `docs/lessons-learned.md`. See
-[ADR-014](./docs/adr/014-documentalist-lite-counter-incrementer.md); the full
-Documentalist Worker (cron trigger + LLM judgment) lands in v0.5b.
+[ADR-045](./docs/adr/045-autolearning-loop-closed.md) (the closed loop) and
+[ADR-014](./docs/adr/014-documentalist-lite-counter-incrementer.md) (the original
+counter). **Archival** (a lesson unused for M months → archived) is the deferred
+§6.5 tail.
 
 ### Unblock mode (`mmd unblock`) — *new in v0.2.j*
 
@@ -662,12 +686,12 @@ The folder will be renamed `make-my-dreams/` after v0.1 is validated. The repo i
 ## Status
 
 <!-- mmd:readme:status:start -->
-- **Version**: `0.8.2` (package.json)
+- **Version**: `0.9.0` (package.json)
 - **Latest tag**: `v0.8.2`
-- **ADRs**: 44 (ADR-001..ADR-044)
+- **ADRs**: 45 (ADR-001..ADR-045)
 - **Active lessons**: 21 active
 - **Reflexive slices (release tags)**: 44
-- **Tests**: 1817 passing
+- **Tests**: 1853 passing
 - _Mechanical block — regenerated by `mmd document-readme`; the prose History and command docs are human-authored._
 <!-- mmd:readme:status:end -->
 

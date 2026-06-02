@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.8.2`
-- **Branch**: `main`
-- **Version**: `0.8.2` (package.json)
+- **Branch**: `slice/here-autolearning-loop-validated-reuse-1780392139`
+- **Version**: `0.9.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 44 (ADR-001..ADR-044)
-- **Tests**: 1817 passing
+- **ADRs**: 45 (ADR-001..ADR-045)
+- **Tests**: 1853 passing
 - **Recent commits**:
-  - `500b3b4 docs(v0.8.2): ADR-044 — disclose the leading-dot-directory recall residual (Phase-4 F1)`
-  - `b72a600 docs(v0.8.2): ADR-044 + polyglot doc→code refs note, mechanical refresh, version bump`
-  - `f900534 test(v0.8.2): polyglot doc→code drift — Python/Rust fixture + repoTopDirs precision`
-  - `0434799 feat(v0.8.2): polyglot doc→code ref extractor (constitution §VIII)`
-  - `946e977 docs(v0.8.1): refresh blocks + dashboards at 0.8.1 / 1807 tests`
+  - `a308867 feat(autolearn): AC-4 surface raw INJ vs validated-reuse (VR) as distinct columns in mmd lessons`
+  - `893d883 feat(autolearn): AC-2/AC-3 wire validated-reuse signal + LLM promotion gate into document-lessons`
+  - `52e2869 feat(autolearn): AC-2 durable run-outcome correlation + counter rises on validated-not-credited reuses`
+  - `8666a74 feat(autolearn): AC-3 pure promotion-validation gate (parser + prompt builder)`
+  - `0b6b2f0 feat(autolearn): AC-1 pure validated-reuse counter (injected-into-a-done-run, per-run deduped)`
 - **Generated**: 2026-06-02 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

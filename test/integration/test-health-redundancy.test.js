@@ -65,8 +65,13 @@ async function makeRepo() {
   const dir = await mkdtemp(path.join(tmpdir(), 'mmd-redundancy-'));
   await mkdir(path.join(dir, 'docs'), { recursive: true });
   await mkdir(path.join(dir, 'test', 'integration'), { recursive: true });
+  await mkdir(path.join(dir, 'lib'), { recursive: true });
   await writeFile(path.join(dir, 'package.json'), JSON.stringify({ name: 'fixture', version: '0.7.7' }));
   await writeFile(path.join(dir, 'docs', 'placeholder.md'), 'placeholder\n');
+  // The REAL target module the test files import — so it resolves to a real file
+  // and survives keepRealTargets (the cluster table only counts real modules,
+  // not fixture-string phantoms).
+  await writeFile(path.join(dir, 'lib', 'widget.js'), 'export const runThing = () => 1;\n');
 
   // A file with a near-duplicate pair + one genuinely-different test. It imports
   // lib/widget.js so the file clusters on that target.

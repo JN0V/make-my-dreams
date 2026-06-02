@@ -26,7 +26,7 @@
 import { cwd as processCwd, stdout, stderr, env } from 'node:process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 import { scanTestCorpus } from '../../lib/test-curator/scan.js';
@@ -40,6 +40,7 @@ import {
 import {
   nearDuplicatePairs,
   targetClusters,
+  keepRealTargets,
   DEFAULT_SIMILARITY,
 } from '../../lib/test-curator/redundancy.js';
 
@@ -251,6 +252,11 @@ export async function runTestHealth(rawArgs) {
   }
 
   const scan = scanTestCorpus(files);
+  // Precision: the target extractor's import/require regex also matches fixture
+  // strings inside test bodies (e.g. an import-graph test that builds a fake
+  // `lib/a.js` as data), which polluted the "most-tested modules" table with
+  // phantom modules. Keep only targets that resolve to a real repo file.
+  scan.tests = keepRealTargets(scan.tests, (m) => existsSync(path.join(root, m)));
   const body = buildTestHealthReport(scan, {
     maxLines: ml.value, maxTests: mt.value, dupSimilarity: ds.value,
   });

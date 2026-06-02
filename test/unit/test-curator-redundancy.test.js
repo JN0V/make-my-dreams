@@ -8,9 +8,32 @@ import assert from 'node:assert/strict';
 import {
   nearDuplicatePairs,
   targetClusters,
+  keepRealTargets,
   tokenizeBody,
   DEFAULT_SIMILARITY,
 } from '../../lib/test-curator/redundancy.js';
+
+test('@unit keepRealTargets drops phantom (fixture-string) targets, keeps real ones', () => {
+  const tests = [
+    { file: 'a.test.js', targets: ['lib/server.js', 'lib/a.js'] },
+    { file: 'b.test.js', targets: ['lib/x.js'] },
+    { file: 'c.test.js', targets: ['lib/server.js'] },
+  ];
+  const real = new Set(['lib/server.js']); // only the real module exists
+  const kept = keepRealTargets(tests, (m) => real.has(m));
+  // Phantom fixture modules (lib/a.js, lib/x.js) are filtered out…
+  assert.deepEqual(kept[0].targets, ['lib/server.js']);
+  assert.deepEqual(kept[1].targets, []);
+  assert.deepEqual(kept[2].targets, ['lib/server.js']);
+  // …so the cluster table only counts the real module.
+  const clusters = targetClusters(kept);
+  assert.equal(clusters.length, 1);
+  assert.equal(clusters[0].module, 'lib/server.js');
+  assert.equal(clusters[0].testCount, 2);
+  // Pure + back-compat: no predicate → unchanged; non-array → [].
+  assert.equal(keepRealTargets(tests), tests);
+  assert.deepEqual(keepRealTargets(null, () => true), []);
+});
 
 // A realistic-ish body so it clears the MIN_TOKENS precision floor.
 const BODY_A = ' const repo = await makeRepo(); const r = runMmd(repo, []); assert.equal(r.status, 0); cleanup(repo); ';

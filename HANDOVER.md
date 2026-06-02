@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.7.6`
-- **Branch**: `slice/here-test-curator-redundancy-detection-1780376916`
+- **Latest tag**: `v0.7.7`
+- **Branch**: `main`
 - **Version**: `0.7.7` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 41 (ADR-001..ADR-041)
 - **Tests**: 1753 passing
 - **Recent commits**:
+  - `a5c847e fix(v0.7.7): Phase-4 review F1/F2 — callback-aware test-body extraction`
   - `54a78ad test(v0.7.7): re-bless version-coupled pins for the 0.7.7 bump`
   - `29e1487 docs(v0.7.7): regenerate coherence dashboard; reword to avoid self-inflicted drift`
   - `36b3873 chore(v0.7.7): refresh README/HANDOVER mechanical blocks + capture live redundancy numbers (AC-4/AC-5)`
   - `8341fdb docs(v0.7.7): AC-5 — ADR-041 + README/CLAUDE redundancy face; bump to 0.7.7`
-  - `43671f1 docs(v0.7.7): AC-4 — regenerate test-health dashboard with redundancy face`
 - **Generated**: 2026-06-02 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

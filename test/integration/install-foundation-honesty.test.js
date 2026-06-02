@@ -38,6 +38,32 @@ test('@unit install.sh gStack prompt defaults to install ([Y/n])', () => {
   assert.match(INSTALL_SH, /Install gStack now\? \[Y\/n\]/);
 });
 
+// ── Default to install EVEN NON-INTERACTIVELY (the curl|bash fix) ──────────
+// The bug Sébastien hit: a piped `curl … | bash` had no terminal, so bun/gStack
+// fell to a non-interactive SKIP. A foundation does not ask permission to be the
+// foundation: the non-interactive branch must INSTALL by default. The install
+// commands themselves need no terminal — only the (now optional) prompt did.
+
+test('@unit install-mmd.sh installs bun by default when there is no terminal (not skip)', () => {
+  assert.match(INSTALL_MMD_SH, /Non-interactive — installing bun \(foundation\)/,
+    'a curl|bash with no /dev/tty must still install bun (foundation), not skip it');
+});
+
+test('@unit install-mmd.sh installs gStack by default when there is no terminal (not skip)', () => {
+  assert.match(INSTALL_MMD_SH, /Non-interactive — installing gStack \(foundation\)/);
+});
+
+test('@unit install.sh installs gStack by default when there is no terminal (not skip)', () => {
+  assert.match(INSTALL_SH, /Non-interactive — installing gStack \(foundation\)/);
+});
+
+test('@unit the escape hatch is an OPT-OUT env var, not the price of entry', () => {
+  // Foundation installs by default; MMD_SKIP_* is how an advanced user opts out.
+  assert.match(INSTALL_MMD_SH, /MMD_SKIP_BUN/, 'install-mmd.sh must offer MMD_SKIP_BUN as the opt-out');
+  assert.match(INSTALL_MMD_SH, /MMD_SKIP_GSTACK/, 'install-mmd.sh must offer MMD_SKIP_GSTACK as the opt-out');
+  assert.match(INSTALL_SH, /MMD_SKIP_GSTACK/, 'install.sh must honor MMD_SKIP_GSTACK');
+});
+
 // ── Honest gating: a skip NAMES what it disables (no silent half-working MMD) ─
 
 test('@unit install-mmd.sh names the disabled commands when bun is absent', () => {

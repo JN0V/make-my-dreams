@@ -169,25 +169,29 @@ elif [ -x "$BUN_PATH_BIN" ]; then
         info "Remediation: re-install bun via 'curl -fsSL https://bun.sh/install | bash'"
     fi
 else
-    # bun absent. Offer to install. AC-1 contract:
-    #   - 5-line summary of what bun is + what the curl does
-    #   - y/N prompt (default N)
-    #   - MMD_AUTO_INSTALL_BUN=1 skips the prompt
+    # bun absent. bun is FOUNDATION → install by DEFAULT, interactive or not.
+    #   - opt OUT with MMD_SKIP_BUN=1 (the escape hatch)
+    #   - a real terminal gets a courtesy [Y/n] prompt (declining == opting out)
+    #   - NO terminal (curl|bash, CI) → install anyway (the default), because the
+    #     install itself needs no interactivity; only the *permission prompt* did,
+    #     and a foundation does not ask permission to be the foundation.
+    #   - MMD_AUTO_INSTALL_BUN=1 still works (explicit force, skips the prompt)
     info "bun is NOT installed. bun is the JavaScript runtime gStack runs on — part"
     info "of the foundation MMD stands on (it drives the gStack review skills)."
     info "  - Install location: \$HOME/.bun/ (no root, no apt)"
     info "  - Install command : curl -fsSL https://bun.sh/install | bash"
     info "  - Disk footprint  : ~40 MB"
     info "  - Uninstall later : rm -rf \$HOME/.bun"
-    info "  - Without bun, the gStack-backed commands 'mmd qa', 'mmd cso' and"
-    info "    'mmd document-release' are unavailable (the MMD core works without it)."
+    info "  - Opt out with MMD_SKIP_BUN=1 (then 'mmd qa'/'cso'/'document-release' stay unavailable)."
     AUTO_INSTALL=false
-    if [ "${MMD_AUTO_INSTALL_BUN:-0}" = "1" ]; then
-        info "MMD_AUTO_INSTALL_BUN=1 detected — proceeding without prompt."
+    if [ "${MMD_SKIP_BUN:-0}" = "1" ]; then
+        info "MMD_SKIP_BUN=1 — opting out of bun (foundation)."
+        AUTO_INSTALL=false
+    elif [ "${MMD_AUTO_INSTALL_BUN:-0}" = "1" ]; then
+        info "MMD_AUTO_INSTALL_BUN=1 — installing bun without prompt."
         AUTO_INSTALL=true
     elif [ -t 0 ]; then
-        # Default is INSTALL: bun is foundation, not an afterthought. The user can
-        # still decline (the env-var is the escape hatch, not the price of entry).
+        # Courtesy prompt on a real terminal; default INSTALL, decline == opt-out.
         printf "%s" "  Install bun now? [Y/n] "
         read -r reply
         case "$reply" in
@@ -195,11 +199,9 @@ else
             *) AUTO_INSTALL=true ;;
         esac
     else
-        # Non-interactive (CI / no terminal): we do NOT install without consent,
-        # but we are HONEST about what that disables (no silent half-working MMD).
-        info "Non-interactive stdin — not installing bun. Set MMD_AUTO_INSTALL_BUN=1 to install it."
-        info "  → Until then, 'mmd qa', 'mmd cso' and 'mmd document-release' are UNAVAILABLE."
-        AUTO_INSTALL=false
+        # No terminal (curl|bash, CI): install the foundation by DEFAULT.
+        info "Non-interactive — installing bun (foundation). Opt out with MMD_SKIP_BUN=1."
+        AUTO_INSTALL=true
     fi
 
     if [ "$AUTO_INSTALL" = true ]; then
@@ -221,7 +223,7 @@ else
     else
         warn "bun NOT installed → 'mmd qa', 'mmd cso' and 'mmd document-release' are UNAVAILABLE."
         warn "  (The MMD core — serve, --here, auto-dev, discover, … — works without bun.)"
-        warn "  Enable later: install bun, or re-run with MMD_AUTO_INSTALL_BUN=1."
+        warn "  Re-run WITHOUT MMD_SKIP_BUN to install it (it installs by default)."
     fi
 fi
 
@@ -1280,12 +1282,16 @@ if [ ! -d "$GSTACK_DIR" ]; then
     info "    skills behind 'mmd qa', 'mmd cso' and 'mmd document-release'."
     info "  - Install command: curl -fsSL https://gstack.dev/install.sh | bash"
     info "  - Without gStack, those three commands are unavailable (the core is fine)."
+    info "  - Opt out with MMD_SKIP_GSTACK=1 (else it installs by default)."
     INSTALL_GSTACK=false
-    if [ "${MMD_AUTO_INSTALL_GSTACK:-0}" = "1" ]; then
-        info "MMD_AUTO_INSTALL_GSTACK=1 detected — proceeding without prompt."
+    if [ "${MMD_SKIP_GSTACK:-0}" = "1" ]; then
+        info "MMD_SKIP_GSTACK=1 — opting out of gStack (foundation)."
+        INSTALL_GSTACK=false
+    elif [ "${MMD_AUTO_INSTALL_GSTACK:-0}" = "1" ]; then
+        info "MMD_AUTO_INSTALL_GSTACK=1 — installing gStack without prompt."
         INSTALL_GSTACK=true
     elif [ -t 0 ]; then
-        # Default is INSTALL: gStack is foundation. Decline is still possible.
+        # Courtesy prompt on a real terminal; default INSTALL, decline == opt-out.
         printf "%s" "  Install gStack now? [Y/n] "
         read -r reply
         case "$reply" in
@@ -1293,8 +1299,9 @@ if [ ! -d "$GSTACK_DIR" ]; then
             *) INSTALL_GSTACK=true ;;
         esac
     else
-        info "Non-interactive stdin — not installing gStack. Set MMD_AUTO_INSTALL_GSTACK=1 to install it."
-        info "  → Until then, 'mmd qa', 'mmd cso' and 'mmd document-release' are UNAVAILABLE."
+        # No terminal (curl|bash, CI): install the foundation by DEFAULT.
+        info "Non-interactive — installing gStack (foundation). Opt out with MMD_SKIP_GSTACK=1."
+        INSTALL_GSTACK=true
     fi
     if [ "$INSTALL_GSTACK" != true ]; then
         warn "gStack NOT installed → 'mmd qa', 'mmd cso' and 'mmd document-release' are UNAVAILABLE (the MMD core works without it)."

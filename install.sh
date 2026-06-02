@@ -155,38 +155,39 @@ bash "$MMD_HOME/install-mmd.sh" "$MMD_HOME"
 # --- Phase 4: gStack prompt (optional) -------------------------------------
 header "Phase 4 — gStack (optional but recommended)"
 
+# bun that install-mmd.sh may have just installed lands in ~/.bun/bin — make it
+# visible to the gStack install below even though Phase 1 ran before that.
+[ -d "$HOME/.bun/bin" ] && export PATH="$HOME/.bun/bin:$PATH"
+
 if [ -d "$HOME/.claude/skills/gstack" ]; then
     ok "gStack already installed at ~/.claude/skills/gstack"
-elif [ "$MMD_SKIP_GSTACK_PROMPT" = "1" ]; then
-    warn "gStack skipped (MMD_SKIP_GSTACK_PROMPT=1) → 'mmd qa', 'mmd cso', 'mmd document-release' UNAVAILABLE."
+elif [ "${MMD_SKIP_GSTACK:-0}" = "1" ] || [ "$MMD_SKIP_GSTACK_PROMPT" = "1" ]; then
+    warn "gStack skipped (MMD_SKIP_GSTACK=1) → 'mmd qa', 'mmd cso', 'mmd document-release' UNAVAILABLE."
     echo "    Install later: git clone https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && bun install"
 else
     info "gStack is part of the foundation MMD stands on — it provides the review skills"
-    info "behind 'mmd qa', 'mmd cso' and 'mmd document-release'. Recommended."
-    # ask_tty reads the answer from the terminal even under `curl … | bash`
-    # (per-command `< /dev/tty`, never `exec` — so it doesn't break the piped
-    # script). Returns non-zero only when there is no terminal at all (true CI).
+    info "behind 'mmd qa', 'mmd cso' and 'mmd document-release'. Installed by default."
+    # gStack is FOUNDATION → install by DEFAULT, interactive or not. A real
+    # terminal gets a courtesy [Y/n] (declining == opting out); no terminal
+    # (curl|bash, CI) installs anyway. Opt out entirely with MMD_SKIP_GSTACK=1.
+    DO_GSTACK=true
     if ask_tty "    Install gStack now? [Y/n] "; then
-        # Default INSTALL: decline only on an explicit no.
-        case "${REPLY:-y}" in
-            n|N|no|NO)
-                warn "gStack NOT installed → 'mmd qa', 'mmd cso', 'mmd document-release' UNAVAILABLE (the MMD core is fine)."
-                echo "    Install later: git clone https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && (cd ~/.claude/skills/gstack && bun install)"
-                ;;
-            *)
-                if ! command -v bun >/dev/null 2>&1; then
-                    fail "bun not installed — install it first: curl -fsSL https://bun.sh/install | bash"
-                else
-                    git clone --depth=1 https://github.com/garrytan/gstack.git "$HOME/.claude/skills/gstack"
-                    (cd "$HOME/.claude/skills/gstack" && bun install)
-                    ok "gStack installed"
-                fi
-                ;;
-        esac
+        case "${REPLY:-y}" in n|N|no|NO) DO_GSTACK=false ;; esac
     else
-        warn "Non-interactive shell, no terminal → gStack not installed; 'mmd qa', 'mmd cso', 'mmd document-release' UNAVAILABLE."
+        info "Non-interactive — installing gStack (foundation). Opt out with MMD_SKIP_GSTACK=1."
+    fi
+    if [ "$DO_GSTACK" = true ]; then
+        if ! command -v bun >/dev/null 2>&1 && [ ! -x "$HOME/.bun/bin/bun" ]; then
+            warn "bun not found → cannot install gStack now; 'mmd qa', 'mmd cso', 'mmd document-release' UNAVAILABLE."
+            echo "    install-mmd.sh installs bun by default — re-run, or set MMD_SKIP_GSTACK=1 to stop asking."
+        else
+            git clone --depth=1 https://github.com/garrytan/gstack.git "$HOME/.claude/skills/gstack"
+            (cd "$HOME/.claude/skills/gstack" && bun install)
+            ok "gStack installed"
+        fi
+    else
+        warn "gStack NOT installed → 'mmd qa', 'mmd cso', 'mmd document-release' UNAVAILABLE (the MMD core is fine)."
         echo "    Install later: git clone https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && (cd ~/.claude/skills/gstack && bun install)"
-        echo "    Or set MMD_AUTO_INSTALL_GSTACK=1 (with bun) to provision it non-interactively."
     fi
 fi
 

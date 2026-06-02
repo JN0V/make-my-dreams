@@ -101,12 +101,15 @@ test('@integration install-mmd phase 0: bun absent + non-interactive stdin warns
         env: {
           PATH: minimalPath,
           HOME: fakeHome,
+          // bun now installs by DEFAULT (foundation) even non-interactively, so
+          // we explicitly OPT OUT to exercise the skip path offline (no curl).
+          MMD_SKIP_BUN: '1',
         },
         // No TTY: stdin is the default node spawn pipe — `[ -t 0 ]` is false.
       });
-      assert.equal(r.status, 0, `phase 0 should not fail when bun is absent + no MMD_REQUIRE_GSTACK; stderr=${r.stderr}\nstdout=${r.stdout}`);
+      assert.equal(r.status, 0, `phase 0 should not fail when bun is opted out + no MMD_REQUIRE_GSTACK; stderr=${r.stderr}\nstdout=${r.stdout}`);
       assert.match(r.stdout, /NOT installed/i);
-      assert.match(r.stdout, /MMD_AUTO_INSTALL_BUN=1/);
+      assert.match(r.stdout, /MMD_SKIP_BUN/);
       // Honest gating (no silent half-working install): the skip must NAME the
       // commands it disables, not just shrug. (foundation-honesty polish.)
       assert.match(r.stdout, /UNAVAILABLE/, 'a bun skip must loudly say a capability is unavailable');
@@ -132,6 +135,9 @@ test('@integration install-mmd phase 0: bun absent + MMD_REQUIRE_GSTACK=1 exits 
           PATH: '/usr/bin:/bin',
           HOME: fakeHome,
           MMD_REQUIRE_GSTACK: '1',
+          // Opt out of the (now default) install so the test stays offline; the
+          // REQUIRE gate must STILL fire (exit 1) on the resulting absent bun.
+          MMD_SKIP_BUN: '1',
         },
       });
       assert.equal(r.status, 1, `expected exit 1 when MMD_REQUIRE_GSTACK=1 + no bun; got ${r.status}\nstdout=${r.stdout}\nstderr=${r.stderr}`);
@@ -189,6 +195,9 @@ test('@integration install-mmd phase 6: gStack absent + non-interactive stdin wa
         env: {
           PATH: '/usr/bin:/bin',
           HOME: fakeHome,
+          // gStack now installs by DEFAULT (foundation) even non-interactively,
+          // so opt out to exercise the skip path offline (no curl to gstack.dev).
+          MMD_SKIP_GSTACK: '1',
         },
       });
       assert.equal(r.status, 0, `expected exit 0; stdout=${r.stdout}\nstderr=${r.stderr}`);
@@ -214,6 +223,9 @@ test('@integration install-mmd phase 6: gStack absent + MMD_REQUIRE_GSTACK=1 exi
           PATH: '/usr/bin:/bin',
           HOME: fakeHome,
           MMD_REQUIRE_GSTACK: '1',
+          // Opt out of the (now default) install so the test stays offline; the
+          // REQUIRE gate must STILL fire (exit 1) on the resulting absent gStack.
+          MMD_SKIP_GSTACK: '1',
         },
       });
       assert.equal(r.status, 1, `expected exit 1; stdout=${r.stdout}\nstderr=${r.stderr}`);

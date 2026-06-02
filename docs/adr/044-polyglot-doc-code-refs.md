@@ -79,10 +79,15 @@ downstream where the repo is known, matching the v0.7.b "candidates then resolve
 - **`--since` coherence graph is unaffected.** Its doc→code edges already resolve via exact
   `trackedSet.has(...)`, so broadened candidates that don't resolve simply contribute no edge
   — no phantom neighbors.
-- **Zero new dependencies** (regex + a `readdirSync` of the repo root). The honest residual:
-  recall is bounded to repo-rooted refs (a ref under a directory that does not exist at the
-  repo root is not judged) — a deliberate precision-first choice, consistent with the v0.7.b
-  "a drift section that cries wolf is useless" discipline.
+- **Zero new dependencies** (regex + a `readdirSync` of the repo root). Two honest recall
+  residuals, both deliberate precision-first trade-offs (the v0.7.b "a drift section that cries
+  wolf is useless" discipline):
+  - A ref under a directory that does not exist at the repo root is not judged (repo-rooted
+    bound).
+  - A file under a **leading-dot directory** (`.specify/memory/x.md`, `.github/workflows/...`)
+    is never captured — the same lookbehind that prevents the `.specify/x.md → phantom
+    specify/x.md` false positive also drops a genuine dangling dot-dir ref. No live
+    false-negative today (every dot-dir ref in MMD resolves); flagged here for honesty.
 
 Remaining §VIII analysis debt after this slice: **coverage** (deferred for all adapters, and
 will be polyglot when built — each ecosystem's native tool → lcov/cobertura, never

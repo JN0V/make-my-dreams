@@ -269,6 +269,12 @@ The deeper "whose constitution governs the build" question, deferred from v0.6.a
 3. **Drift-detector precision**: historical/rejected context-awareness so archival "Files created" lists + "rejected alternative" mentions (today's 2 false positives) aren't flagged.
 - Then: Diataxis generation (§6.3 "produce" face), event-driven triggering, full autolearning reuse-counter (§6.5).
 
+**§VIII technology-agnostic debt (CRITICAL — MMD claims polyglot; some analysis tooling was secretly JS-only):**
+- ✅ **Test Curator → polyglot (v0.8.0)** — adapter architecture (core has zero language syntax; `adapters/{javascript,python}.js`); detect-and-refuse honestly on an unsupported stack (Rust → clear refusal, no fabricated numbers). Proven live: Python analyzed, Rust refused, JS unchanged. New constitution **universal §VIII** is the guardrail (always-loaded → injected into every auto-dev run).
+- ⬜ **blast-radius / coherence-graph / doc→code refs are STILL JS-only** (they parse JS `import`/`require`). Under §VIII they must become adapter-based too (each stack's import syntax). Same refactor pattern as the Curator. The coherence graph's code↔code edges are wrong on a Rust/Python repo today.
+- ⬜ **Coverage** — deferred from v0.8.0 and MUST be polyglot when built (each adapter runs its native coverage tool → parse lcov/cobertura in a shared parser). NOT `node --test` in the core.
+- ⬜ **Test Curator: more adapters** (Rust `#[test]`, Go `func Test`, C, …) — each is a new `adapters/<lang>.js`, not a rewrite; until added they hit the honest refusal. Python body-similarity redundancy (indentation extractor) is also deferred (`supportsBodies:false` today).
+
 **Hors-roadmap concepts Sébastien raised (NOT in MAKE_MY_DREAMS §9) — BOTH now shipped (he asked to bring them early):**
 - ✅ **`/mmd` slash command (v0.7.5)** — the operator playbook as a Claude Code command (`assets/claude-commands/mmd.md`, materialized by install-mmd.sh into `.claude/commands/mmd.md`). Drive MMD by intent from a session. Live in this repo (materialized).
 - ✅ **Test rationalization → the Test Curator (v0.7.6)** — `mmd test-health`, a role DISTINCT from qa/TEA/Documentalist: test-CORPUS health (stratification, untagged violations, @smoke band, oversized files), detect-and-report. **Applied**: tagged 71 untagged `@integration` tests (74→3, the 3 are curator-own fixture strings). Correction: @smoke (8) is actually within testing.md §V's 5–10 band — fine. Future Curator work: a `--fix` act-mode (auto-tag by directory stratum), dedup/coverage-overlap detection.

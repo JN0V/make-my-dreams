@@ -31,7 +31,7 @@ These are non-negotiable, drawn from MMD's constitution and lessons-learned:
   because Y" beats a fabricated success (ai-coding.md §I, universal §VI).
 - **Verify before declaring done.** Run the tests (`npm run test:full`) and read the real
   status before reporting green. "I think it works" is not "it works" (ai-coding.md §V).
-- **PATH must carry bun + node 20** for the `mmd` CLI to work from a non-interactive
+- **PATH must carry bun + node 20** for the `mmdream` CLI to work from a non-interactive
   context:
   `export PATH="$HOME/.bun/bin:$HOME/.nvm/versions/node/v20.19.5/bin:$PATH"`
   (adjust the node path to the installed v20.x; HANDOVER.md documents the canonical one).
@@ -52,7 +52,7 @@ rules applied. Use `setsid` (NOT `nohup` — `nohup … &` does not survive shel
 L-001) and keep the launch command minimal so a tool timeout can't half-fire it:
 
 ```bash
-setsid bash -c 'export PATH="$HOME/.bun/bin:$HOME/.nvm/versions/node/v20.19.5/bin:$PATH" MMD_TIMEOUT_MS=0 MMD_DREAM_MAX_LEN=4000 && cd <REPO_ROOT> && mmdream --here --label "<readable-slug>" "<DREAM>" > /tmp/mmd-<slug>.log 2>&1' </dev/null >/dev/null 2>&1 & disown ; echo "launched at $(date +%H:%M:%S)"
+setsid bash -c 'export PATH="$HOME/.bun/bin:$HOME/.nvm/versions/node/v20.19.5/bin:$PATH" MMD_TIMEOUT_MS=0 MMD_DREAM_MAX_LEN=4000 && cd <REPO_ROOT> && mmdream --here --label "<readable-slug>" "<DREAM>" > /tmp/mmdream-<slug>.log 2>&1' </dev/null >/dev/null 2>&1 & disown ; echo "launched at $(date +%H:%M:%S)"
 ```
 
 Operational rules baked into that command — every one is mandatory:

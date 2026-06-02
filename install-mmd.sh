@@ -116,7 +116,7 @@ TARGET="${1:-$(pwd)}"
 TARGET="$(cd "$TARGET" && pwd)"
 
 # --- Source directory (where this script + its tracked assets live) ---------
-# Resolved from BASH_SOURCE so we can copy tracked assets (e.g. the /mmd
+# Resolved from BASH_SOURCE so we can copy tracked assets (e.g. the /mmdream
 # slash-command template) into the target. When the script is curl'd standalone
 # the assets won't be next to it — callers that need them must run from a full
 # MMD checkout; the materialization steps degrade gracefully if absent.
@@ -139,7 +139,7 @@ info "MMD module     : ${ADV_CODE} — ${ADV_NAME}"
 # invoked because `bun` was in ~/.bashrc but NOT in the PATH of non-interactive
 # subprocesses (claude -p, scripted invocations). v0.2.f closes that gap with
 # a functional install (not "is the binary file present?") + a CLI shim
-# (bin/mmd) that prepends ~/.bun/bin to PATH before invoking node bin/mmd.js.
+# (bin/mmdream) that prepends ~/.bun/bin to PATH before invoking node bin/mmd.js.
 #
 # Env vars (idempotent re-run controls):
 #   MMD_AUTO_INSTALL_BUN=1  -> skip the y/N prompt and install bun if absent
@@ -1180,8 +1180,8 @@ ok "Generated: .claude/commands/bmad-${ADV_CODE}-auto-dev.md"
 # TWO destinations:
 #   1. GLOBAL ~/.claude/commands/mmdream.md — Claude Code personal command, available
 #      in EVERY session regardless of which project you open. This is what makes
-#      `/mmd` usable after a one-liner install: the operator playbook is generic,
-#      not tied to one repo. (Without it, `/mmd` only showed up inside the MMD
+#      `/mmdream` usable after a one-liner install: the operator playbook is generic,
+#      not tied to one repo. (Without it, `/mmdream` only showed up inside the MMD
 #      checkout where install ran — the "/mmdream not available" report.)
 #   2. PROJECT $TARGET/.claude/commands/mmdream.md — kept for the MMD repo's own
 #      dogfooding + for a project where you ran `install-mmd.sh .` explicitly.
@@ -1190,7 +1190,7 @@ MMD_CMD_SRC="$MMD_SRC_DIR/assets/claude-commands/mmdream.md"
 MMD_CMD_DST="$TARGET/.claude/commands/mmdream.md"
 MMD_CMD_DST_GLOBAL="$HOME/.claude/commands/mmdream.md"
 if [ -f "$MMD_CMD_SRC" ]; then
-    # Global first — this is the one that makes `/mmd` available everywhere.
+    # Global first — this is the one that makes `/mmdream` available everywhere.
     mkdir -p "$(dirname "$MMD_CMD_DST_GLOBAL")"
     cp "$MMD_CMD_SRC" "$MMD_CMD_DST_GLOBAL"
     ok "Generated: ~/.claude/commands/mmdream.md (/mmdream available in every Claude Code session)"
@@ -1798,7 +1798,7 @@ if [ "$ALL_OK" = true ]; then
     echo "║      (Standard engine ready — \`${ADV_CODE}\` module + auto-dev)    ║"
     echo "╚══════════════════════════════════════════════════════════╝"
     echo ""
-    printf "  ${BOLD}Put the \`mmd\` CLI on your PATH${NC} (from this repo dir):\n"
+    printf "  ${BOLD}Put the \`mmdream\` CLI on your PATH${NC} (from this repo dir):\n"
     echo ""
     printf "    ${CYAN}npm install -g .${NC}\n"
     echo ""

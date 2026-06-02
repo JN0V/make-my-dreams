@@ -61,6 +61,9 @@ _Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edi
 ### Dangling references (a doc claims an artifact that does not exist)
 
 - ⚠️ README.md:756 → `lib/a.js` — file not found (renamed/removed?)
+- ⚠️ HANDOVER.md:24 → `mmdream across` — 'across' is not a known subcommand (renamed/removed/planned?)
+- ⚠️ HANDOVER.md:25 → `mmdream collision` — 'collision' is not a known subcommand (renamed/removed/planned?)
+- ⚠️ HANDOVER.md:26 → `mmdream global` — 'global' is not a known subcommand (renamed/removed/planned?)
 - ⚠️ docs/lessons-learned.md:240 → `bin/ship.js` — file not found (renamed/removed?)
 - ⚠️ docs/adr/032-transparent-first-run-setup.md:60 → `mmd init` — 'init' is not a known subcommand (renamed/removed/planned?)
 - ⚠️ docs/adr/039-mmd-operator-slash-command.md:45 → `assets/claude-commands/mmd.md` — file not found (renamed/removed?)

@@ -1,7 +1,7 @@
 # Session handover
 
 > **Read this first** when picking up the project across a context switch (Cowork ↔ Claude Code, Sonnet ↔ Opus, fresh session, new collaborator). It transfers the **intent** (what's next + why), not just the **state** (state is in git).
-> Updated: 2026-06-01, end of a multi-session arc that landed v0.2.4 → v0.5.1 (v0.3 Dream Catcher + Layer-C composer + doc-sync + v0.4 Bundle-B complete + v0.5 Conductor: Layer-6 notifications + live context monitor).
+> Updated: 2026-06-02, after a long single session that landed **v0.6.0 → v0.8.0** (14 versions): third-party readiness (works on other repos), the full **Documentalist** (detect gaps / drift / compact SPECs / coherence graph + hub-cap), the **`/mmd`** Claude slash command, the **Test Curator** (`mmd test-health`: stratification + redundancy + cluster precision), and the **polyglot §VIII correction** (the Test Curator was secretly JavaScript-only → now adapter-based, proven on Python, honest-refuses Rust; constitution `universal §VIII` added as the guardrail).
 
 ---
 
@@ -28,6 +28,16 @@
   - `e84b158 test(v0.8.0): re-bless version-pinned anchors for 0.8.0 (ship --help snapshot + package.json version assert)`
 - **Generated**: 2026-06-02 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
+
+## ▶ RIGHT NOW — handoff orientation (read this if you're picking up mid-session)
+
+**State:** `main` clean, **v0.8.0**, 1782 tests green. Everything below is shipped + pushed + tagged.
+
+**This session's arc (v0.6.0 → v0.8.0):** third-party readiness → the full Documentalist (`mmd document-review` detect + drift/conformance + `mmd document-compact` SPEC archival + `--since` coherence graph + hub-cap) → `/mmd` operator slash command (live in `.claude/commands/`) → the Test Curator (`mmd test-health`: corpus health + redundancy + cluster precision) → **the §VIII polyglot correction** (Sébastien caught that the Test Curator was JS-only; fixed via adapters + the new constitution §VIII guardrail; proven on Python, refuses Rust honestly). Each version has a detailed "JUST LANDED" block below and a changelog entry in README.
+
+**IMMEDIATE NEXT — finish the §VIII technology-agnostic debt (Sébastien's directive, IN PROGRESS):** the Test Curator is now polyglot, but **blast-radius / the coherence-graph code↔code edges / the doc→code ref extractor are STILL JavaScript-only** (they parse JS `import`/`require`). Same correctness failure, other tools. Make them adapter-based per §VIII (per-language import/ref extraction), reusing the Curator's pattern. See the "**§VIII technology-agnostic debt**" block under NEXT PRIORITY. *After* that: the core (autolearning, Bundle A security, polyglot Reality Check, auto-handoff@70%, Bundle C/HITL).
+
+**How work is launched here (the discipline `/mmd` encodes):** `mmd --here` runs DETACHED via `setsid` with `MMD_TIMEOUT_MS=0` + a human `--label` + the dream saying "commit incrementally per AC"; monitor via `status.json` state + git commits (NOT the buffered log — L-002); on green: ff-only merge + annotated tag + `mmd document-readme/handover --tests N` refresh + delete slice + `npm install -g .`. Two gotchas this session: **no backticks in the dream** (shell command-substitution corrupts the args) and **don't cite a to-be-created `SPEC_V0XX.md`/`docs/**.md` path literally** (grounding false-trip).
 
 ## What just shipped (chronological, this multi-session arc)
 

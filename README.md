@@ -747,50 +747,50 @@ Next on the roadmap (see [MAKE_MY_DREAMS.md](./MAKE_MY_DREAMS.md)): a lite doc-s
 One line per release, newest first, generated from each git tag's annotation by `mmdream document-readme`. This is the *mechanical* release list; the narrative **History** above is the human-owned story of why each slice happened.
 
 <!-- mmd:readme:changelog:start -->
-- **v0.9.2** — mmdream deps-gate: polyglot supply-chain gate (Bundle A Security brick 2)
-- **v0.9.1** — Bundle A Security brick 1: mmdream secret-scan (vanilla, language-agnostic secret gate)
+- **v0.9.2** — mmd deps-gate: polyglot supply-chain gate (Bundle A Security brick 2)
+- **v0.9.1** — Bundle A Security brick 1: mmd secret-scan (vanilla, language-agnostic secret gate)
 - **v0.9.0** — the autolearning loop is CLOSED (differentiator #2, §6.5)
 - **v0.8.2** — polyglot doc→code refs (§VIII debt complete for code analysis)
 - **v0.8.1** — polyglot import graph (§VIII debt: blast-radius + coherence-graph code edges)
 - **v0.8.0** — the Test Curator goes POLYGLOT (adapter architecture, constitution §VIII)
 - **v0.7.8** — Test Curator cluster precision: count only real-file targets (drop fixture phantoms like lib/a.js/x.js). New pure keepRealTargets filters to modules that resolve to a real repo file; most-tested-modules table is now credible.
-- **v0.7.7** — Test Curator redundancy face (mmdream test-health): is the corpus bloated?
-- **v0.7.6** — the Test Curator (mmdream test-health): test-corpus health
-- **v0.7.5** — the /mmdream Claude Code slash command (operator playbook)
+- **v0.7.7** — Test Curator redundancy face (mmd test-health): is the corpus bloated?
+- **v0.7.6** — the Test Curator (mmd test-health): test-corpus health
+- **v0.7.5** — the /mmd Claude Code slash command (operator playbook)
 - **v0.7.4** — coherence-graph precision: hub-source neighbor cap
-- **v0.7.3** — the coherence graph: staleness-on-diff (mmdream document-review --since)
-- **v0.7.2** — the Documentalist compacts: SPEC archival (mmdream document-compact)
-- **v0.7.1** — the Documentalist checks DRIFT (mmdream document-review conformance)
-- **v0.7.0** — the Documentalist's coherence review (mmdream document-review)
+- **v0.7.3** — the coherence graph: staleness-on-diff (mmd document-review --since)
+- **v0.7.2** — the Documentalist compacts: SPEC archival (mmd document-compact)
+- **v0.7.1** — the Documentalist checks DRIFT (mmd document-review conformance)
+- **v0.7.0** — the Documentalist's coherence review (mmd document-review)
 - **v0.6.1** — constitution suggestions + discover→--here friction fix
 - **v0.6.0** — third-party readiness: transparent first-run setup + brownfield detection
-- **v0.5.2** — serve-UI context gauge + opt-in web monitor toggle: surfaces status.json.context (bar/%/tokens/model/70%/handoff badge) in mmdream serve. 1444 tests. 26th reflexive --here use.
+- **v0.5.2** — serve-UI context gauge + opt-in web monitor toggle: surfaces status.json.context (bar/%/tokens/model/70%/handoff badge) in mmd serve. 1444 tests. 26th reflexive --here use.
 - **v0.5.1** — live context monitor (opt-in --monitor): stream-json usage → context % in status.json + READY_FOR_HANDOFF/context_70 at 70%. Default spawn (bootstrap path) untouched. 1423 tests. 25th reflexive --here use.
 - **v0.5.0** — Conductor brick 1: Layer-6 notification fan-out (opt-in MMD_NOTIFY_URL, best-effort POST on run done/failed). The proactive-feedback fix for detached runs. 1398 tests. 24th reflexive --here use.
 - **v0.4.3** — LLM-as-judge behavioral oracle (P-09): after the sealed-test gate, a judge grades the implementation against what was asked; not-met/uncertain → exit 7. Bundle B now has both oracles. 1379 tests. 23rd reflexive --here use.
 - **v0.4.2** — import-graph blast radius: computeBlastRadius parses+resolves module specifiers and returns the transitive reverse closure (true P-05 reach). No external parser dep (vanilla-stack). 1362 tests. 22nd reflexive --here use.
-- **v0.4.1** — sealed oracle on --here: mmdream --here --sealed. Extracted surface-agnostic runSealedPipeline (coder injected); MMD can now seal-test its own slices. Greenfield unchanged. 1343 tests. 21st reflexive --here use.
-- **v0.4.0** — Bundle B: sealed-test oracle (mmdream --sealed). Two-phase tester→seal→coder→verify catches the agent-rewrites-the-test failure (P-04) + blast-radius stub. First correctness hardening of MMD's auto-dev. 1337 tests. 20th reflexive --here use.
-- **v0.3.4** — mmdream document-readme (Documentalist-lite): the mmdream handover pattern applied to the README. Regenerates Status + Changelog (from git tag annotations) between markers + a drift report. Closes doc drift at the root. 1309 tests. 19th reflexive --here use.
+- **v0.4.1** — sealed oracle on --here: mmd --here --sealed. Extracted surface-agnostic runSealedPipeline (coder injected); MMD can now seal-test its own slices. Greenfield unchanged. 1343 tests. 21st reflexive --here use.
+- **v0.4.0** — Bundle B: sealed-test oracle (mmd --sealed). Two-phase tester→seal→coder→verify catches the agent-rewrites-the-test failure (P-04) + blast-radius stub. First correctness hardening of MMD's auto-dev. 1337 tests. 20th reflexive --here use.
+- **v0.3.4** — mmd document-readme (Documentalist-lite): the mmd handover pattern applied to the README. Regenerates Status + Changelog (from git tag annotations) between markers + a drift report. Closes doc drift at the root. 1309 tests. 19th reflexive --here use.
 - **v0.3.3** — Layer C: profile→constitution-module composer. MMD_PROFILE now injects real kid.md/pro.md/safe-by-default modules into the build prompt. 1268 tests. 18th reflexive --here use.
-- **v0.3.2** — Dream Catcher CLI surface (TTY-gated mmdream dream + --catch/--no-catch) + MMD_PROFILE threading (Kid → safe-by-default). v0.3 complete: web + CLI + meaningful profile. 1224 tests. 17th reflexive --here use.
+- **v0.3.2** — Dream Catcher CLI surface (TTY-gated mmd dream + --catch/--no-catch) + MMD_PROFILE threading (Kid → safe-by-default). v0.3 complete: web + CLI + meaningful profile. 1224 tests. 17th reflexive --here use.
 - **v0.3.1** — Dream Catcher involvement dial (Autonome/Équilibré/Guidé) + scope editing. Core complete. 1186 tests. 16th reflexive --here use.
 - **v0.3.0** — Dream Catcher walking skeleton: web dream → profile → autonomous bmad-product-brief scope → confirm → auto-dev. First v0.3 milestone. 1145 tests. 15th reflexive --here use.
-- **v0.2.16** — mmdream handover subcommand (L-020): auto-refresh the mechanical State block, never fabricate intent. 1087 tests. 14th reflexive --here use, 1st with --label.
-- **v0.2.15** — human-readable branch names for mmdream --here (--label + boilerplate strip). Embodies constitution universal §VII. 1055 tests.
-- **v0.2.14** — L-019 closure: WIP-salvage stall signal (wip-uncommitted-since-N-min) + composer L-015 regression-lock. 1043 tests, +18. 13th reflexive mmdream --here use.
+- **v0.2.16** — mmd handover subcommand (L-020): auto-refresh the mechanical State block, never fabricate intent. 1087 tests. 14th reflexive --here use, 1st with --label.
+- **v0.2.15** — human-readable branch names for mmd --here (--label + boilerplate strip). Embodies constitution universal §VII. 1055 tests.
+- **v0.2.14** — L-019 closure: WIP-salvage stall signal (wip-uncommitted-since-N-min) + composer L-015 regression-lock. 1043 tests, +18. 13th reflexive mmd --here use.
 - **v0.2.13** — Spec Kit + OpenSpec + Ralph Loop install hardening (L-012 fully closed)
 - **v0.2.12** — Documentalist lite (autolearning §6.5 fully operational)
 - **v0.2.11** — Conductor preconditions hardening (prompt-grounding check)
 - **v0.2.10** — Composer categorization (context-aware filter)
 - **v0.2.9** — MMD-on-MMD findings closure (L-017 + cso LOW-1/2 + qa High-1/2/3 + e2e t.skip)
-- **v0.2.8** — Five Whys Escalation (mmdream unblock)
+- **v0.2.8** — Five Whys Escalation (mmd unblock)
 - **v0.2.7** — Composer minimal (lessons auto-injection)
-- **v0.2.6** — Medium gStack (mmdream qa + mmdream cso + mmdream document-release)
-- **v0.2.5** — mmdream serve: accessibility unlocked for non-tech users
-- **v0.2.4** — Project Onboarder walking skeleton (mmdream discover)
-- **v0.2.3** — gStack effective (install hardening + mmdream ship + audit-pillars)
-- **v0.2.2** — dream-bench v0 (mmdream bench)
+- **v0.2.6** — Medium gStack (mmd qa + mmd cso + mmd document-release)
+- **v0.2.5** — mmd serve: accessibility unlocked for non-tech users
+- **v0.2.4** — Project Onboarder walking skeleton (mmd discover)
+- **v0.2.3** — gStack effective (install hardening + mmd ship + audit-pillars)
+- **v0.2.2** — dream-bench v0 (mmd bench)
 - **v0.2.1** — --here mode (self / brownfield-in-place)
 - **v0.2.0** — FAST engine (trimmed auto-dev)
 - **v0.1.0** — v0.1 walking skeleton

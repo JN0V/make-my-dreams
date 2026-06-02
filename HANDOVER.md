@@ -21,11 +21,11 @@
 - **ADRs**: 47 (ADR-001..ADR-047)
 - **Tests**: 1986 passing
 - **Recent commits**:
-  - `ae76e23 fix(install): materialize /mmdream GLOBALLY (~/.claude/commands) so it is available everywhere`
+  - `20a18eb refactor(cli): rename command mmd → mmdream across all user-facing surfaces`
+  - `14722b2 refactor(cli): rename the executable mmd → mmdream (avoid the mtools /usr/bin/mmd collision) — functional core`
+  - `3511b61 docs: refresh mechanical blocks at 1986 tests (/mmd global materialization)`
+  - `ae76e23 fix(install): materialize /mmd GLOBALLY (~/.claude/commands) so it is available everywhere`
   - `3da5cd0 docs: refresh mechanical blocks at 1985 tests (gStack install-source fix)`
-  - `3e6ef4d fix(install): install gStack from github.com/garrytan/gstack, not the non-resolving gstack.dev`
-  - `45fd51e docs: refresh mechanical blocks at 1983 tests (install default-install fix)`
-  - `4fcdddc fix(install): bun + gStack now actually install by default — even in curl|bash (non-interactive)`
 - **Generated**: 2026-06-02 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

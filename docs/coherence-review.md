@@ -3,7 +3,7 @@
 
 > Generated on demand by `mmd document-review` — the Documentalist's **detection** face: a designed-vs-built reconciliation of the roadmap against MMD's real surface, plus doc-health flags. It is a **dashboard, not a hand-maintained doc** — regenerate it after any material change (new subcommand, ADR, tag, or `MAKE_MY_DREAMS.md` edit) with `mmd document-review`. The designed-vs-built table is a **heuristic** (name-matching), not an authoritative audit; run `mmd document-review --with-claude` to layer LLM judgment on top.
 
-_MMD 0.7.7._
+_MMD 0.8.0._
 
 ## Designed vs built (roadmap §9 reconciliation — heuristic)
 
@@ -39,28 +39,28 @@ Legend: ✅ built · 🟡 partial · ❌ unbuilt · ❓ unknown.
 ## Doc health
 
 - ⚠️ MAKE_MY_DREAMS.md: 1722 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ README.md: 748 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
+- ⚠️ README.md: 752 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ HANDOVER.md: 281 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ PROBLEMS.md: 241 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ BOOTSTRAP.md: 393 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ docs/lessons-learned.md: 516 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 
-## Inventory  (15 subcommands · 41 ADRs · 21 lessons · tags v0.1.0..v0.7.6)
+## Inventory  (15 subcommands · 42 ADRs · 21 lessons · tags v0.1.0..v0.7.8)
 
 - **Subcommands** (15): serve, bench, ship, discover, qa, cso, document-release, unblock, document-lessons, handover, document-readme, document-review, document-compact, test-health, lessons
 - **lib/ modules** (26): argv-parser, bench, composer, conductor, constitution-compose, discover, documentalist, dream-catcher, engine, handover, here-mode, here-mode, invoke-autodev, onboarding, parse-dream, rate-limit, readme-sync, reality-check, sealed-tests, security-headers, server, skills, spec-derive, sse, state, test-curator
-- **ADRs** (41): latest ADR-041 — The Test Curator's redundancy face (`mmd test-health`): find overlapping tests, detect-before-cut
+- **ADRs** (42): latest ADR-042 — The Test Curator goes POLYGLOT: a language-neutral core + per-technology adapters (§VIII)
 - **Active lessons**: 21
-- **Root SPEC files**: 4
-- **Tags**: 39 (v0.1.0..v0.7.6)
+- **Root SPEC files**: 5
+- **Tags**: 41 (v0.1.0..v0.7.8)
 
 ## Drift / conformance  (does the doc still match reality?)
 
-_Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edit your docs (detect-before-correct). Scanned 45 truth docs._
+_Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edit your docs (detect-before-correct). Scanned 46 truth docs._
 
 ### Dangling references (a doc claims an artifact that does not exist)
 
-- ⚠️ HANDOVER.md:28 → `lib/bin` — 'bin' not in the lib/ inventory (renamed/removed?)
+- ⚠️ README.md:687 → `lib/a.js` — file not found (renamed/removed?)
 - ⚠️ docs/lessons-learned.md:240 → `bin/ship.js` — file not found (renamed/removed?)
 - ⚠️ docs/adr/032-transparent-first-run-setup.md:60 → `mmd init` — 'init' is not a known subcommand (renamed/removed/planned?)
 - ⚠️ docs/adr/039-mmd-operator-slash-command.md:80 → `mmd playbook` — 'playbook' is not a known subcommand (renamed/removed/planned?)

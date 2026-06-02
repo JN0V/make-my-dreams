@@ -26,6 +26,7 @@ import { invokeAutodev, buildSubprocessEnv, resolveAutodevMode } from '../lib/in
 import { buildManifest, verifyManifest, sealIntact } from '../lib/sealed-tests/manifest.js';
 import { buildTesterPrompt, buildCoderPrompt } from '../lib/sealed-tests/tester-prompt.js';
 import { buildJudgePrompt, parseJudgeVerdict, judgeFallback } from '../lib/sealed-tests/judge.js';
+import { writeRunOutcomeSync } from '../lib/autolearn/run-outcome.js';
 import { computeBlastRadius } from '../lib/sealed-tests/blast-radius.js';
 import { realityCheck } from '../lib/reality-check.js';
 import { parseArgv, resolveEngine, resolveShouldCatch } from '../lib/argv-parser.js';
@@ -677,6 +678,7 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
           ...extra,
           ...withDuration(initialEngineRecord, elapsedSeconds),
         });
+        writeRunOutcomeSync(logPath, { state: 'failed' });
       },
       onClean: async ({ sealedCount, verdict, blastRadius, judge, elapsedSeconds }) => {
         // Preserve the existing --here reporting (AC-6 Reality-Check
@@ -698,6 +700,7 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
           judge,
           ...withDuration(initialEngineRecord, elapsedSeconds),
         });
+        writeRunOutcomeSync(logPath, { state: 'done' });
         stdout.write(
           `[OK] Sealed changes applied on ${sliceBranch}. The sealed oracle was intact and passed.\n` +
             `     Review with: git diff ${baseSha}..HEAD\n` +
@@ -746,6 +749,7 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
       ...(hereMonitor ? hereMonitor.finalFields() : {}),
       ...withDuration(initialEngineRecord, elapsedFail),
     });
+    writeRunOutcomeSync(logPath, { state: 'failed' });
     stderr.write(`auto-dev invocation failed: ${err.message}. See ${logPath}\n`);
     await maybeNotify({
       event: 'run_failed',
@@ -780,6 +784,7 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
       ...(hereMonitor ? hereMonitor.finalFields() : {}),
       ...finalEngineRecord,
     });
+    writeRunOutcomeSync(logPath, { state: 'failed' });
     stderr.write(`auto-dev exited with code ${code}. See ${logPath}\n`);
     await maybeNotify({
       event: 'run_failed',
@@ -810,6 +815,9 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
     ...(hereMonitor ? hereMonitor.finalFields() : {}),
     ...finalEngineRecord,
   });
+  // v0.9.0 AC-2: durable per-run outcome for the validated-reuse counter (a
+  // lesson injected into THIS run counts as a validated reuse iff it is done).
+  writeRunOutcomeSync(logPath, { state: 'done' });
   const hereTag = latestTagOrNull(absTargetDir);
   await maybeNotify({
     event: 'run_done',
@@ -1265,6 +1273,7 @@ async function runSealedGreenfield({
         ...extra,
         ...withDuration(initialEngineRecord, elapsedSeconds),
       });
+      writeRunOutcomeSync(logPath, { state: 'failed' });
     },
     onClean: async ({ sealedCount, verdict, blastRadius, judge, elapsedSeconds }) => {
       await writeStatus(demoDir, {
@@ -1682,6 +1691,7 @@ async function main() {
       ...(greenfieldMonitor ? greenfieldMonitor.finalFields() : {}),
       ...withDuration(initialEngineRecord, elapsedFail),
     });
+    writeRunOutcomeSync(logPath, { state: 'failed' });
     stderr.write(`auto-dev invocation failed: ${err.message}. See ${logPath}\n`);
     await maybeNotify({
       event: 'run_failed',
@@ -1718,6 +1728,7 @@ async function main() {
       ...(greenfieldMonitor ? greenfieldMonitor.finalFields() : {}),
       ...finalEngineRecord,
     });
+    writeRunOutcomeSync(logPath, { state: 'failed' });
     stderr.write(`auto-dev exited with code ${code}. See ${logPath}\n`);
     await maybeNotify({
       event: 'run_failed',
@@ -1752,6 +1763,7 @@ async function main() {
     ...(greenfieldMonitor ? greenfieldMonitor.finalFields() : {}),
     ...finalEngineRecord,
   });
+  writeRunOutcomeSync(logPath, { state: 'done' });
   const greenfieldTag = latestTagOrNull(cwd());
   await maybeNotify({
     event: 'run_done',

@@ -19,13 +19,13 @@
 - **Version**: `0.9.2` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 47 (ADR-001..ADR-047)
-- **Tests**: 1964 passing
+- **Tests**: 1968 passing
 - **Recent commits**:
+  - `7e3ecb6 fix(install): stop the curl|bash one-liner halting — exec</dev/tty breaks a PIPED script`
+  - `dba1f45 docs: refresh README + HANDOVER mechanical blocks at v0.9.2 / 1964 tests`
   - `846b48b docs(readme): correct stale License pointer + document the piped-install behavior`
   - `71e9737 fix(install): make the curl|bash one-liner interactive + refresh stale post-install display`
   - `0956f46 feat(deps-gate): opt-in pre-commit hook + ADR-047 + docs + v0.9.2 bump (AC-5)`
-  - `eac01f7 feat(deps-gate): the read-only gate bin + dispatch/USAGE/SUBCOMMANDS (AC-3/AC-4)`
-  - `2af0dc6 feat(deps-gate): polyglot adapter contract + registry (npm + python) (AC-2)`
 - **Generated**: 2026-06-02 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

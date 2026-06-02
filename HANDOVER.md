@@ -19,13 +19,13 @@
 - **Version**: `0.9.1` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 46 (ADR-001..ADR-046)
-- **Tests**: 1902 passing
+- **Tests**: 1906 passing
 - **Recent commits**:
+  - `0c8fe65 fix(secret-scan): Phase-4 adversarial review — ReDoS, false-negative, precision (F1-F5)`
+  - `cc30f48 fix(secret-scan): skip ${...} template interpolations in the generic rule (precision)`
+  - `31ceec2 docs(secret-scan): ADR-046 + README + CLAUDE; bump to 0.9.1; refresh mechanical blocks (AC-5)`
   - `b589b38 feat(secret-scan): opt-in pre-commit hook materialization in install-mmd.sh (AC-4)`
   - `de5694f test(secret-scan): integration coverage for the gate + precision + read-only (AC-2/AC-3)`
-  - `5d3bedc feat(secret-scan): mmd secret-scan subcommand + dispatch wiring (AC-2)`
-  - `e63fcb4 feat(secret-scan): pure language-agnostic secret detector core (AC-1)`
-  - `63231d2 docs(handover): autolearning loop CLOSED (v0.9.0) → IMMEDIATE NEXT is Bundle A Security`
 - **Generated**: 2026-06-02 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

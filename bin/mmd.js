@@ -84,6 +84,9 @@ Usage:
                                        Documentalist coherence review — designed-vs-built + doc-health (v0.7.a)
   mmd document-compact [--dry-run]     Documentalist active compaction — archive root SPEC_V*.md into docs/specs/ (v0.7.c)
   mmd test-health [--dry-run]          Test Curator — test-corpus health (stratification/untagged/oversized) → docs/test-health.md (v0.7.6)
+  mmd secret-scan [--staged | --since <ref>]
+                                       Bundle A Security — scan for leaked credentials; gates (exit 1) on a
+                                       high-confidence finding. Language-agnostic, vanilla, READ-ONLY (v0.9.1)
   mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
   mmd --help, -h                       Print this usage and exit
@@ -1402,6 +1405,16 @@ async function main() {
     // → build → write docs/test-health.md (read-only beyond that one file).
     const { runTestHealth } = await import('./test-curator/test-health.js');
     return runTestHealth(rawArgs.slice(1));
+  }
+  if (rawArgs[0] === 'secret-scan') {
+    // v0.9.1 AC-2: `mmd secret-scan` subcommand — the first Bundle A Security
+    // brick. Dispatched here (before checkGate / argv parsing) for the same
+    // reason as the family — it must not parse as a dream string equal to
+    // "secret-scan". A language-agnostic, vanilla (regex + Shannon entropy)
+    // secret detector that GATES (exits non-zero on a high-confidence finding).
+    // READ-ONLY: writes nothing.
+    const { runSecretScan } = await import('./security/secret-scan.js');
+    return runSecretScan(rawArgs.slice(1));
   }
   if (rawArgs.includes('--version')) {
     stdout.write(`${VERSION}\n`);

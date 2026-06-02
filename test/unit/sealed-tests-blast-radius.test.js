@@ -110,7 +110,8 @@ test('@unit computeBlastRadius: multiple changed files union their importers', (
 });
 
 test('@unit computeBlastRadius: empty / junk changed input → explicit empty, no throw', () => {
-  const e = { changed: [], importers: [], transitive: [] };
+  // `unanalyzed` is additive (v0.8.1): always present, empty for an all-JS repo.
+  const e = { changed: [], importers: [], transitive: [], unanalyzed: [] };
   assert.deepEqual(computeBlastRadius([], makeIo({ 'x.js': '1' })), e);
   assert.deepEqual(computeBlastRadius(null, makeIo({ 'x.js': '1' })), e);
   assert.deepEqual(computeBlastRadius([42, '', null], makeIo({ 'x.js': '1' })), e);
@@ -118,7 +119,7 @@ test('@unit computeBlastRadius: empty / junk changed input → explicit empty, n
 
 test('@unit computeBlastRadius: missing io (no lister/reader) → changed only, no throw', () => {
   const r = computeBlastRadius(['lib/app.js']);
-  assert.deepEqual(r, { changed: ['lib/app.js'], importers: [], transitive: [] });
+  assert.deepEqual(r, { changed: ['lib/app.js'], importers: [], transitive: [], unanalyzed: [] });
 });
 
 test('@unit computeBlastRadius: a throwing lister → changed only, no crash', () => {
@@ -127,7 +128,7 @@ test('@unit computeBlastRadius: a throwing lister → changed only, no crash', (
     readFile: () => '',
   };
   const r = computeBlastRadius(['lib/app.js'], io);
-  assert.deepEqual(r, { changed: ['lib/app.js'], importers: [], transitive: [] });
+  assert.deepEqual(r, { changed: ['lib/app.js'], importers: [], transitive: [], unanalyzed: [] });
 });
 
 test('@unit computeBlastRadius: vanilla PWA with a <script src> (not a module import) → no importers', () => {

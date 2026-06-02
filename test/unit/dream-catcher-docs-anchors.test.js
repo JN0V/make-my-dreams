@@ -97,9 +97,11 @@ test('@unit AC-6: README documents interactive mmd dream mode + --catch/--no-cat
   assert.match(md, /ADR-023/);
 });
 
-test('@unit package.json is bumped to the current slice version (0.9.0)', () => {
+test('@unit package.json carries a valid semver version', () => {
+  // L-005: do NOT hardcode the version (it breaks on every bump). Assert the
+  // shape instead — the version's correctness is owned by the bump step itself.
   const pkg = JSON.parse(read('package.json'));
-  assert.equal(pkg.version, '0.9.0');
+  assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
 });
 
 // ── SPEC_V03C AC-5: Layer C docs anchors (Phase-4 review F2) ──

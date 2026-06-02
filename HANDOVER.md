@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.9.0`
-- **Branch**: `main`
-- **Version**: `0.9.0` (package.json)
+- **Branch**: `slice/here-bundle-secret-scan-1780394634`
+- **Version**: `0.9.1` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 45 (ADR-001..ADR-045)
-- **Tests**: 1856 passing
+- **ADRs**: 46 (ADR-001..ADR-046)
+- **Tests**: 1902 passing
 - **Recent commits**:
-  - `83ebb6e fix(autolearn): Phase-4 — a lesson at/above threshold stays a promotion candidate even with no new reuse`
-  - `da66393 docs(v0.9.0): ADR-045 + README/CLAUDE — the closed autolearning loop; bump to 0.9.0; refresh mechanical blocks`
-  - `a308867 feat(autolearn): AC-4 surface raw INJ vs validated-reuse (VR) as distinct columns in mmd lessons`
-  - `893d883 feat(autolearn): AC-2/AC-3 wire validated-reuse signal + LLM promotion gate into document-lessons`
-  - `52e2869 feat(autolearn): AC-2 durable run-outcome correlation + counter rises on validated-not-credited reuses`
+  - `b589b38 feat(secret-scan): opt-in pre-commit hook materialization in install-mmd.sh (AC-4)`
+  - `de5694f test(secret-scan): integration coverage for the gate + precision + read-only (AC-2/AC-3)`
+  - `5d3bedc feat(secret-scan): mmd secret-scan subcommand + dispatch wiring (AC-2)`
+  - `e63fcb4 feat(secret-scan): pure language-agnostic secret detector core (AC-1)`
+  - `63231d2 docs(handover): autolearning loop CLOSED (v0.9.0) → IMMEDIATE NEXT is Bundle A Security`
 - **Generated**: 2026-06-02 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

@@ -87,6 +87,9 @@ Usage:
   mmd secret-scan [--staged | --since <ref>]
                                        Bundle A Security — scan for leaked credentials; gates (exit 1) on a
                                        high-confidence finding. Language-agnostic, vanilla, READ-ONLY (v0.9.1)
+  mmd deps-gate [--since <ref>]        Bundle A Security — polyglot supply-chain gate; verifies each declared
+                                       dependency against its registry and gates (exit 1) on an unresolvable
+                                       package or a likely typosquat. Adapter-based (§VIII), READ-ONLY (v0.9.2)
   mmd serve                            Start the local web mode (v0.2.5)
   mmd --version                        Print version and exit
   mmd --help, -h                       Print this usage and exit
@@ -1415,6 +1418,16 @@ async function main() {
     // READ-ONLY: writes nothing.
     const { runSecretScan } = await import('./security/secret-scan.js');
     return runSecretScan(rawArgs.slice(1));
+  }
+  if (rawArgs[0] === 'deps-gate') {
+    // v0.9.2 AC-3: `mmd deps-gate` subcommand — the second Bundle A Security
+    // brick. Dispatched here (before checkGate / argv parsing) for the same
+    // reason as the family — it must not parse as a dream string equal to
+    // "deps-gate". A read-only, polyglot (adapter-based, §VIII), vanilla
+    // (zero-dep) supply-chain gate that verifies each declared dependency against
+    // its ecosystem registry and GATES on a HIGH finding. READ-ONLY: writes nothing.
+    const { runDepsGate } = await import('./security/deps-gate.js');
+    return runDepsGate(rawArgs.slice(1));
   }
   if (rawArgs.includes('--version')) {
     stdout.write(`${VERSION}\n`);

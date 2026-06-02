@@ -40,6 +40,7 @@ import {
 import { extractDocLinks } from '../../lib/documentalist/doc-links.js';
 import { buildCoherenceGraph, coupledNeighbors } from '../../lib/documentalist/coherence-graph.js';
 import { computeBlastRadius } from '../../lib/sealed-tests/blast-radius.js';
+import { adapterFor, unanalyzedLanguageFor } from '../../lib/code-graph/adapters/index.js';
 
 // The curated "truth docs" scanned for drift/conformance (SPEC_V07B AC-3/AC-4).
 // These are the OPERATIONAL docs that claim artifacts exist NOW. We DELIBERATELY
@@ -430,11 +431,19 @@ function defaultGitSeam(root, ref) {
  * @param {string[]} changed changed (repo-relative) files
  * @param {string[]} tracked all tracked files (graph-node universe)
  * @param {object} inventory the live inventory (for ADR-number → file resolution)
- * @returns {Array<{file: string, neighbors: object[]}>}
+ * @returns {{ coupling: Array<{file: string, neighbors: object[]}>,
+ *             unanalyzedLangs: string[] }}
+ *   `unanalyzedLangs` = the languages in the DIFF whose code coupling has no
+ *   import adapter yet (Rust/Go/C…) — surfaced honestly by the report rather than
+ *   silently omitted (§VIII / §VI). Empty for an all-JS/Python diff.
  */
 function buildSinceCoupling(root, changed, tracked, inventory) {
   const trackedSet = new Set(tracked);
-  const jsFiles = tracked.filter(isJs);
+  // Code files = every tracked file an import adapter handles (JS, Python, …).
+  // The import graph is now POLYGLOT (SPEC_V081): the code↔code edges come from
+  // whichever adapter matches each file, not just JS. For an all-JS diff the
+  // edges (and therefore the output) are byte-for-byte unchanged.
+  const codeFiles = tracked.filter((f) => adapterFor(f));
   const docFiles = tracked.filter(isMd);
 
   // Read cache so per-changed-file computeBlastRadius calls don't re-read disk.
@@ -447,13 +456,24 @@ function buildSinceCoupling(root, changed, tracked, inventory) {
     return t;
   };
 
-  // 1. Import edges (code↔code): direct importers of each changed file.
-  const io = { listFiles: () => jsFiles, readFile: readRel };
+  // 1. Import edges (code↔code): direct importers of each changed file, via the
+  // polyglot graph (each file dispatched to its language adapter).
+  const io = { listFiles: () => codeFiles, readFile: readRel };
   const importEdges = [];
   for (const c of changed) {
     const { importers } = computeBlastRadius([c], io);
     for (const imp of importers) importEdges.push({ from: c, to: imp });
   }
+
+  // Honesty: which languages in the DIFF have no import adapter yet? Their code
+  // coupling is NOT computed — say so rather than silently omit it (§VIII).
+  const unanalyzedLangs = [];
+  const seenLang = new Set();
+  for (const c of changed) {
+    const lang = unanalyzedLanguageFor(c);
+    if (lang && !seenLang.has(lang)) { seenLang.add(lang); unanalyzedLangs.push(lang); }
+  }
+  unanalyzedLangs.sort();
 
   // 2/3. Doc edges: scan every tracked doc once for code refs + doc links.
   const resolveAdr = (n) => {
@@ -478,7 +498,7 @@ function buildSinceCoupling(root, changed, tracked, inventory) {
   }
 
   const graph = buildCoherenceGraph({ importEdges, docToCodeEdges, docLinkEdges });
-  return coupledNeighbors(graph, changed);
+  return { coupling: coupledNeighbors(graph, changed), unanalyzedLangs };
 }
 
 /**
@@ -487,9 +507,11 @@ function buildSinceCoupling(root, changed, tracked, inventory) {
  *
  * @param {string} ref the git ref the diff is against
  * @param {Array<{file: string, neighbors: object[]}>} coupling
+ * @param {string[]} [unanalyzedLangs] languages in the diff with no import
+ *   adapter — their code coupling is unavailable and the report SAYS so (§VIII).
  * @returns {string}
  */
-export function renderCoupledChanges(ref, coupling) {
+export function renderCoupledChanges(ref, coupling, unanalyzedLangs = []) {
   const lines = [];
   lines.push('## Coupled changes (staleness — review the neighbors of what you changed)');
   lines.push('_Derived graph, advisory + ranked. Coupling ≠ certainty — review, don\'t obey._');
@@ -498,6 +520,7 @@ export function renderCoupledChanges(ref, coupling) {
   if (coupling.length === 0) {
     lines.push(`No files changed since \`${ref}\`. Nothing to couple.`);
     lines.push('');
+    appendUnanalyzedNote(lines, unanalyzedLangs);
     return lines.join('\n');
   }
 
@@ -535,7 +558,27 @@ export function renderCoupledChanges(ref, coupling) {
     );
   }
   lines.push('');
+  appendUnanalyzedNote(lines, unanalyzedLangs);
   return lines.join('\n');
+}
+
+/**
+ * Append the honest "code coupling unavailable for <stack>" note when the diff
+ * touched a language with no import adapter (§VIII / §VI — never silently omit an
+ * un-analyzed stack as if it had no coupling). No-op for an all-adapted diff.
+ *
+ * @param {string[]} lines the accumulating render lines (mutated)
+ * @param {string[]} unanalyzedLangs sorted unique language names
+ */
+function appendUnanalyzedNote(lines, unanalyzedLangs) {
+  if (!Array.isArray(unanalyzedLangs) || unanalyzedLangs.length === 0) return;
+  const stacks = unanalyzedLangs.join(', ');
+  lines.push(
+    `> Note: code coupling for ${stacks} is not available — no import adapter yet. ` +
+    'Those changed files contributed no code↔code edges (their reach may be larger ' +
+    'than shown). Add an adapter under lib/code-graph/adapters/ to close the gap.',
+  );
+  lines.push('');
 }
 
 /**
@@ -560,8 +603,8 @@ function runSinceMode(root, ref, injected = {}) {
   }
 
   const inventory = gatherRealInventory(root);
-  const coupling = buildSinceCoupling(root, changed, tracked, inventory);
-  const report = renderCoupledChanges(ref, coupling);
+  const { coupling, unanalyzedLangs } = buildSinceCoupling(root, changed, tracked, inventory);
+  const report = renderCoupledChanges(ref, coupling, unanalyzedLangs);
   stdout.write(report);
   if (!report.endsWith('\n')) stdout.write('\n');
   return 0;

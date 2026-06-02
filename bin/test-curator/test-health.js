@@ -28,7 +28,7 @@
 import { cwd as processCwd, stdout, stderr, env } from 'node:process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 import {
@@ -353,6 +353,10 @@ export async function runTestHealth(rawArgs) {
 
   const reportPath = path.join(root, REPORT_REL_PATH);
   try {
+    // Create the report's parent dir — a third-party repo (Python, fresh JS, …)
+    // may have no docs/ folder, and writing must not ENOENT on it (the bug the
+    // Python proof surfaced: it only worked on MMD because MMD has docs/).
+    mkdirSync(path.dirname(reportPath), { recursive: true });
     writeFileSync(reportPath, report, 'utf8');
   } catch (err) {
     stderr.write(`error: cannot write ${REPORT_REL_PATH}: ${err.message}\n`);

@@ -40,6 +40,56 @@ test('@unit doc-refs: extracts code file paths under lib/bin/test/docs (.js/.md)
   assert.equal(md.line, 4);
 });
 
+test('@unit doc-refs: extracts POLYGLOT source-file refs under ANY top-level dir (§VIII)', () => {
+  // The drift detector must work on a Python/Rust/Go/TS repo, not only a JS one.
+  // A path-like token with a directory segment + a common source extension is a
+  // candidate `file` ref regardless of the top-level dir or the language.
+  const text = [
+    'The handler lives in src/foo.py today.', // line 1: Python, src/
+    'Entry point is cmd/app/main.go for the daemon.', // line 2: Go, cmd/
+    'The binary core is crate/src/main.rs here.', // line 3: Rust
+    'The button is app/components/Button.tsx in the UI.', // line 4: TSX, app/
+    'A header pkg/include/widget.hpp declares it.', // line 5: C++ header
+  ].join('\n');
+  const refs = extractDocRefs(text);
+
+  const py = find(refs, 'file', 'src/foo.py');
+  assert.ok(py, 'Python source path captured');
+  assert.equal(py.line, 1);
+  assert.ok(find(refs, 'file', 'cmd/app/main.go'), 'Go source path captured');
+  assert.ok(find(refs, 'file', 'crate/src/main.rs'), 'Rust source path captured');
+  assert.ok(find(refs, 'file', 'app/components/Button.tsx'), 'TSX source path captured');
+  assert.ok(find(refs, 'file', 'pkg/include/widget.hpp'), 'C++ header path captured');
+});
+
+test('@unit doc-refs: a bare filename with NO directory segment is NOT captured (path-like only)', () => {
+  // "a path-like token that has a directory segment" — a lone `main.py` / `README.md`
+  // is not a directory-anchored reference, so it is not a code-artifact claim.
+  const text = 'Run main.py directly, or read README.md and Cargo.toml first.';
+  const refs = extractDocRefs(text);
+  assert.ok(!refs.some((r) => r.kind === 'file'), 'no directory segment → not a file ref');
+});
+
+test('@unit doc-refs: a leading-dot directory (.specify/...) is NOT half-captured (precision)', () => {
+  // The lookbehind must reject starting mid-token after a leading `.`, so a dotted
+  // top-level dir like `.specify/memory/constitution.md` does NOT yield a phantom
+  // `specify/memory/constitution.md` dangling ref.
+  const text = 'The constitution lives at .specify/memory/constitution.md in the repo.';
+  const refs = extractDocRefs(text);
+  assert.ok(
+    !refs.some((r) => r.kind === 'file' && /constitution\.md$/.test(r.value)),
+    'leading-dot dir not half-captured as a dangling phantom',
+  );
+});
+
+test('@unit doc-refs: a scheme URL is not captured as a source-file path', () => {
+  // `https://host/path/x.md` must not become a `file` ref (the `:` after the scheme
+  // is not a path char, so the token cannot start there; precision over recall).
+  const text = 'See https://example.com/docs/guide.md for details.';
+  const refs = extractDocRefs(text);
+  assert.ok(!refs.some((r) => r.kind === 'file' && r.value.includes('guide.md')), 'URL path not a file ref');
+});
+
 test('@unit doc-refs: a trailing punctuation / paren does not get swallowed into the path', () => {
   const text = 'Render lives in `lib/documentalist/coherence-report.js`, see (lib/server.js).';
   const refs = extractDocRefs(text);

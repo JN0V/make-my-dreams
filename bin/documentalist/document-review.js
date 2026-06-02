@@ -264,7 +264,21 @@ function scanDrift(root, inventory) {
     for (const r of extractDocRefs(text)) docRefs.push({ ...r, doc });
   }
   const fileExistsFn = (rel) => existsSync(path.join(root, rel));
-  const dangling = checkArtifactConformance({ docRefs, inventory, fileExistsFn });
+  // The repo's REAL top-level directories — the derived (not hardcoded) successor
+  // to the old lib|bin|test|docs allowlist (§VIII polyglot precision). A doc's
+  // file ref is judged dangling ONLY when rooted at one of these, so a broadened
+  // candidate that is not repo-rooted (shorthand / relative link / illustrative)
+  // never becomes a false positive. Never throws (unreadable root → empty set →
+  // filter off → back-compat judge-all, honest).
+  let repoTopDirs = [];
+  try {
+    repoTopDirs = readdirSync(root, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => d.name);
+  } catch {
+    repoTopDirs = [];
+  }
+  const dangling = checkArtifactConformance({ docRefs, inventory, fileExistsFn, repoTopDirs });
   // Fact conformance only on the living current-state docs (counts in historical
   // ADRs/lessons are correct-as-of-writing, not drift).
   const factDocs = truthDocs.filter((d) => CURRENT_STATE_DOCS.has(d.doc));

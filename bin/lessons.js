@@ -25,7 +25,10 @@ import {
 } from '../lib/composer/match.js';
 import { parseLessons } from '../lib/composer/parse-lessons.js';
 import { filterLessonsByContext } from '../lib/composer/filter-by-context.js';
-import { aggregateComposerUsageSync } from '../lib/composer/usage-stats.js';
+import {
+  aggregateComposerUsageSync,
+  aggregateValidatedReusesSync,
+} from '../lib/composer/usage-stats.js';
 
 const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
@@ -255,14 +258,17 @@ export async function runLessons(rawArgs) {
     return 0;
   }
 
-  // Default: list.
+  // Default: list. SPEC_V090 AC-4: surface the RAW injection count and the
+  // VALIDATED-REUSE count as DISTINCT columns so they are never conflated again
+  // (ADR-010's wrong signal, made visible).
   const stats = aggregateComposerUsageSync(processCwd());
-  stdout.write(formatList(active, stats, lessonsPath));
+  const validated = aggregateValidatedReusesSync(processCwd());
+  stdout.write(formatList(active, stats, validated, lessonsPath));
   for (const w of warnings) stderr.write(`warning: ${w}\n`);
   return 0;
 }
 
-function formatList(activeLessons, stats, lessonsPath) {
+function formatList(activeLessons, stats, validated, lessonsPath) {
   const lines = [];
   lines.push(`Lessons file: ${lessonsPath}`);
   lines.push(`Active lessons: ${activeLessons.length}`);
@@ -274,18 +280,23 @@ function formatList(activeLessons, stats, lessonsPath) {
     lines.push('Composer activity: none recorded yet (run `mmd --here ...` or `mmd ship ...` to populate `.mmd/local/`).');
   }
   lines.push('');
-  lines.push(`ID      | KW | INJ | TITLE`);
-  lines.push(`--------+----+-----+----------------------------------------------------------------`);
+  // INJ = raw injection events (ADR-010's old signal). VR = validated reuses =
+  // distinct done-runs that injected the lesson (the promotion signal, v0.9.0).
+  lines.push(`ID      | KW | INJ | VR | TITLE`);
+  lines.push(`--------+----+-----+----+-----------------------------------------------------------`);
   for (const lesson of activeLessons) {
     const kw = String(lesson.keywords.length).padStart(2, ' ');
     const inj = String(stats.perLessonCount[lesson.id] || 0).padStart(3, ' ');
+    const vr = String(validated.get(lesson.id)?.count || 0).padStart(2, ' ');
     // F15 (Phase-4 review): titles may contain `|` (e.g. lesson titles with
     // alternation), which would corrupt the table layout. Replace with `/`
     // for display only — the underlying lesson object keeps the real title.
     const safeTitle = lesson.title.replace(/\|/g, '/');
-    const title = safeTitle.length > 60 ? safeTitle.slice(0, 57) + '...' : safeTitle;
-    lines.push(`${lesson.id} | ${kw} | ${inj} | ${title}`);
+    const title = safeTitle.length > 58 ? safeTitle.slice(0, 55) + '...' : safeTitle;
+    lines.push(`${lesson.id} | ${kw} | ${inj} | ${vr} | ${title}`);
   }
+  lines.push('');
+  lines.push('INJ = raw injections (keyword matches). VR = validated reuses (injected into a done run — the promotion signal).');
   lines.push('');
   return lines.join('\n');
 }

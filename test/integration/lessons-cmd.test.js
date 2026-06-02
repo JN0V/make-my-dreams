@@ -41,8 +41,10 @@ test('@integration mmd lessons (default): lists active lessons from the live fil
   // Live docs/lessons-learned.md must yield at least 9 active lessons.
   const matches = r.stdout.match(/^L-\d+ \|/gm) || [];
   assert.ok(matches.length >= 9, `expected >=9 active rows; got ${matches.length}`);
-  // Header columns must be present.
-  assert.match(r.stdout, /ID\s+\|\s+KW\s+\|\s+INJ\s+\|\s+TITLE/);
+  // Header columns must be present, incl. the v0.9.0 validated-reuse (VR)
+  // column shown DISTINCTLY from raw injections (INJ) — SPEC_V090 AC-4.
+  assert.match(r.stdout, /ID\s+\|\s+KW\s+\|\s+INJ\s+\|\s+VR\s+\|\s+TITLE/);
+  assert.match(r.stdout, /INJ = raw injections.*VR = validated reuses/);
 });
 
 test('@integration mmd lessons match "git checkout to switch branches" returns L-003 (DoD §4)', () => {

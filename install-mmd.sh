@@ -1280,7 +1280,7 @@ if [ ! -d "$GSTACK_DIR" ]; then
     info "gStack is NOT installed (~/.claude/skills/gstack/ absent)."
     info "  - gStack is part of the foundation MMD stands on: it provides the review"
     info "    skills behind 'mmd qa', 'mmd cso' and 'mmd document-release'."
-    info "  - Install command: curl -fsSL https://gstack.dev/install.sh | bash"
+    info "  - Install command: git clone https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && (cd ~/.claude/skills/gstack && bun install)"
     info "  - Without gStack, those three commands are unavailable (the core is fine)."
     info "  - Opt out with MMD_SKIP_GSTACK=1 (else it installs by default)."
     INSTALL_GSTACK=false
@@ -1307,10 +1307,16 @@ if [ ! -d "$GSTACK_DIR" ]; then
         warn "gStack NOT installed → 'mmd qa', 'mmd cso' and 'mmd document-release' are UNAVAILABLE (the MMD core works without it)."
     fi
     if [ "$INSTALL_GSTACK" = true ]; then
-        if curl -fsSL https://gstack.dev/install.sh | bash; then
-            info "gStack install command completed — re-checking..."
+        # Install via git clone + `bun install` — the real, resolvable source on
+        # GitHub. (A previous vanity-host curl-installer URL did not resolve.)
+        # bun may have just been installed this run into ~/.bun/bin, so force it
+        # onto PATH for the clone's `bun install`.
+        if git clone --depth=1 https://github.com/garrytan/gstack.git "$GSTACK_DIR" \
+           && ( cd "$GSTACK_DIR" && PATH="$HOME/.bun/bin:$PATH" bun install ); then
+            info "gStack cloned + dependencies installed — re-checking..."
         else
-            warn "gStack install command failed (network? URL drift?). Continuing without it."
+            warn "gStack install failed (network? git/bun missing?). Continuing without it."
+            warn "  Manual: git clone https://github.com/garrytan/gstack.git $GSTACK_DIR && (cd $GSTACK_DIR && bun install)"
         fi
     fi
 fi

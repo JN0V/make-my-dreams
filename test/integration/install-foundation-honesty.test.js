@@ -88,6 +88,21 @@ test('@unit install.sh is honest on every gStack skip path (env-skip, decline, n
   assert.match(INSTALL_SH, /mmd qa.*mmd cso.*mmd document-release/);
 });
 
+// ── gStack install uses the real, resolvable source ───────────────────────
+// `https://gstack.dev/install.sh` does NOT resolve; the canonical source is the
+// GitHub repo + `bun install`. Both scripts must agree on it.
+
+test('@unit neither install script references the non-resolving gstack.dev host', () => {
+  assert.doesNotMatch(INSTALL_MMD_SH, /gstack\.dev/, 'install-mmd.sh must not use the non-resolving gstack.dev host');
+  assert.doesNotMatch(INSTALL_SH, /gstack\.dev/, 'install.sh must not use the non-resolving gstack.dev host');
+});
+
+test('@unit install-mmd.sh installs gStack from github.com/garrytan/gstack via bun install', () => {
+  assert.match(INSTALL_MMD_SH, /git clone --depth=1 https:\/\/github\.com\/garrytan\/gstack\.git/,
+    'gStack must be installed by cloning the real repo');
+  assert.match(INSTALL_MMD_SH, /bun install/, 'and running bun install in it');
+});
+
 // ── Foundation framing, no retired-command references ──────────────────────
 
 test('@unit the install scripts frame bun/gStack as the foundation MMD stands on', () => {

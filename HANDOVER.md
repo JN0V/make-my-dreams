@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.7.8`
-- **Branch**: `slice/here-polyglot-test-curator-adapters-1780381137`
+- **Latest tag**: `v0.8.0`
+- **Branch**: `main`
 - **Version**: `0.8.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 42 (ADR-001..ADR-042)
 - **Tests**: 1782 passing
 - **Recent commits**:
+  - `b5b15b1 fix(v0.8.0): mkdir -p the report dir — test-health failed on a repo without docs/`
+  - `368a38a docs(v0.8.0): refresh dashboards at 1782 tests after Phase-4 fixes`
   - `b44014f fix(v0.8.0): Phase-4 review — Python def scope precision (F1) + stack-appropriate stratification advice (F2)`
   - `f5c4545 docs(v0.8.0): refresh mechanical blocks + dashboards at 0.8.0 / 1779 tests`
   - `e84b158 test(v0.8.0): re-bless version-pinned anchors for 0.8.0 (ship --help snapshot + package.json version assert)`
-  - `3345d93 docs(v0.8.0): ADR-042 polyglot Test Curator + README/CLAUDE; bump to 0.8.0 (AC-6)`
-  - `51e407f test(v0.8.0): polyglot Test Curator — adapters, capability honesty, JS-unchanged, Python report, Rust refusal`
 - **Generated**: 2026-06-02 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

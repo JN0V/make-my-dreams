@@ -78,7 +78,15 @@ set -euo pipefail
 # IMPORTANT: this `exec` is only correct because the invocation is a file
 # argument. If you ever support `curl … | bash install-mmd.sh`, switch to the
 # per-command `read … < /dev/tty` pattern (see install.sh's ask_tty).
-if [ ! -t 0 ] && [ -r /dev/tty ]; then
+#
+# The guard tests OPENABILITY, not permission. `[ -r /dev/tty ]` only checks the
+# mode bits via access() — on a container / sandbox / some CI the node is present
+# and world-readable (crw-rw-rw-) yet has NO controlling terminal, so OPENING it
+# fails with ENXIO ("No such device or address") and `exec < /dev/tty` would
+# abort the whole script under `set -e`. `( : < /dev/tty ) 2>/dev/null` actually
+# attempts the open in a subshell and is true ONLY when the device opens — so a
+# terminal-less environment falls cleanly through to non-interactive mode.
+if [ ! -t 0 ] && ( : < /dev/tty ) 2>/dev/null; then
     exec < /dev/tty
 fi
 

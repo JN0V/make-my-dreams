@@ -42,12 +42,18 @@ set -euo pipefail
 
 # ask_tty PROMPT  → prints PROMPT and reads one line into REPLY from the
 # controlling terminal, even when stdin is a pipe. Returns non-zero (so the
-# caller takes its non-interactive default) when there is no terminal at all
-# (CI). Never does `exec` — pipe-safe by construction.
+# caller takes its non-interactive default) when there is no usable terminal
+# (CI / container / sandbox). Never does `exec` — pipe-safe by construction.
+#
+# The `( : < /dev/tty ) 2>/dev/null` test attempts to OPEN the terminal, not just
+# stat its permissions: `[ -r /dev/tty ]` is a false positive on a node that is
+# world-readable (crw-rw-rw-) but has no controlling terminal — opening it then
+# fails with ENXIO. We must not `printf > /dev/tty` / `read < /dev/tty` against a
+# device that cannot be opened.
 ask_tty() {
     if [ -t 0 ]; then
         printf "%s" "$1"; IFS= read -r REPLY; return 0
-    elif [ -r /dev/tty ]; then
+    elif ( : < /dev/tty ) 2>/dev/null; then
         printf "%s" "$1" > /dev/tty; IFS= read -r REPLY < /dev/tty; return 0
     fi
     return 1

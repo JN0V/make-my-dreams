@@ -41,6 +41,7 @@ const INSTALL_MMD_SH = readFileSync(path.join(REPO_ROOT, 'install-mmd.sh'), 'utf
 // to warn against it (e.g. "we MUST NOT do `exec < /dev/tty`").
 const codeOnly = (src) => src.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
 const INSTALL_SH_CODE = codeOnly(INSTALL_SH);
+const INSTALL_MMD_SH_CODE = codeOnly(INSTALL_MMD_SH);
 
 // ── install.sh: pipe-safe, NEVER exec ──────────────────────────────────────
 
@@ -62,14 +63,32 @@ test('@unit install.sh gStack prompt goes through ask_tty (so it works under cur
 
 // ── install-mmd.sh: exec is safe BECAUSE it is a file-argument invocation ───
 
-test('@unit install-mmd.sh keeps the top-level /dev/tty reconnect, guarded on a readable terminal', () => {
-  assert.match(INSTALL_MMD_SH, /if \[ ! -t 0 \] && \[ -r \/dev\/tty \]; then\s*\n\s*exec < \/dev\/tty\s*\n\s*fi/,
-    'install-mmd.sh (a file-arg invocation) may reconnect fd 0 once; the [ -r /dev/tty ] guard keeps CI a no-op');
+test('@unit install-mmd.sh top-level reconnect guards on OPENABILITY, then execs', () => {
+  assert.match(INSTALL_MMD_SH, /if \[ ! -t 0 \] && \( : < \/dev\/tty \) 2>\/dev\/null; then\s*\n\s*exec < \/dev\/tty\s*\n\s*fi/,
+    'install-mmd.sh (a file-arg invocation) reconnects fd 0 once, but ONLY when /dev/tty actually opens');
 });
 
 test('@unit install-mmd.sh documents that its exec is safe ONLY because it is invoked as a file argument', () => {
   assert.match(INSTALL_MMD_SH, /FILE ARGUMENT/,
     'the comment must explain WHY exec is safe here (file-arg) so nobody copies it into a piped script');
+});
+
+// ── Openability, not permission: the round-3 fix ───────────────────────────
+// `[ -r /dev/tty ]` only stats the mode bits; on a container/sandbox/some CI the
+// node is world-readable (crw-rw-rw-) but has no controlling terminal, so OPENING
+// it fails with ENXIO and `exec < /dev/tty` aborts the script under set -e. The
+// guard must attempt the open: `( : < /dev/tty ) 2>/dev/null`.
+
+test('@unit neither script uses the permission-only `[ -r /dev/tty ]` guard (it false-positives on an unopenable node)', () => {
+  assert.doesNotMatch(INSTALL_SH_CODE, /\[\s*-r\s+\/dev\/tty\s*\]/,
+    'install.sh must test openability `( : < /dev/tty )`, not the permission bit `[ -r /dev/tty ]`');
+  assert.doesNotMatch(INSTALL_MMD_SH_CODE, /\[\s*-r\s+\/dev\/tty\s*\]/,
+    'install-mmd.sh must test openability `( : < /dev/tty )`, not the permission bit `[ -r /dev/tty ]`');
+});
+
+test('@unit both scripts gate the terminal on an actual open attempt', () => {
+  assert.match(INSTALL_SH_CODE, /\( : < \/dev\/tty \) 2>\/dev\/null/, 'install.sh ask_tty must open-test /dev/tty');
+  assert.match(INSTALL_MMD_SH_CODE, /\( : < \/dev\/tty \) 2>\/dev\/null/, 'install-mmd.sh must open-test /dev/tty');
 });
 
 // ── Display currency anchors (unchanged from the first fix) ─────────────────
@@ -123,5 +142,29 @@ test('@integration mechanism: top-level `exec < file` BREAKS a PIPED script (why
       'exec reassigns fd 0; bash then reads the rest of the piped script from the stand-in (EOF) — AFTER must NOT run. This is exactly the bug the round-1 fix introduced in install.sh.');
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// The openability guard must NEVER abort the script under `set -e`, in ANY env.
+// And where the env exhibits the trap (a /dev/tty that is readable but cannot be
+// opened — container/sandbox/CI), this actively proves the permission-only guard
+// crashed while the openability guard survived.
+
+test('@integration mechanism: the openability guard survives set -e regardless of /dev/tty state', () => {
+  const fixed = `set -e\nif [ ! -t 0 ] && ( : < /dev/tty ) 2>/dev/null; then exec < /dev/tty; fi\necho SURVIVED\n`;
+  const r = spawnSync('bash', { input: fixed, encoding: 'utf8' });
+  assert.equal(r.status, 0, `the openability-guarded reconnect must never abort; stderr=${r.stderr}`);
+  assert.match(r.stdout, /SURVIVED/);
+
+  // Detect the present-but-unopenable trap in THIS environment.
+  const readable = spawnSync('bash', { input: '[ -r /dev/tty ] && echo R\n', encoding: 'utf8' }).stdout.includes('R');
+  const openable = spawnSync('bash', { input: '( : < /dev/tty ) 2>/dev/null && echo O\n', encoding: 'utf8' }).stdout.includes('O');
+  if (readable && !openable) {
+    // The exact field condition Sébastien hit. Prove the OLD permission-only
+    // guard would have crashed here (no SURVIVED), so this test really bites.
+    const broken = `set -e\nif [ ! -t 0 ] && [ -r /dev/tty ]; then exec < /dev/tty; fi\necho SURVIVED\n`;
+    const rb = spawnSync('bash', { input: broken, encoding: 'utf8' });
+    assert.doesNotMatch(rb.stdout, /SURVIVED/,
+      'on a readable-but-unopenable /dev/tty, the permission-only `[ -r ]` guard lets exec abort the script (ENXIO) — the bug');
   }
 });

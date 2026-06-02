@@ -19,13 +19,13 @@
 - **Version**: `0.9.2` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 47 (ADR-001..ADR-047)
-- **Tests**: 1983 passing
+- **Tests**: 1985 passing
 - **Recent commits**:
+  - `3e6ef4d fix(install): install gStack from github.com/garrytan/gstack, not the non-resolving gstack.dev`
+  - `45fd51e docs: refresh mechanical blocks at 1983 tests (install default-install fix)`
   - `4fcdddc fix(install): bun + gStack now actually install by default — even in curl|bash (non-interactive)`
   - `f72dd05 docs: refresh mechanical blocks at 1979 tests (install foundation-honesty polish)`
   - `e3ac24c fix(install): treat bun + gStack as the foundation, and be honest when they are absent`
-  - `0df3396 docs: refresh mechanical blocks at 1971 tests (install /dev/tty openability fix)`
-  - `6d9d46f fix(install): test /dev/tty OPENABILITY, not permission — exec aborted on container/sandbox/CI`
 - **Generated**: 2026-06-02 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

@@ -37,6 +37,11 @@ import {
   SMOKE_BAND_MIN,
   SMOKE_BAND_MAX,
 } from '../../lib/test-curator/report.js';
+import {
+  nearDuplicatePairs,
+  targetClusters,
+  DEFAULT_SIMILARITY,
+} from '../../lib/test-curator/redundancy.js';
 
 const PKG_PATH = fileURLToPath(new URL('../../package.json', import.meta.url));
 let VERSION = '0.0.0';
@@ -77,7 +82,8 @@ Flags:
 Environment:
   MMD_TEST_FILE_MAX_LINES   Oversized-file line threshold (default ${DEFAULT_MAX_LINES}).
   MMD_TEST_FILE_MAX_TESTS   Oversized-file test-count threshold (default ${DEFAULT_MAX_TESTS}).
-  (A junk / non-positive value falls back to the default with an honest note.)
+  MMD_TEST_DUP_SIMILARITY   Near-duplicate similarity threshold in (0,1] (default ${DEFAULT_SIMILARITY}).
+  (A junk / out-of-range value falls back to the default with an honest note.)
 
 Exit codes:
   0  ok (written, or printed under --dry-run)
@@ -128,6 +134,22 @@ export function resolveThreshold(raw, fallback) {
   if (raw == null || raw === '') return { value: fallback, ignored: false };
   const n = Number(raw);
   if (Number.isFinite(n) && n > 0) return { value: Math.floor(n), ignored: false };
+  return { value: fallback, ignored: true };
+}
+
+/**
+ * Resolve the near-duplicate similarity override: a number in (0, 1] wins, else
+ * the default. Same honest-fallback contract as resolveThreshold but for a
+ * fractional ratio (not a positive integer).
+ *
+ * @param {string|undefined} raw
+ * @param {number} fallback
+ * @returns {{ value: number, ignored: boolean }}
+ */
+export function resolveSimilarity(raw, fallback) {
+  if (raw == null || raw === '') return { value: fallback, ignored: false };
+  const n = Number(raw);
+  if (Number.isFinite(n) && n > 0 && n <= 1) return { value: n, ignored: false };
   return { value: fallback, ignored: true };
 }
 
@@ -208,11 +230,15 @@ export async function runTestHealth(rawArgs) {
   // Resolve env-overridable thresholds with graceful, HONEST fallback.
   const ml = resolveThreshold(env.MMD_TEST_FILE_MAX_LINES, DEFAULT_MAX_LINES);
   const mt = resolveThreshold(env.MMD_TEST_FILE_MAX_TESTS, DEFAULT_MAX_TESTS);
+  const ds = resolveSimilarity(env.MMD_TEST_DUP_SIMILARITY, DEFAULT_SIMILARITY);
   if (ml.ignored) {
     stderr.write(`note: MMD_TEST_FILE_MAX_LINES='${env.MMD_TEST_FILE_MAX_LINES}' is not a positive integer — using default ${DEFAULT_MAX_LINES}.\n`);
   }
   if (mt.ignored) {
     stderr.write(`note: MMD_TEST_FILE_MAX_TESTS='${env.MMD_TEST_FILE_MAX_TESTS}' is not a positive integer — using default ${DEFAULT_MAX_TESTS}.\n`);
+  }
+  if (ds.ignored) {
+    stderr.write(`note: MMD_TEST_DUP_SIMILARITY='${env.MMD_TEST_DUP_SIMILARITY}' is not a number in (0,1] — using default ${DEFAULT_SIMILARITY}.\n`);
   }
 
   const files = gatherTrackedTestFiles(root);
@@ -225,7 +251,9 @@ export async function runTestHealth(rawArgs) {
   }
 
   const scan = scanTestCorpus(files);
-  const body = buildTestHealthReport(scan, { maxLines: ml.value, maxTests: mt.value });
+  const body = buildTestHealthReport(scan, {
+    maxLines: ml.value, maxTests: mt.value, dupSimilarity: ds.value,
+  });
   const report = wrapReport(body);
 
   if (parsed.dryRun) {
@@ -247,6 +275,13 @@ export async function runTestHealth(rawArgs) {
   const untagged = byTag.untagged || 0;
   const oversized = scan.files.filter((f) => f.lineCount > ml.value || f.testCount > mt.value).length;
   const smoke = byTag.smoke || 0;
+  // Redundancy headline (bounded, deterministic — reuses the same pure functions
+  // the report renders, so the summary can't drift from the file).
+  const dupPairs = nearDuplicatePairs(scan.tests, { threshold: ds.value }).length;
+  const clusters = targetClusters(scan.tests);
+  const topCluster = clusters[0]
+    ? `${clusters[0].module} (${clusters[0].testCount} tests across ${clusters[0].fileCount} files)`
+    : 'none';
   // Reuse the SAME band as the written report (Phase-4 F4 — single source).
   const smokeNote = smoke === 0
     ? 'none'
@@ -259,6 +294,7 @@ export async function runTestHealth(rawArgs) {
     `  Smoke: ${smoke} test${smoke === 1 ? '' : 's'} — ${smokeNote} (advisory).\n` +
     `  Untagged: ${untagged} test${untagged === 1 ? '' : 's'}${untagged ? ' violate testing.md §V (listed in the report)' : ''}.\n` +
     `  Oversized: ${oversized} file${oversized === 1 ? '' : 's'} over the split thresholds (> ${ml.value} lines or > ${mt.value} tests).\n` +
+    `  Redundancy: ${dupPairs} near-duplicate pair${dupPairs === 1 ? '' : 's'} (within-file, similarity ≥ ${ds.value}); most-tested module: ${topCluster}. Advisory — DETECT-BEFORE-CUT, nothing deleted.\n` +
     '  Read-only: nothing else in the repo was modified. Regenerate after material test changes.\n',
   );
   return 0;

@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.8.0`
-- **Branch**: `slice/here-polyglot-import-graph-adapters-1780385906`
+- **Latest tag**: `v0.8.1`
+- **Branch**: `main`
 - **Version**: `0.8.1` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 43 (ADR-001..ADR-043)
 - **Tests**: 1807 passing
 - **Recent commits**:
+  - `7862091 docs(v0.8.1): refresh coherence-review dashboard (ADR-043, code-graph module, 0.8.1)`
+  - `49bad87 docs(v0.8.1): ADR-043 + README/CLAUDE/HANDOVER + version bump to 0.8.1 (AC-6)`
   - `78b22d8 feat(v0.8.1): coherence-graph --since code edges are polyglot + honest (AC-4)`
   - `f762c0e feat(v0.8.1): Python import-edge adapter — the proof of genericity (AC-5)`
   - `901932e refactor(v0.8.1): generic blast-radius core dispatches to adapters + honest unanalyzed (AC-3)`
-  - `6f9a966 feat(v0.8.1): import-edge adapter contract + registry + JS adapter (AC-1/AC-2)`
-  - `ac897fd docs(v0.8.1): SPEC — polyglot import graph (§VIII debt: blast-radius + coherence-graph code edges)`
 - **Generated**: 2026-06-02 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

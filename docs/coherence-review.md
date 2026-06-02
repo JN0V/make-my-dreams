@@ -3,7 +3,7 @@
 
 > Generated on demand by `mmd document-review` — the Documentalist's **detection** face: a designed-vs-built reconciliation of the roadmap against MMD's real surface, plus doc-health flags. It is a **dashboard, not a hand-maintained doc** — regenerate it after any material change (new subcommand, ADR, tag, or `MAKE_MY_DREAMS.md` edit) with `mmd document-review`. The designed-vs-built table is a **heuristic** (name-matching), not an authoritative audit; run `mmd document-review --with-claude` to layer LLM judgment on top.
 
-_MMD 0.8.1._
+_MMD 0.8.2._
 
 ## Designed vs built (roadmap §9 reconciliation — heuristic)
 
@@ -39,28 +39,28 @@ Legend: ✅ built · 🟡 partial · ❌ unbuilt · ❓ unknown.
 ## Doc health
 
 - ⚠️ MAKE_MY_DREAMS.md: 1722 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ README.md: 753 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
+- ⚠️ README.md: 754 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ HANDOVER.md: 298 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ PROBLEMS.md: 241 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ BOOTSTRAP.md: 393 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ docs/lessons-learned.md: 516 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 
-## Inventory  (15 subcommands · 43 ADRs · 21 lessons · tags v0.1.0..v0.8.0)
+## Inventory  (15 subcommands · 44 ADRs · 21 lessons · tags v0.1.0..v0.8.1)
 
 - **Subcommands** (15): serve, bench, ship, discover, qa, cso, document-release, unblock, document-lessons, handover, document-readme, document-review, document-compact, test-health, lessons
 - **lib/ modules** (27): argv-parser, bench, code-graph, composer, conductor, constitution-compose, discover, documentalist, dream-catcher, engine, handover, here-mode, here-mode, invoke-autodev, onboarding, parse-dream, rate-limit, readme-sync, reality-check, sealed-tests, security-headers, server, skills, spec-derive, sse, state, test-curator
-- **ADRs** (43): latest ADR-043 — Polyglot import graph: a per-language import-edge adapter registry (§VIII)
+- **ADRs** (44): latest ADR-044 — Polyglot doc→code reference extractor: the drift detector sees any language (§VIII)
 - **Active lessons**: 21
 - **Root SPEC files**: 6
-- **Tags**: 42 (v0.1.0..v0.8.0)
+- **Tags**: 43 (v0.1.0..v0.8.1)
 
 ## Drift / conformance  (does the doc still match reality?)
 
-_Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edit your docs (detect-before-correct). Scanned 47 truth docs._
+_Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edit your docs (detect-before-correct). Scanned 48 truth docs._
 
 ### Dangling references (a doc claims an artifact that does not exist)
 
-- ⚠️ README.md:688 → `lib/a.js` — file not found (renamed/removed?)
+- ⚠️ README.md:689 → `lib/a.js` — file not found (renamed/removed?)
 - ⚠️ docs/lessons-learned.md:240 → `bin/ship.js` — file not found (renamed/removed?)
 - ⚠️ docs/adr/032-transparent-first-run-setup.md:60 → `mmd init` — 'init' is not a known subcommand (renamed/removed/planned?)
 - ⚠️ docs/adr/039-mmd-operator-slash-command.md:80 → `mmd playbook` — 'playbook' is not a known subcommand (renamed/removed/planned?)

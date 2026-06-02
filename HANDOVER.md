@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.8.1`
-- **Branch**: `main`
-- **Version**: `0.8.1` (package.json)
+- **Branch**: `slice/here-polyglot-doc-code-refs-1780387479`
+- **Version**: `0.8.2` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 43 (ADR-001..ADR-043)
-- **Tests**: 1807 passing
+- **ADRs**: 44 (ADR-001..ADR-044)
+- **Tests**: (run `npm test` to refresh — pass `mmd handover --tests N`)
 - **Recent commits**:
+  - `f900534 test(v0.8.2): polyglot doc→code drift — Python/Rust fixture + repoTopDirs precision`
+  - `0434799 feat(v0.8.2): polyglot doc→code ref extractor (constitution §VIII)`
+  - `946e977 docs(v0.8.1): refresh blocks + dashboards at 0.8.1 / 1807 tests`
   - `7862091 docs(v0.8.1): refresh coherence-review dashboard (ADR-043, code-graph module, 0.8.1)`
   - `49bad87 docs(v0.8.1): ADR-043 + README/CLAUDE/HANDOVER + version bump to 0.8.1 (AC-6)`
-  - `78b22d8 feat(v0.8.1): coherence-graph --since code edges are polyglot + honest (AC-4)`
-  - `f762c0e feat(v0.8.1): Python import-edge adapter — the proof of genericity (AC-5)`
-  - `901932e refactor(v0.8.1): generic blast-radius core dispatches to adapters + honest unanalyzed (AC-3)`
 - **Generated**: 2026-06-02 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -35,7 +35,7 @@
 
 **This session's arc (v0.6.0 → v0.8.0):** third-party readiness → the full Documentalist (`mmd document-review` detect + drift/conformance + `mmd document-compact` SPEC archival + `--since` coherence graph + hub-cap) → `/mmd` operator slash command (live in `.claude/commands/`) → the Test Curator (`mmd test-health`: corpus health + redundancy + cluster precision) → **the §VIII polyglot correction** (Sébastien caught that the Test Curator was JS-only; fixed via adapters + the new constitution §VIII guardrail; proven on Python, refuses Rust honestly). Each version has a detailed "JUST LANDED" block below and a changelog entry in README.
 
-**IMMEDIATE NEXT — finish the §VIII technology-agnostic debt (Sébastien's directive, IN PROGRESS):** the Test Curator is now polyglot, but **blast-radius / the coherence-graph code↔code edges / the doc→code ref extractor are STILL JavaScript-only** (they parse JS `import`/`require`). Same correctness failure, other tools. Make them adapter-based per §VIII (per-language import/ref extraction), reusing the Curator's pattern. See the "**§VIII technology-agnostic debt**" block under NEXT PRIORITY. *After* that: the core (autolearning, Bundle A security, polyglot Reality Check, auto-handoff@70%, Bundle C/HITL).
+**IMMEDIATE NEXT — finish the §VIII technology-agnostic debt (Sébastien's directive, NEARLY DONE):** the Test Curator (v0.8.0), the import graph / blast-radius / coherence-graph code edges (v0.8.1), and the doc→code ref extractor (v0.8.2) are now all polyglot/adapter-based. The **only** §VIII analysis tool still pending is **coverage** — deferred from v0.8.0, and it MUST be polyglot when built (each adapter runs its native coverage tool → a shared lcov/cobertura parser, never `node --test` in the core). See the "**§VIII technology-agnostic debt**" block under NEXT PRIORITY. *After* that: the core (autolearning, Bundle A security, polyglot Reality Check, auto-handoff@70%, Bundle C/HITL).
 
 **How work is launched here (the discipline `/mmd` encodes):** `mmd --here` runs DETACHED via `setsid` with `MMD_TIMEOUT_MS=0` + a human `--label` + the dream saying "commit incrementally per AC"; monitor via `status.json` state + git commits (NOT the buffered log — L-002); on green: ff-only merge + annotated tag + `mmd document-readme/handover --tests N` refresh + delete slice + `npm install -g .`. Two gotchas this session: **no backticks in the dream** (shell command-substitution corrupts the args) and **don't cite a to-be-created `SPEC_V0XX.md`/`docs/**.md` path literally** (grounding false-trip).
 
@@ -282,7 +282,7 @@ The deeper "whose constitution governs the build" question, deferred from v0.6.a
 **§VIII technology-agnostic debt (CRITICAL — MMD claims polyglot; some analysis tooling was secretly JS-only):**
 - ✅ **Test Curator → polyglot (v0.8.0)** — adapter architecture (core has zero language syntax; `adapters/{javascript,python}.js`); detect-and-refuse honestly on an unsupported stack (Rust → clear refusal, no fabricated numbers). Proven live: Python analyzed, Rust refused, JS unchanged. New constitution **universal §VIII** is the guardrail (always-loaded → injected into every auto-dev run).
 - ✅ **Import graph → polyglot (v0.8.1)** — blast-radius + the coherence-graph code↔code edges are now adapter-based (`lib/code-graph/adapters/{index,javascript,python}.js`; the per-file import-edge contract `matches(filePath)` / `importEdges({filePath,content,repoFiles})`). The core (`lib/sealed-tests/import-graph.js`) dispatches via the registry and stays language-neutral; `computeBlastRadius` gains an honest `unanalyzed` list. JS is byte-for-byte unchanged (the sealed-gate regression lock); a Python repo gets a real reverse closure; Rust/Go/C land `unanalyzed`, never faked. `document-review --since` honestly notes un-adapted languages in the diff. ADR-043.
-- ⬜ **doc→code ref extractor is STILL JS-only** (`lib/documentalist/doc-refs.js` matches `.js` path tokens in prose). Lighter than the import graph (path-token matching, not specifier parsing); the next §VIII follow-up — match each adapter's source extensions.
+- ✅ **doc→code ref extractor → polyglot (v0.8.2)** — `lib/documentalist/doc-refs.js` `FILE_PATH` now matches a path-like token with a directory segment + any common source/doc extension (js/ts/…/py/rs/go/java/…/md) under ANY top-level dir, not the old `lib|bin|test|docs` + `.js|.md` allowlist. Precision held by two derived guards: a pure mid-path-extension reject (a slash-joined prose list isn't a path) + a repo-rooted filter in conformance (an injected `repoTopDirs` — judge a file ref only when rooted at a real top-level dir of the analyzed repo; the derived successor to the hardcoded allowlist). MMD's own drift report is unchanged (same 4 baseline refs, zero new false positives); a Python+Rust fixture proves recall+precision. Zero new deps. ADR-044.
 - ⬜ **Coverage** — deferred from v0.8.0 and MUST be polyglot when built (each adapter runs its native coverage tool → parse lcov/cobertura in a shared parser). NOT `node --test` in the core.
 - ⬜ **Test Curator: more adapters** (Rust `#[test]`, Go `func Test`, C, …) — each is a new `adapters/<lang>.js`, not a rewrite; until added they hit the honest refusal. Python body-similarity redundancy (indentation extractor) is also deferred (`supportsBodies:false` today).
 

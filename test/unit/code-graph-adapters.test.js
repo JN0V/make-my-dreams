@@ -10,6 +10,7 @@ import javascriptAdapter, {
   parseSpecifiers,
   resolveSpecifier,
 } from '../../lib/code-graph/adapters/javascript.js';
+import pythonAdapter from '../../lib/code-graph/adapters/python.js';
 import {
   adapterFor,
   unanalyzedLanguageFor,
@@ -27,10 +28,14 @@ test('@unit adapterFor: a .js/.mjs/.cjs file resolves to the JavaScript adapter'
   assert.equal(adapterFor('lib/a.js').id, 'javascript');
 });
 
+test('@unit adapterFor: .py resolves to the Python adapter', () => {
+  assert.equal(adapterFor('pkg/__init__.py'), pythonAdapter);
+  assert.equal(adapterFor('app/models.py').id, 'python');
+});
+
 test('@unit adapterFor: a file with no adapter (.rs/.md/junk) → null', () => {
   assert.equal(adapterFor('src/main.rs'), null); // code, but no adapter (yet)
   assert.equal(adapterFor('README.md'), null); // not code
-  assert.equal(adapterFor('pkg/__init__.py'), null); // no Python adapter yet (this commit)
   assert.equal(adapterFor(''), null);
   assert.equal(adapterFor(null), null);
   assert.equal(adapterFor(42), null);
@@ -202,4 +207,64 @@ test('@unit resolveSpecifier: never throws on odd input → null', () => {
   assert.equal(resolveSpecifier(null, './a', new Set(['a'])), null);
   assert.equal(resolveSpecifier('x.js', null, new Set()), null);
   assert.equal(resolveSpecifier('x.js', './a', undefined), null);
+});
+
+// ── AC-5: Python adapter — import/from resolution (the proof of genericity) ──
+
+test('@unit pythonAdapter.matches: .py only', () => {
+  assert.equal(pythonAdapter.matches('app/models.py'), true);
+  assert.equal(pythonAdapter.matches('app/models.js'), false);
+  assert.equal(pythonAdapter.matches(null), false);
+});
+
+test('@unit pythonAdapter.importEdges: `import a.b` → a/b.py or a/b/__init__.py', () => {
+  const repoFiles = new Set(['app/main.py', 'app/models.py', 'app/db/__init__.py']);
+  const edges = pythonAdapter.importEdges({
+    filePath: 'app/main.py',
+    content: 'import app.models\nimport app.db\nimport os\nimport requests',
+    repoFiles,
+  });
+  // os (stdlib) + requests (third-party) drop — no repo file.
+  assert.deepEqual(edges.sort(), ['app/db/__init__.py', 'app/models.py']);
+});
+
+test('@unit pythonAdapter.importEdges: `from a.b import x` resolves the module AND a submodule name', () => {
+  const repoFiles = new Set(['pkg/__init__.py', 'pkg/util.py', 'pkg/sub/__init__.py']);
+  // `from pkg import util` → util is a submodule (pkg/util.py); `from pkg import sub`
+  // → sub is a subpackage (pkg/sub/__init__.py). The module `pkg` also resolves.
+  const edges = pythonAdapter.importEdges({
+    filePath: 'pkg/main.py',
+    content: 'from pkg import util, sub\nfrom pkg.util import helper',
+    repoFiles,
+  });
+  assert.ok(edges.includes('pkg/util.py'));
+  assert.ok(edges.includes('pkg/sub/__init__.py'));
+  assert.ok(edges.includes('pkg/__init__.py'));
+});
+
+test('@unit pythonAdapter.importEdges: relative `from . import x` resolves in the package dir', () => {
+  const repoFiles = new Set(['app/main.py', 'app/helpers.py', 'app/util/__init__.py']);
+  const edges = pythonAdapter.importEdges({
+    filePath: 'app/main.py',
+    content: 'from . import helpers\nfrom .util import thing',
+    repoFiles,
+  });
+  assert.ok(edges.includes('app/helpers.py'));
+  assert.ok(edges.includes('app/util/__init__.py'));
+});
+
+test('@unit pythonAdapter.importEdges: a commented-out import is NOT an edge; never self', () => {
+  const repoFiles = new Set(['app/a.py', 'app/b.py']);
+  const edges = pythonAdapter.importEdges({
+    filePath: 'app/a.py',
+    content: '# import app.b\nimport app.a  # importing self resolves to nothing new',
+    repoFiles,
+  });
+  assert.deepEqual(edges, []); // the only real import resolves to self → dropped
+});
+
+test('@unit pythonAdapter.importEdges: odd input → [] (never throws)', () => {
+  assert.deepEqual(pythonAdapter.importEdges({}), []);
+  assert.deepEqual(pythonAdapter.importEdges(), []);
+  assert.deepEqual(pythonAdapter.importEdges({ filePath: 'a.py', content: '', repoFiles: [] }), []);
 });

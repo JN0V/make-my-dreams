@@ -19,13 +19,13 @@
 - **Version**: `0.7.7` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 41 (ADR-001..ADR-041)
-- **Tests**: 1747 passing
+- **Tests**: 1753 passing
 - **Recent commits**:
+  - `54a78ad test(v0.7.7): re-bless version-coupled pins for the 0.7.7 bump`
+  - `29e1487 docs(v0.7.7): regenerate coherence dashboard; reword to avoid self-inflicted drift`
+  - `36b3873 chore(v0.7.7): refresh README/HANDOVER mechanical blocks + capture live redundancy numbers (AC-4/AC-5)`
   - `8341fdb docs(v0.7.7): AC-5 — ADR-041 + README/CLAUDE redundancy face; bump to 0.7.7`
   - `43671f1 docs(v0.7.7): AC-4 — regenerate test-health dashboard with redundancy face`
-  - `3ed46a9 feat(v0.7.7): AC-3 — wire Redundancy candidates section into report + subcommand`
-  - `8b25998 feat(v0.7.7): AC-2 — pure redundancy detector (similarity + clustering)`
-  - `550a81f feat(v0.7.7): AC-1 — capture test bodies + per-file lib/bin targets`
 - **Generated**: 2026-06-02 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -170,7 +170,7 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 - **AC-3 — report section + subcommand** (`report.js` + `bin/test-curator/test-health.js`): a "Redundancy candidates" section (near-duplicate pairs + most-tested modules), `MMD_TEST_DUP_SIMILARITY` env override (graceful fallback), honest "+N more" caps, **strictly read-only beyond `docs/test-health.md`**. 6 `@integration` tests.
 - **AC-5 — docs**: ADR-041 (method, why-not-coverage, detect-before-cut, bounded comparison, documented residuals), README + CLAUDE, mechanical blocks refreshed, bumped to 0.7.7.
 
-**AC-4 status — LIVE CORPUS STATE CAPTURED ✅ (executed 2026-06-02 on MMD itself).** `mmd test-health` now reports, in addition to the stratification face: **3 near-duplicate test pairs** at similarity ≥ 0.9 (precision-first — no flood): `unblock-dry-run.test.js:100↔143` (**0.95**), `sealed-tests-manifest.test.js:69↔82` (**0.94**), `server.test.js:194↔240` (**0.91**) — real copy-paste candidates worth a human glance; **nothing was deleted**. The **most-tested modules** (over-test candidates): `lib/invoke-autodev.js` (**204** tests / 33 files), `lib/argv-parser.js` (139/7), `lib/server.js` (98/6) — 96 clusters total, top 15 listed with an honest "+82 more" note. The read-only contract held (only `docs/test-health.md` changed). Documented heuristic residual: an import line written inside a *fixture string* in a test file is counted as a target (same class as the v0.7.6 `test(`-in-a-string note; a couple of the smaller entries in the cluster list come from such strings). Future (deferred, YAGNI): coverage-based redundancy, cross-file pairing within a cluster, identifier-normalized similarity, any auto-pruning — each opt-in and human-reviewed if ever built.
+**AC-4 status — LIVE CORPUS STATE CAPTURED ✅ (executed 2026-06-02 on MMD itself, post Phase-4 fix).** `mmd test-health` now reports, in addition to the stratification face: **4 near-duplicate test pairs** at similarity ≥ 0.9 (precision-first — no flood): `unblock-dry-run.test.js:100↔143` (**0.95**), `sealed-tests-manifest.test.js:69↔82` (**0.94**), `here-mode-lib.test.js:43↔115` (**0.92** — two `validateHereTarget` tests differing only in main/master), `server.test.js:194↔240` (**0.91**) — all real copy-paste candidates worth a human glance; **nothing was deleted**. The **most-tested modules** (over-test candidates): `lib/invoke-autodev.js` (**204** tests / 33 files), `lib/argv-parser.js` (139/7), `lib/server.js` (98/6) — ~96 clusters total, top 15 listed with an honest "+N more" note. The read-only contract held (only `docs/test-health.md` changed). Documented heuristic residual: an import line written inside a *fixture string* in a test file is counted as a target (same class as the v0.7.6 `test(`-in-a-string note; a couple of the smaller entries in the cluster list come from such strings). **Phase-4 adversarial review (independent sub-agent): 0 Critical / 0 High / 1 Medium / 2 Low.** The Medium (F1) + a related Low (F2) were a real precision bug — a bare callback ref `test('name', fn)` / a destructured param made the brace scan grab the wrong braces; fixed with a callback-aware body finder (the 4th pair above is a true positive newly surfaced because options-object args are now skipped to reach the real body). Future (deferred, YAGNI): coverage-based redundancy, cross-file pairing within a cluster, identifier-normalized similarity, any auto-pruning — each opt-in and human-reviewed if ever built.
 
 ## JUST LANDED — v0.7.6: the Test Curator — test-corpus health (`mmd test-health`)
 

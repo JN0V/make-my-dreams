@@ -59,6 +59,43 @@ test('@unit extractTestBody: no opening brace → empty string', () => {
   assert.equal(extractTestBody("const noBracesHere = 1;", 0), '');
 });
 
+test('@unit extractTestBody: a bare callback REFERENCE has no body (Phase-4 F1)', () => {
+  // test('name', fn) — no inline block. The scan must NOT run forward into the
+  // next test and capture its body (which would manufacture a false 1.0 pair).
+  const src = "test('@unit alpha', myHandler);\ntest('@unit beta', () => { realBody(); });";
+  assert.equal(extractTestBody(src, 0), '', 'bare-ref callback must yield no body');
+});
+
+test('@unit extractTestBody: a bare ref without a trailing semicolon still has no body (F1)', () => {
+  const src = "test('@unit alpha', myHandler)\ntest('@unit beta', () => { realBody(); })";
+  assert.equal(extractTestBody(src, 0), '', 'must bail at the call close, not the next test');
+});
+
+test('@unit extractTestBody: a destructured callback PARAM is not mistaken for the body (Phase-4 F2)', () => {
+  const src = "test('@unit x', ({ t, assert }) => { doRealWork(t); });";
+  const body = extractTestBody(src, 0);
+  assert.match(body, /doRealWork\(t\);/);
+  assert.doesNotMatch(body, /assert/); // the param object was skipped, not captured
+});
+
+test('@unit extractTestBody: an options-object arg is skipped, the real body is captured', () => {
+  const src = "test('@unit x', { concurrency: 2 }, () => { realStuff(); });";
+  const body = extractTestBody(src, 0);
+  assert.match(body, /realStuff\(\);/);
+  assert.doesNotMatch(body, /concurrency/);
+});
+
+test('@unit extractTestBody: an expression-body arrow (no block) has no body (F1)', () => {
+  const src = "test('@unit x', () => doThing());\ntest('@unit y', () => { other(); });";
+  assert.equal(extractTestBody(src, 0), '');
+});
+
+test('@unit extractTestBody: a function-keyword callback body is captured', () => {
+  const src = "test('@unit x', function () { fnBody(); });";
+  const body = extractTestBody(src, 0);
+  assert.match(body, /fnBody\(\);/);
+});
+
 test('@unit extractTestBody: junk input → empty string, never throws', () => {
   for (const junk of [null, undefined, 42, {}, '']) {
     assert.doesNotThrow(() => extractTestBody(junk, 0));

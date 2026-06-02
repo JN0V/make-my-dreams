@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.8.2`
-- **Branch**: `slice/here-autolearning-loop-validated-reuse-1780392139`
+- **Latest tag**: `v0.9.0`
+- **Branch**: `main`
 - **Version**: `0.9.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 45 (ADR-001..ADR-045)
-- **Tests**: 1853 passing
+- **Tests**: 1856 passing
 - **Recent commits**:
+  - `83ebb6e fix(autolearn): Phase-4 — a lesson at/above threshold stays a promotion candidate even with no new reuse`
+  - `da66393 docs(v0.9.0): ADR-045 + README/CLAUDE — the closed autolearning loop; bump to 0.9.0; refresh mechanical blocks`
   - `a308867 feat(autolearn): AC-4 surface raw INJ vs validated-reuse (VR) as distinct columns in mmd lessons`
   - `893d883 feat(autolearn): AC-2/AC-3 wire validated-reuse signal + LLM promotion gate into document-lessons`
   - `52e2869 feat(autolearn): AC-2 durable run-outcome correlation + counter rises on validated-not-credited reuses`
-  - `8666a74 feat(autolearn): AC-3 pure promotion-validation gate (parser + prompt builder)`
-  - `0b6b2f0 feat(autolearn): AC-1 pure validated-reuse counter (injected-into-a-done-run, per-run deduped)`
 - **Generated**: 2026-06-02 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

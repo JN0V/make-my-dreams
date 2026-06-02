@@ -1171,21 +1171,37 @@ ok "Generated: .claude/commands/bmad-${ADV_CODE}-auto-dev.md"
 # user (or Claude) can drive MMD with the right discipline from a session
 # without remembering the CLI incantations. Its single source of truth is the
 # TRACKED file assets/claude-commands/mmd.md (NOT under the gitignored
-# .claude/). We copy it into .claude/commands/mmd.md idempotently (cp overwrites
-# on re-run; mkdir -p is a no-op when the dir exists). MMD_SRC_DIR is resolved
-# at the top of this script (overridable via env — the DI seam the install test
-# uses). If the source is missing (e.g. the script was curl'd standalone, away
-# from a full checkout) we skip with an honest warning rather than fabricate the
-# file (universal §VI).
+# .claude/). We copy it idempotently (cp overwrites on re-run; mkdir -p is a
+# no-op when the dir exists). MMD_SRC_DIR is resolved at the top of this script
+# (overridable via env — the DI seam the install test uses). If the source is
+# missing (e.g. the script was curl'd standalone, away from a full checkout) we
+# skip with an honest warning rather than fabricate the file (universal §VI).
+#
+# TWO destinations:
+#   1. GLOBAL ~/.claude/commands/mmd.md — Claude Code personal command, available
+#      in EVERY session regardless of which project you open. This is what makes
+#      `/mmd` usable after a one-liner install: the operator playbook is generic,
+#      not tied to one repo. (Without it, `/mmd` only showed up inside the MMD
+#      checkout where install ran — the "/mmd not available" report.)
+#   2. PROJECT $TARGET/.claude/commands/mmd.md — kept for the MMD repo's own
+#      dogfooding + for a project where you ran `install-mmd.sh .` explicitly.
 # >>> MMD_SLASH_COMMAND_MATERIALIZE_BEGIN
 MMD_CMD_SRC="$MMD_SRC_DIR/assets/claude-commands/mmd.md"
 MMD_CMD_DST="$TARGET/.claude/commands/mmd.md"
+MMD_CMD_DST_GLOBAL="$HOME/.claude/commands/mmd.md"
 if [ -f "$MMD_CMD_SRC" ]; then
-    mkdir -p "$(dirname "$MMD_CMD_DST")"
-    cp "$MMD_CMD_SRC" "$MMD_CMD_DST"
-    ok "Generated: .claude/commands/mmd.md (/mmd operator playbook)"
+    # Global first — this is the one that makes `/mmd` available everywhere.
+    mkdir -p "$(dirname "$MMD_CMD_DST_GLOBAL")"
+    cp "$MMD_CMD_SRC" "$MMD_CMD_DST_GLOBAL"
+    ok "Generated: ~/.claude/commands/mmd.md (/mmd available in every Claude Code session)"
+    # Project copy (skip if it would duplicate the global one, e.g. TARGET == \$HOME).
+    if [ "$MMD_CMD_DST" != "$MMD_CMD_DST_GLOBAL" ]; then
+        mkdir -p "$(dirname "$MMD_CMD_DST")"
+        cp "$MMD_CMD_SRC" "$MMD_CMD_DST"
+        ok "Generated: .claude/commands/mmd.md (project-scoped copy for $TARGET)"
+    fi
 else
-    warn "/mmd source not found at $MMD_CMD_SRC — skipping .claude/commands/mmd.md."
+    warn "/mmd source not found at $MMD_CMD_SRC — skipping the /mmd slash command."
     info "Run install-mmd.sh from a full MMD checkout to materialize the /mmd slash command."
 fi
 # >>> MMD_SLASH_COMMAND_MATERIALIZE_END

@@ -142,3 +142,35 @@ test('@integration install step degrades gracefully when the source is absent (h
     rmSync(path.dirname(step), { recursive: true, force: true });
   }
 });
+
+test('@integration install step materializes /mmd GLOBALLY (~/.claude) so it is available in every session', () => {
+  // The fix for "/mmd not available after install": a project-scoped command
+  // only shows up inside that project. With HOME and TARGET distinct (the real
+  // one-liner case — you install MMD but work elsewhere), the GLOBAL personal
+  // command must be written so `/mmd` works in any Claude Code session.
+  const step = extractMmdCommandStep();
+  try {
+    const home = mkdtempSync(path.join(tmpdir(), 'mmd-home-'));
+    const target = mkdtempSync(path.join(tmpdir(), 'mmd-target-'));
+    try {
+      const r = spawnSync('bash', [step, target], {
+        encoding: 'utf8',
+        timeout: 15000,
+        env: { PATH: '/usr/bin:/bin', HOME: home, MMD_SRC_DIR: REPO_ROOT },
+      });
+      assert.equal(r.status, 0, `step should exit 0; stdout=${r.stdout}\nstderr=${r.stderr}`);
+      const globalDest = path.join(home, '.claude', 'commands', 'mmd.md');
+      const projectDest = path.join(target, '.claude', 'commands', 'mmd.md');
+      assert.ok(existsSync(globalDest), '/mmd must be materialized GLOBALLY at ~/.claude/commands/mmd.md');
+      assert.ok(existsSync(projectDest), 'and also in the project .claude/commands/ (dogfood/back-compat)');
+      const tracked = readFileSync(TRACKED_SOURCE, 'utf8');
+      assert.equal(readFileSync(globalDest, 'utf8'), tracked, 'global copy must match the tracked source');
+      assert.equal(readFileSync(projectDest, 'utf8'), tracked, 'project copy must match the tracked source');
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+      rmSync(target, { recursive: true, force: true });
+    }
+  } finally {
+    rmSync(path.dirname(step), { recursive: true, force: true });
+  }
+});

@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.8.0`
-- **Branch**: `main`
-- **Version**: `0.8.0` (package.json)
+- **Branch**: `slice/here-polyglot-import-graph-adapters-1780385906`
+- **Version**: `0.8.1` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 42 (ADR-001..ADR-042)
-- **Tests**: 1782 passing
+- **ADRs**: 43 (ADR-001..ADR-043)
+- **Tests**: 1807 passing
 - **Recent commits**:
-  - `b5b15b1 fix(v0.8.0): mkdir -p the report dir — test-health failed on a repo without docs/`
-  - `368a38a docs(v0.8.0): refresh dashboards at 1782 tests after Phase-4 fixes`
-  - `b44014f fix(v0.8.0): Phase-4 review — Python def scope precision (F1) + stack-appropriate stratification advice (F2)`
-  - `f5c4545 docs(v0.8.0): refresh mechanical blocks + dashboards at 0.8.0 / 1779 tests`
-  - `e84b158 test(v0.8.0): re-bless version-pinned anchors for 0.8.0 (ship --help snapshot + package.json version assert)`
+  - `78b22d8 feat(v0.8.1): coherence-graph --since code edges are polyglot + honest (AC-4)`
+  - `f762c0e feat(v0.8.1): Python import-edge adapter — the proof of genericity (AC-5)`
+  - `901932e refactor(v0.8.1): generic blast-radius core dispatches to adapters + honest unanalyzed (AC-3)`
+  - `6f9a966 feat(v0.8.1): import-edge adapter contract + registry + JS adapter (AC-1/AC-2)`
+  - `ac897fd docs(v0.8.1): SPEC — polyglot import graph (§VIII debt: blast-radius + coherence-graph code edges)`
 - **Generated**: 2026-06-02 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
@@ -281,7 +281,8 @@ The deeper "whose constitution governs the build" question, deferred from v0.6.a
 
 **§VIII technology-agnostic debt (CRITICAL — MMD claims polyglot; some analysis tooling was secretly JS-only):**
 - ✅ **Test Curator → polyglot (v0.8.0)** — adapter architecture (core has zero language syntax; `adapters/{javascript,python}.js`); detect-and-refuse honestly on an unsupported stack (Rust → clear refusal, no fabricated numbers). Proven live: Python analyzed, Rust refused, JS unchanged. New constitution **universal §VIII** is the guardrail (always-loaded → injected into every auto-dev run).
-- ⬜ **blast-radius / coherence-graph / doc→code refs are STILL JS-only** (they parse JS `import`/`require`). Under §VIII they must become adapter-based too (each stack's import syntax). Same refactor pattern as the Curator. The coherence graph's code↔code edges are wrong on a Rust/Python repo today.
+- ✅ **Import graph → polyglot (v0.8.1)** — blast-radius + the coherence-graph code↔code edges are now adapter-based (`lib/code-graph/adapters/{index,javascript,python}.js`; the per-file import-edge contract `matches(filePath)` / `importEdges({filePath,content,repoFiles})`). The core (`lib/sealed-tests/import-graph.js`) dispatches via the registry and stays language-neutral; `computeBlastRadius` gains an honest `unanalyzed` list. JS is byte-for-byte unchanged (the sealed-gate regression lock); a Python repo gets a real reverse closure; Rust/Go/C land `unanalyzed`, never faked. `document-review --since` honestly notes un-adapted languages in the diff. ADR-043.
+- ⬜ **doc→code ref extractor is STILL JS-only** (`lib/documentalist/doc-refs.js` matches `.js` path tokens in prose). Lighter than the import graph (path-token matching, not specifier parsing); the next §VIII follow-up — match each adapter's source extensions.
 - ⬜ **Coverage** — deferred from v0.8.0 and MUST be polyglot when built (each adapter runs its native coverage tool → parse lcov/cobertura in a shared parser). NOT `node --test` in the core.
 - ⬜ **Test Curator: more adapters** (Rust `#[test]`, Go `func Test`, C, …) — each is a new `adapters/<lang>.js`, not a rewrite; until added they hit the honest refusal. Python body-similarity redundancy (indentation extractor) is also deferred (`supportsBodies:false` today).
 

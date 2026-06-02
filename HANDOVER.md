@@ -21,11 +21,11 @@
 - **ADRs**: 47 (ADR-001..ADR-047)
 - **Tests**: 1986 passing
 - **Recent commits**:
+  - `7421f84 fix(docs): catch the mmd → mmdream references the first pass missed`
+  - `a267a36 docs: refresh mechanical blocks after the mmd→mmdream rename (1986 tests)`
   - `20a18eb refactor(cli): rename command mmd → mmdream across all user-facing surfaces`
-  - `14722b2 refactor(cli): rename the executable mmd → mmdream (avoid the mtools /usr/bin/mmdream collision) — functional core`
-  - `3511b61 docs: refresh mechanical blocks at 1986 tests (/mmdream global materialization)`
-  - `ae76e23 fix(install): materialize /mmdream GLOBALLY (~/.claude/commands) so it is available everywhere`
-  - `3da5cd0 docs: refresh mechanical blocks at 1985 tests (gStack install-source fix)`
+  - `14722b2 refactor(cli): rename the executable mmd → mmdream (avoid the mtools /usr/bin/mmd collision) — functional core`
+  - `3511b61 docs: refresh mechanical blocks at 1986 tests (/mmd global materialization)`
 - **Generated**: 2026-06-02 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

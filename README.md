@@ -756,7 +756,7 @@ One line per release, newest first, generated from each git tag's annotation by 
 - **v0.7.8** — Test Curator cluster precision: count only real-file targets (drop fixture phantoms like lib/a.js/x.js). New pure keepRealTargets filters to modules that resolve to a real repo file; most-tested-modules table is now credible.
 - **v0.7.7** — Test Curator redundancy face (mmd test-health): is the corpus bloated?
 - **v0.7.6** — the Test Curator (mmd test-health): test-corpus health
-- **v0.7.5** — the /mmdream Claude Code slash command (operator playbook)
+- **v0.7.5** — the /mmd Claude Code slash command (operator playbook)
 - **v0.7.4** — coherence-graph precision: hub-source neighbor cap
 - **v0.7.3** — the coherence graph: staleness-on-diff (mmd document-review --since)
 - **v0.7.2** — the Documentalist compacts: SPEC archival (mmd document-compact)

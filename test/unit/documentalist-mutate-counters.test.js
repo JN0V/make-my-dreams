@@ -141,6 +141,30 @@ test('@unit accepts a plain-object validatedByLesson and creditedRuns Map', () =
   assert.equal(updatedLessons[0].counter, 1); // only r2 is new
 });
 
+test('@unit a lesson ALREADY at threshold with NO new reuse is still a promotion candidate', () => {
+  // The operator workflow: a prior run held it at threshold (counter=5) without a
+  // gate; a re-run with the gate present must re-consider it even though delta=0.
+  const { updatedLessons, toPromote, newlyCreditedRuns } = mutateCounters(
+    [lesson({ counter: 5, promoteIfN: 5 })],
+    vr([['L-001', ['r1', 'r2', 'r3', 'r4', 'r5']]]),
+    { creditedRuns: { 'L-001': ['r1', 'r2', 'r3', 'r4', 'r5'] } }, // all credited
+  );
+  assert.equal(updatedLessons[0].counter, 5); // unchanged
+  assert.equal(updatedLessons[0].counterDelta, 0);
+  assert.equal(toPromote.length, 1); // STILL a candidate (re-gated)
+  assert.equal(toPromote[0].id, 'L-001');
+  assert.equal(Object.keys(newlyCreditedRuns).length, 0); // nothing newly credited
+});
+
+test('@unit a below-threshold lesson with no new reuse is NOT a candidate', () => {
+  const { toPromote } = mutateCounters(
+    [lesson({ counter: 3, promoteIfN: 5 })],
+    vr([['L-001', ['r1', 'r2', 'r3']]]),
+    { creditedRuns: { 'L-001': ['r1', 'r2', 'r3'] } },
+  );
+  assert.equal(toPromote.length, 0);
+});
+
 test('@unit throws on non-array lessons', () => {
   assert.throws(() => mutateCounters(null, vr([])), TypeError);
 });

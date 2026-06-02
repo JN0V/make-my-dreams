@@ -213,3 +213,23 @@ test('@integration AC-3 gate ABSENT HOLDS honestly (no MMD_PROMOTE_GATE_CMD)', (
   assert.match(r.stdout, /held L-900 — gate uncertain.*unavailable/);
   assert.match(readFileSync(lessonsPath, 'utf8'), /## L-900/);
 });
+
+test('@integration AC-3 operator workflow: held-at-threshold (no gate) then re-run WITH gate promotes', () => {
+  // Run 1: counter 4 → 5 on the one done run, gate absent → HOLD at threshold.
+  const { root, lessonsPath } = setupRepo({ counter: 4, promoteIfN: 5 });
+  const r1 = run(root, [], { MMD_LESSONS_FILE: lessonsPath });
+  assert.equal(r1.status, 0);
+  assert.match(r1.stdout, /held L-900/);
+  assert.match(readFileSync(lessonsPath, 'utf8'), /\(counter: 5\)/); // persisted at threshold
+  // Run 2: NO new validated reuse (the one run is already credited), but the
+  // gate is now available and validates → it must promote without a new reuse.
+  const gate = writeFakeGate(root);
+  const r2 = run(root, [], {
+    MMD_LESSONS_FILE: lessonsPath,
+    MMD_PROMOTE_GATE_CMD: gate,
+    MMD_FAKE_GATE_OUTPUT: 'VERDICT: VALIDATED — proven on review',
+  });
+  assert.equal(r2.status, 0);
+  assert.match(r2.stdout, /promoted L-900 → testing\.md/);
+  assert.doesNotMatch(readFileSync(lessonsPath, 'utf8'), /## L-900/);
+});

@@ -28,6 +28,8 @@ curl -fsSL https://raw.githubusercontent.com/JN0V/make-my-dreams/main/install.sh
 
 This clones MMD into `~/Documents/make-my-dreams/` (override with `MMD_HOME=/path`), installs Phase A (BMAD + adv module + auto-dev workflow + project constitution), and offers to install gStack as the next step. Prerequisites: `git`, `node` (v20+), `npx`, `claude` (Claude Code CLI). `bun` is required only for gStack and can be installed later.
 
+> **Piped one-liner stays interactive.** `curl … | bash` makes stdin a pipe, so the installer reconnects its prompts to your terminal (`/dev/tty`) — it still asks before installing `bun` and gStack. In a true non-interactive context (CI, no terminal) those prompts are skipped; opt in there with `MMD_AUTO_INSTALL_BUN=1` / `MMD_AUTO_INSTALL_GSTACK=1` (or `MMD_SKIP_GSTACK_PROMPT=1` to silence the gStack step).
+
 Manual install (if you prefer to read the script first or operate offline):
 
 ```bash
@@ -813,4 +815,4 @@ mmd --here "add a dark-mode toggle"   # modify the current git repo in place
 
 ## License
 
-MIT — see [LICENSE](./LICENSE) (to be added in v0.1).
+MIT — see [LICENSE](./LICENSE).

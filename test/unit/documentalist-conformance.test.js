@@ -88,6 +88,51 @@ test('@unit conformance(artifact): a lib module not in the inventory is flagged'
   assert.match(out[0].reason, /not in the lib\/ inventory/i);
 });
 
+test('@unit conformance(artifact): repoTopDirs — a non-rooted polyglot ref is NOT flagged (§VIII precision)', () => {
+  // A Python repo whose real top-level dirs are src/ and tests/. doc-refs.js now
+  // extracts file candidates under ANY dir; conformance only judges those rooted
+  // at a real top-level dir, so a shorthand/illustrative token is not a false
+  // positive even though it is missing.
+  const pyRoot = new Set(['src', 'tests']);
+  const docRefs = [
+    // Rooted at a real top dir + missing → flagged.
+    { doc: 'README.md', line: 1, ref: 'src/missing.py', kind: 'file', value: 'src/missing.py' },
+    { doc: 'README.md', line: 2, ref: 'src/main.rs', kind: 'file', value: 'src/main.rs' },
+    // NOT rooted at a real top dir (shorthand / illustrative) → skipped, not flagged.
+    { doc: 'README.md', line: 3, ref: 'adapters/javascript.js', kind: 'file', value: 'adapters/javascript.js' },
+    { doc: 'README.md', line: 4, ref: 'pkg/mod.py', kind: 'file', value: 'pkg/mod.py' },
+  ];
+  const out = checkArtifactConformance({
+    docRefs, inventory: INVENTORY, fileExistsFn, repoTopDirs: pyRoot,
+  });
+  const flagged = out.map((f) => f.ref).sort();
+  assert.deepEqual(flagged, ['src/main.rs', 'src/missing.py'], 'only repo-rooted missing refs flagged');
+});
+
+test('@unit conformance(artifact): repoTopDirs — a rooted EXISTING non-js source file is NOT flagged', () => {
+  const pyRoot = new Set(['src']);
+  const realPy = (rel) => rel === 'src/real_module.py';
+  const docRefs = [
+    { doc: 'README.md', line: 1, ref: 'src/real_module.py', kind: 'file', value: 'src/real_module.py' },
+    { doc: 'README.md', line: 2, ref: 'src/gone.py', kind: 'file', value: 'src/gone.py' },
+  ];
+  const out = checkArtifactConformance({
+    docRefs, inventory: INVENTORY, fileExistsFn: realPy, repoTopDirs: pyRoot,
+  });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].ref, 'src/gone.py', 'existing .py not flagged; missing .py flagged');
+});
+
+test('@unit conformance(artifact): absent/empty repoTopDirs → filter OFF (back-compat, judge all)', () => {
+  const docRefs = [{ doc: 'x', line: 1, ref: 'anydir/missing.js', kind: 'file', value: 'anydir/missing.js' }];
+  // No repoTopDirs → judged via fileExistsFn (which knows only REAL_FILES) → flagged.
+  const noFilter = checkArtifactConformance({ docRefs, inventory: INVENTORY, fileExistsFn });
+  assert.equal(noFilter.length, 1, 'absent → judge all');
+  // Empty array → still OFF (judge all), never "suppress everything".
+  const emptyFilter = checkArtifactConformance({ docRefs, inventory: INVENTORY, fileExistsFn, repoTopDirs: [] });
+  assert.equal(emptyFilter.length, 1, 'empty → judge all');
+});
+
 test('@unit conformance(artifact): PURE + never throws on empty/odd input', () => {
   assert.deepEqual(checkArtifactConformance({}), []);
   assert.deepEqual(checkArtifactConformance(null), []);

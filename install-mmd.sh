@@ -56,15 +56,28 @@
 
 set -euo pipefail
 
-# --- Make a piped install interactive ---------------------------------------
-# When this script is run via a pipe (e.g. `curl … | bash`, or invoked by the
-# one-liner install.sh which is itself piped), stdin is the pipe — not a
-# terminal — so every `[ -t 0 ]` prompt below (bun, gStack, Spec Kit, OpenSpec,
-# Ralph Loop) would silently take its non-interactive branch and SKIP the
-# install, leaving a half-working MMD. If a controlling terminal exists,
-# reconnect stdin to it so those prompts can still ask the human. In a genuine
-# non-interactive context (CI, no /dev/tty) this is a no-op and the existing
-# `MMD_AUTO_INSTALL_*` env-var path remains the way to opt in.
+# --- Make the install prompts interactive even with a piped stdin -----------
+# This script is ALWAYS invoked as a FILE ARGUMENT — `bash install-mmd.sh .`, or
+# `bash "$MMD_HOME/install-mmd.sh"` from the one-liner install.sh. bash therefore
+# reads the script text FROM THE FILE, not from fd 0, so reassigning fd 0 here is
+# safe: it does NOT disturb how bash reads the rest of this script. (Contrast
+# install.sh, which is run PIPED via `curl … | bash` — there bash reads the
+# script from fd 0, so a top-level `exec < /dev/tty` would make it read the rest
+# of the script from the keyboard and halt; install.sh uses a per-command
+# `read … < /dev/tty` helper instead. Do NOT copy this `exec` into a piped
+# script.)
+#
+# Why we need it at all: when install.sh (piped) calls this script, our stdin is
+# inherited as that pipe — not a terminal — so every `[ -t 0 ]` prompt below
+# (bun, gStack, Spec Kit, OpenSpec, Ralph Loop) would silently take its
+# non-interactive branch and SKIP, leaving a half-working MMD. If a controlling
+# terminal exists, reconnect fd 0 to it so those prompts can ask the human. In a
+# genuine non-interactive context (CI, no /dev/tty) this is a no-op and the
+# `MMD_AUTO_INSTALL_*` env-vars remain the way to opt in.
+#
+# IMPORTANT: this `exec` is only correct because the invocation is a file
+# argument. If you ever support `curl … | bash install-mmd.sh`, switch to the
+# per-command `read … < /dev/tty` pattern (see install.sh's ask_tty).
 if [ ! -t 0 ] && [ -r /dev/tty ]; then
     exec < /dev/tty
 fi

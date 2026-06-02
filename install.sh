@@ -27,17 +27,31 @@
 
 set -euo pipefail
 
-# --- Make the piped one-liner interactive -----------------------------------
-# `curl -fsSL …/install.sh | bash` makes stdin the pipe, not a terminal, so the
-# gStack prompt below — and every y/N prompt inside install-mmd.sh (bun, the
-# pillars) — would silently skip, installing NEITHER bun NOR gStack. If a
-# controlling terminal exists, reconnect stdin to it so the install stays
-# interactive (the child install-mmd.sh inherits this stdin too). A genuine
-# non-interactive context (CI, no /dev/tty) is unaffected: this is a no-op and
-# the MMD_AUTO_INSTALL_* / MMD_SKIP_GSTACK_PROMPT env-vars remain the opt-in.
-if [ ! -t 0 ] && [ -r /dev/tty ]; then
-    exec < /dev/tty
-fi
+# --- Interactive prompts under `curl … | bash` ------------------------------
+# This script is normally run PIPED: `curl -fsSL …/install.sh | bash`. When bash
+# reads its script from stdin (the pipe), we MUST NOT do `exec < /dev/tty` to
+# "reconnect" the terminal — that permanently reassigns fd 0, and bash would
+# then read the REST OF THIS SCRIPT from the keyboard instead of the pipe,
+# halting the install (the bug an earlier "fix" introduced). The correct,
+# pipe-safe pattern is per-command redirection: a prompt does `read … < /dev/tty`,
+# which pulls that one answer from the terminal WITHOUT disturbing the stream
+# bash is reading the script from. See ask_tty() below and its use at the gStack
+# prompt. install-mmd.sh is different — it is always invoked as a FILE argument
+# (`bash install-mmd.sh`), so bash reads its script from the file (not fd 0) and
+# a top-of-script `exec < /dev/tty` is safe THERE; it is not safe here.
+
+# ask_tty PROMPT  → prints PROMPT and reads one line into REPLY from the
+# controlling terminal, even when stdin is a pipe. Returns non-zero (so the
+# caller takes its non-interactive default) when there is no terminal at all
+# (CI). Never does `exec` — pipe-safe by construction.
+ask_tty() {
+    if [ -t 0 ]; then
+        printf "%s" "$1"; IFS= read -r REPLY; return 0
+    elif [ -r /dev/tty ]; then
+        printf "%s" "$1" > /dev/tty; IFS= read -r REPLY < /dev/tty; return 0
+    fi
+    return 1
+}
 
 # --- Colors ----------------------------------------------------------------
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
@@ -142,9 +156,10 @@ elif [ "$MMD_SKIP_GSTACK_PROMPT" = "1" ]; then
     echo "    git clone https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && bun install"
 else
     info "gStack provides 64+ slash-commands MMD will leverage (e.g. /qa, /cso, /ship)."
-    if [ -t 0 ]; then
-        printf "    Install gStack now? [Y/n] "
-        read -r REPLY
+    # ask_tty reads the answer from the terminal even under `curl … | bash`
+    # (per-command `< /dev/tty`, never `exec` — so it doesn't break the piped
+    # script). Returns non-zero only when there is no terminal at all (true CI).
+    if ask_tty "    Install gStack now? [Y/n] "; then
         REPLY="${REPLY:-y}"
         if [[ "$REPLY" =~ ^[Yy]$ ]]; then
             if ! command -v bun >/dev/null 2>&1; then
@@ -158,7 +173,7 @@ else
             info "Skipped. Install later with: git clone https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && (cd ~/.claude/skills/gstack && bun install)"
         fi
     else
-        info "Non-interactive shell (piped install) — skipping gStack prompt. Install later with:"
+        info "Non-interactive shell, no terminal — skipping gStack prompt. Install later with:"
         echo "    git clone https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && (cd ~/.claude/skills/gstack && bun install)"
     fi
 fi

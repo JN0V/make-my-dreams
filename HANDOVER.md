@@ -15,18 +15,18 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.7.6`
-- **Branch**: `main`
-- **Version**: `0.7.6` (package.json)
+- **Branch**: `slice/here-test-curator-redundancy-detection-1780376916`
+- **Version**: `0.7.7` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 40 (ADR-001..ADR-040)
-- **Tests**: 1708 passing
+- **ADRs**: 41 (ADR-001..ADR-041)
+- **Tests**: 1747 passing
 - **Recent commits**:
-  - `55d766c fix(v0.7.6): Phase-4 adversarial review findings — scanner precision + DRY + honesty`
-  - `363812a chore(v0.7.6): refresh mechanical blocks, re-bless version pins, capture live corpus in HANDOVER`
-  - `03e57d0 docs(v0.7.6): ADR-040 + README + CLAUDE for the Test Curator; bump to 0.7.6`
-  - `4a70102 feat(v0.7.6): mmd test-health subcommand + dispatch (Test Curator AC-3/AC-4)`
-  - `d3ac318 feat(v0.7.6): pure test-health report builder (Test Curator AC-2)`
-- **Generated**: 2026-06-01 by `mmd handover` (mechanical block — intent sections are human-authored)
+  - `8341fdb docs(v0.7.7): AC-5 — ADR-041 + README/CLAUDE redundancy face; bump to 0.7.7`
+  - `43671f1 docs(v0.7.7): AC-4 — regenerate test-health dashboard with redundancy face`
+  - `3ed46a9 feat(v0.7.7): AC-3 — wire Redundancy candidates section into report + subcommand`
+  - `8b25998 feat(v0.7.7): AC-2 — pure redundancy detector (similarity + clustering)`
+  - `550a81f feat(v0.7.7): AC-1 — capture test bodies + per-file lib/bin targets`
+- **Generated**: 2026-06-02 by `mmd handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
 ## What just shipped (chronological, this multi-session arc)
@@ -161,6 +161,16 @@ If you're picking up to do **v0.3 Dream Catcher**: it's a bigger design slice. D
 
 
 ---
+
+## JUST LANDED — v0.7.7: the Test Curator's REDUNDANCY face (`mmd test-health`)
+
+**The Test Curator gained a second face: find tests that likely _overlap_, so the corpus can be pruned.** (ADR-040 deferred "duplicate-test detection"; now built.) Implemented per SPEC_V077.md (frozen), 5 ACs, via this reflexive `mmd --here` slice. Same contract as the stratification face — **deterministic** (no LLM), **advisory**, **DETECT-BEFORE-CUT** (never deletes a test — a similar-looking test may document distinct intent; the human decides). Method = **clustering by target + structural similarity, NOT coverage** (a coverage mode stays a deferred opt-in — it needs an instrumented run that breaks the pure/read-only contract). What shipped:
+- **AC-1 — body + target extraction** (`lib/test-curator/extract-bodies.js`, new): `extractTestBody` (deterministic brace-depth scan, skips strings/comments, robust to nested braces) + `extractFileTargets` (sorted-unique `lib/`/`bin/` imports). `scan.js` attaches `body`+`targets` additively (existing fields/determinism unchanged). 19 `@unit` tests.
+- **AC-2 — pure redundancy detector** (`lib/test-curator/redundancy.js`, new): `nearDuplicatePairs(tests,{threshold})` (normalize → token shingles → Jaccard ≥ threshold, default 0.9, **bounded within-file** so no quadratic blow-up, precision floor skips trivial bodies) + `targetClusters(tests)` (group by imported module, largest-first). Deterministic, never throws. 16 `@unit` tests.
+- **AC-3 — report section + subcommand** (`report.js` + `bin/test-curator/test-health.js`): a "Redundancy candidates" section (near-duplicate pairs + most-tested modules), `MMD_TEST_DUP_SIMILARITY` env override (graceful fallback), honest "+N more" caps, **strictly read-only beyond `docs/test-health.md`**. 6 `@integration` tests.
+- **AC-5 — docs**: ADR-041 (method, why-not-coverage, detect-before-cut, bounded comparison, documented residuals), README + CLAUDE, mechanical blocks refreshed, bumped to 0.7.7.
+
+**AC-4 status — LIVE CORPUS STATE CAPTURED ✅ (executed 2026-06-02 on MMD itself).** `mmd test-health` now reports, in addition to the stratification face: **3 near-duplicate test pairs** at similarity ≥ 0.9 (precision-first — no flood): `unblock-dry-run.test.js:100↔143` (**0.95**), `sealed-tests-manifest.test.js:69↔82` (**0.94**), `server.test.js:194↔240` (**0.91**) — real copy-paste candidates worth a human glance; **nothing was deleted**. The **most-tested modules** (over-test candidates): `lib/invoke-autodev.js` (**204** tests / 33 files), `lib/argv-parser.js` (139/7), `lib/server.js` (98/6) — 96 clusters total, top 15 listed with an honest "+82 more" note. The read-only contract held (only `docs/test-health.md` changed). Documented heuristic residual: a `lib/x.js` import written inside a *fixture string* is counted as a target (same class as the v0.7.6 `test(`-in-a-string note; e.g. `lib/a.js` in the cluster list comes from such strings). Future (deferred, YAGNI): coverage-based redundancy, cross-file pairing within a cluster, identifier-normalized similarity, any auto-pruning — each opt-in and human-reviewed if ever built.
 
 ## JUST LANDED — v0.7.6: the Test Curator — test-corpus health (`mmd test-health`)
 

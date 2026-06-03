@@ -50,8 +50,11 @@ test('@unit buildCoderPrompt: states the sealed dir is READ-ONLY and tamper = fa
     demoDir: '/tmp/demo/counter',
     sealedDir: SEALED,
   });
-  // Reuses the greenfield base body (DRY): the stack constraint is present.
-  assert.match(p, /vanilla HTML\/CSS\/JS/);
+  // Reuses the greenfield base body (DRY). As of v0.10.a that body is
+  // technology-agnostic (SPEC_V010A AC-1), so assert on a stable marker of it —
+  // the stack-deriving directive — instead of the removed vanilla/Canvas line.
+  assert.match(p, /MMD walking skeleton/);
+  assert.match(p, /DERIVE the simplest technology/);
   // The read-only sealed contract is appended and names the dir.
   assert.ok(p.includes(SHARED_MARKER));
   assert.match(p, /READ-ONLY/);

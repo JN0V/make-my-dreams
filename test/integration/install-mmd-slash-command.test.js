@@ -143,11 +143,13 @@ test('@integration install step degrades gracefully when the source is absent (h
   }
 });
 
-test('@integration install step materializes /mmdream GLOBALLY (~/.claude) so it is available in every session', () => {
+test('@integration install step materializes /mmdream GLOBALLY only (no project duplicate)', () => {
   // The fix for "/mmdream not available after install": a project-scoped command
-  // only shows up inside that project. With HOME and TARGET distinct (the real
-  // one-liner case — you install MMD but work elsewhere), the GLOBAL personal
-  // command must be written so `/mmdream` works in any Claude Code session.
+  // only shows up inside that project, so /mmdream is materialized GLOBALLY. Bug 2
+  // follow-up: it is GLOBAL-ONLY — a project copy would make /mmdream appear TWICE
+  // in a session opened inside the project (project + global both load). With HOME
+  // and TARGET distinct, only the global copy is written; the project path stays
+  // empty (and a stale project copy from a prior install is removed).
   const step = extractMmdCommandStep();
   try {
     const home = mkdtempSync(path.join(tmpdir(), 'mmd-home-'));
@@ -162,10 +164,9 @@ test('@integration install step materializes /mmdream GLOBALLY (~/.claude) so it
       const globalDest = path.join(home, '.claude', 'commands', 'mmdream.md');
       const projectDest = path.join(target, '.claude', 'commands', 'mmdream.md');
       assert.ok(existsSync(globalDest), '/mmdream must be materialized GLOBALLY at ~/.claude/commands/mmdream.md');
-      assert.ok(existsSync(projectDest), 'and also in the project .claude/commands/ (dogfood/back-compat)');
+      assert.ok(!existsSync(projectDest), 'no project-scoped copy (would duplicate the global one in-session)');
       const tracked = readFileSync(TRACKED_SOURCE, 'utf8');
       assert.equal(readFileSync(globalDest, 'utf8'), tracked, 'global copy must match the tracked source');
-      assert.equal(readFileSync(projectDest, 'utf8'), tracked, 'project copy must match the tracked source');
     } finally {
       rmSync(home, { recursive: true, force: true });
       rmSync(target, { recursive: true, force: true });

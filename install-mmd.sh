@@ -1153,9 +1153,25 @@ WORKFLOW_EOF
 ok "Generated: _bmad/${ADV_CODE}/workflows/auto-dev/workflow.md"
 
 # --- 3c. Generate command file ----------------------------------------------
+# Bug 2: the newer BMAD manages skills under .claude/skills/. If it already
+# provides bmad-<adv>-auto-dev there, our flat .claude/commands/ copy is a
+# DUPLICATE (the skill shows up twice). Write the legacy command ONLY when no
+# skills version exists (older BMAD / this repo) — there it is the sole source of
+# /bmad-<adv>-auto-dev, so removing it unconditionally would break auto-dev. When
+# the skills version IS present, skip it AND clean up any stale legacy copy a
+# previous install left behind (idempotent de-dup).
 COMMAND_FILE="$TARGET/.claude/commands/bmad-${ADV_CODE}-auto-dev.md"
+SKILL_DIR="$TARGET/.claude/skills/bmad-${ADV_CODE}-auto-dev"
 
-cat > "$COMMAND_FILE" << COMMAND_EOF
+if [ -d "$SKILL_DIR" ]; then
+  if [ -f "$COMMAND_FILE" ]; then
+    rm -f "$COMMAND_FILE"
+    ok "Removed legacy .claude/commands/bmad-${ADV_CODE}-auto-dev.md (BMAD provides it under .claude/skills/ — de-duplicated)."
+  else
+    info "BMAD provides bmad-${ADV_CODE}-auto-dev under .claude/skills/ — skipping the legacy .claude/commands/ copy."
+  fi
+else
+  cat > "$COMMAND_FILE" << COMMAND_EOF
 ---
 name: 'auto-dev'
 description: 'Automated end-to-end pipeline: quick-dev spec + party mode → adversarial spec review loop → quick-dev implementation → adversarial code review loop. Fully autonomous with progress reporting.'
@@ -1164,7 +1180,8 @@ description: 'Automated end-to-end pipeline: quick-dev spec + party mode → adv
 IT IS CRITICAL THAT YOU FOLLOW THIS COMMAND: LOAD the FULL @{project-root}/_bmad/${ADV_CODE}/workflows/auto-dev/workflow.md, READ its entire contents and follow its directions exactly!
 COMMAND_EOF
 
-ok "Generated: .claude/commands/bmad-${ADV_CODE}-auto-dev.md"
+  ok "Generated: .claude/commands/bmad-${ADV_CODE}-auto-dev.md"
+fi
 
 # --- 3d. /mmdream operator slash command (v0.7.5) ------------------------------
 # The /mmdream Claude Code slash command encodes the MMD operator playbook so a
@@ -1177,28 +1194,28 @@ ok "Generated: .claude/commands/bmad-${ADV_CODE}-auto-dev.md"
 # missing (e.g. the script was curl'd standalone, away from a full checkout) we
 # skip with an honest warning rather than fabricate the file (universal §VI).
 #
-# TWO destinations:
-#   1. GLOBAL ~/.claude/commands/mmdream.md — Claude Code personal command, available
-#      in EVERY session regardless of which project you open. This is what makes
-#      `/mmdream` usable after a one-liner install: the operator playbook is generic,
-#      not tied to one repo. (Without it, `/mmdream` only showed up inside the MMD
-#      checkout where install ran — the "/mmdream not available" report.)
-#   2. PROJECT $TARGET/.claude/commands/mmdream.md — kept for the MMD repo's own
-#      dogfooding + for a project where you ran `install-mmd.sh .` explicitly.
+# ONE destination — GLOBAL ~/.claude/commands/mmdream.md: a Claude Code personal
+# command, available in EVERY session regardless of which project you open. This
+# is what makes `/mmdream` usable after a one-liner install (the operator playbook
+# is generic, not tied to one repo).
+#
+# Bug 2: a project-scoped copy at $TARGET/.claude/commands/mmdream.md would make
+# `/mmdream` appear TWICE in a session opened inside $TARGET (project + global both
+# load). The global copy already covers every session, so we write ONLY global and
+# clean up any project copy a previous install left behind (idempotent de-dup).
 # >>> MMD_SLASH_COMMAND_MATERIALIZE_BEGIN
 MMD_CMD_SRC="$MMD_SRC_DIR/assets/claude-commands/mmdream.md"
 MMD_CMD_DST="$TARGET/.claude/commands/mmdream.md"
 MMD_CMD_DST_GLOBAL="$HOME/.claude/commands/mmdream.md"
 if [ -f "$MMD_CMD_SRC" ]; then
-    # Global first — this is the one that makes `/mmdream` available everywhere.
     mkdir -p "$(dirname "$MMD_CMD_DST_GLOBAL")"
     cp "$MMD_CMD_SRC" "$MMD_CMD_DST_GLOBAL"
     ok "Generated: ~/.claude/commands/mmdream.md (/mmdream available in every Claude Code session)"
-    # Project copy (skip if it would duplicate the global one, e.g. TARGET == \$HOME).
-    if [ "$MMD_CMD_DST" != "$MMD_CMD_DST_GLOBAL" ]; then
-        mkdir -p "$(dirname "$MMD_CMD_DST")"
-        cp "$MMD_CMD_SRC" "$MMD_CMD_DST"
-        ok "Generated: .claude/commands/mmdream.md (project-scoped copy for $TARGET)"
+    # De-dup: remove a project-scoped copy from an earlier install (the global one
+    # covers this repo too, so a project copy only causes a duplicate listing).
+    if [ "$MMD_CMD_DST" != "$MMD_CMD_DST_GLOBAL" ] && [ -f "$MMD_CMD_DST" ]; then
+        rm -f "$MMD_CMD_DST"
+        ok "Removed project-scoped .claude/commands/mmdream.md (global copy covers it — de-duplicated)."
     fi
 else
     warn "/mmdream source not found at $MMD_CMD_SRC — skipping the /mmdream slash command."
@@ -1641,7 +1658,7 @@ MANIFEST=$(resolve_dep \
     "_bmad/_config/workflow-manifest.csv")
 MANIFEST="$TARGET/$MANIFEST"
 
-MANIFEST_ENTRY="\"auto-dev\",\"auto-dev\",\"Automated end-to-end pipeline: quick-dev spec + party mode → adversarial spec review loop → quick-dev implementation → adversarial code review loop.\",\"${ADV_CODE}\",\"_bmad/${ADV_CODE}/workflows/auto-dev/workflow.md\",\"false\""
+MANIFEST_ENTRY="\"auto-dev\",\"auto-dev\",\"Automated end-to-end pipeline: quick-dev spec + party mode → adversarial spec review loop → quick-dev implementation → adversarial code review loop.\",\"${ADV_CODE}\",\"_bmad/${ADV_CODE}/workflows/auto-dev/workflow.md\""
 
 # Remove any existing auto-dev entry (handles updates cleanly)
 if grep -q '"auto-dev"' "$MANIFEST" 2>/dev/null; then

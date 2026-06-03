@@ -219,6 +219,19 @@ test('@integration AC-2 monitor junk value → treated as false (no --monitor)',
   assert.ok(!lines.includes('--monitor'), `junk monitor must not thread --monitor, got ${JSON.stringify(lines)}`);
 });
 
+test('@integration serve disables the build timeout (MMD_TIMEOUT_MS=0) — L-016, a 30-min default would kill a real build', async (t) => {
+  const ctx = await bootServer({ MMD_AUTODEV_CMD: FAKE_ARGECHO });
+  t.after(async () => {
+    await ctx.server.shutdown('test');
+    ctx.restoreEnv();
+    rmSync(ctx.tmp, { recursive: true, force: true });
+  });
+  const res = await postDream(ctx.baseUrl, { dream: 'a build that would take longer than 30 min' });
+  assert.equal(res.status, 202);
+  const timeout = await waitForFile(path.join(ctx.tmp, 'captured-timeout.txt'));
+  assert.equal((timeout || '').trim(), '0', 'serve must spawn the build with MMD_TIMEOUT_MS=0 (no 30-min kill)');
+});
+
 /* ── AC-4: served gauge asset present + wired ───────────────────────────── */
 
 test('@integration AC-4 /gauge.js is served (the pure render helper asset)', async (t) => {

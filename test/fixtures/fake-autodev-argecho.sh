@@ -15,6 +15,10 @@ for a in "$@"; do
   printf '%s\n' "$a" >> "$PWD/captured-argv.txt"
 done
 
+# Record MMD_TIMEOUT_MS so a test can assert serve disables the build timeout
+# (L-016: serve builds are long Standard slices; the 30-min default kills them).
+printf '%s' "${MMD_TIMEOUT_MS-<unset>}" > "$PWD/captured-timeout.txt"
+
 # Find the dream positional (last non-flag arg) so we can name the demo dir.
 DREAM=""
 for a in "$@"; do

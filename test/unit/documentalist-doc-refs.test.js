@@ -153,6 +153,22 @@ test('@unit doc-refs: a git commit-log backtick span (`<hash> <subject>`) yields
   assert.ok(!refs.some((r) => r.kind === 'subcommand'), 'a commit-log span yields no subcommand refs at all');
 });
 
+test('@unit doc-refs: a genuine standalone `mmdream serve` / `mmd serve` is STILL captured (no recall regression)', () => {
+  // The commit-log guard must NOT suppress a real invocation span. Both the current
+  // `mmdream <sub>` and the legacy `mmd <sub>` forms remain captured — neither starts
+  // with a 7-to-40 hex run, so COMMIT_LOG_SPAN never matches them.
+  const text = [
+    'Run `mmdream serve` to launch the web UI.', // line 1: current form
+    'Or `mmd serve` on an older install.', // line 2: legacy form
+  ].join('\n');
+  const refs = extractDocRefs(text);
+
+  const a = find(refs, 'subcommand', 'serve');
+  assert.ok(a, 'standalone invocation still captured after the commit-log guard');
+  assert.equal(a.line, 1);
+  assert.equal(a.ref, 'mmdream serve', 'first occurrence keeps the verbatim current-form command');
+});
+
 test('@unit doc-refs: `mmd --here` and `mmd "<dream>"` are NOT subcommand refs', () => {
   const text = 'Use `mmd --here` on your repo, or `mmd "<dream>"` for greenfield.';
   const refs = extractDocRefs(text);

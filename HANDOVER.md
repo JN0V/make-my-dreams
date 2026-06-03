@@ -19,13 +19,13 @@
 - **Version**: `0.9.2` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 47 (ADR-001..ADR-047)
-- **Tests**: 1996 passing
+- **Tests**: 1998 passing
 - **Recent commits**:
+  - `dfe79aa fix(dream): raise the dream-length cap 500 → 4000 (500 rejected real first dreams)`
+  - `e85c90e docs(/mmdream): note that first run on a fresh repo auto-installs before the slice`
+  - `690a00c docs: refresh mechanical blocks (auto-setup for all spawning commands, 1996 tests)`
   - `6ef4e04 fix(onboarding): auto-install on first launch for EVERY command that needs BMAD/gStack`
   - `c9093c5 docs: refresh mechanical blocks (serve/greenfield auto-setup, 1990 tests)`
-  - `cfb9381 fix(serve,greenfield): AUTO-INSTALL on first launch instead of erroring (accessibility)`
-  - `d7fe824 docs: refresh mechanical blocks (serve/greenfield BMAD preflight, 1995 tests)`
-  - `8a44187 fix(serve,greenfield): honest BMAD preflight instead of a cryptic "Unknown command: /bmad-product-brief"`
 - **Generated**: 2026-06-03 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

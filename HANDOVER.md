@@ -19,14 +19,14 @@
 - **Version**: `0.9.2` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 47 (ADR-001..ADR-047)
-- **Tests**: 1986 passing
+- **Tests**: 1995 passing
 - **Recent commits**:
+  - `8a44187 fix(serve,greenfield): honest BMAD preflight instead of a cryptic "Unknown command: /bmad-product-brief"`
+  - `0028248 docs: refresh mechanical blocks (mmd→mmdream leftover-ref cleanup)`
   - `7421f84 fix(docs): catch the mmd → mmdream references the first pass missed`
   - `a267a36 docs: refresh mechanical blocks after the mmd→mmdream rename (1986 tests)`
   - `20a18eb refactor(cli): rename command mmd → mmdream across all user-facing surfaces`
-  - `14722b2 refactor(cli): rename the executable mmd → mmdream (avoid the mtools /usr/bin/mmd collision) — functional core`
-  - `3511b61 docs: refresh mechanical blocks at 1986 tests (/mmd global materialization)`
-- **Generated**: 2026-06-02 by `mmdream handover` (mechanical block — intent sections are human-authored)
+- **Generated**: 2026-06-03 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
 ## ▶ RIGHT NOW — handoff orientation (read this if you're picking up mid-session)

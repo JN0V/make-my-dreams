@@ -136,6 +136,23 @@ test('@unit doc-refs: a NEGATED / hypothetical / future `mmd <name>` is NOT capt
   assert.ok(find(refs, 'subcommand', 'teleport'), 'a plain affirmative ref is still captured');
 });
 
+test('@unit doc-refs: a git commit-log backtick span (`<hash> <subject>`) yields NO subcommand ref', () => {
+  // HANDOVER.md auto-generates a recent-commits block whose backtick spans are
+  // `<hash> <subject>` lines. A subject mentioning `mmd`/`mmdream` + a word must
+  // NOT be read as a phantom subcommand (which conformance would flag as dangling).
+  const text = [
+    'Recent commits:', // line 1
+    '- `ea2dc27 rename command mmd to mmdream across all surfaces`', // line 2: hash + mmd/mmdream subject
+    '- `dfe79aa fix(dream): avoid an mmdream collision in the global scope`', // line 3
+    '- `abcdef0 docs: note the mmd discover behavior`', // line 4
+  ].join('\n');
+  const refs = extractDocRefs(text);
+  for (const phantom of ['across', 'collision', 'global', 'discover', 'to']) {
+    assert.ok(!find(refs, 'subcommand', phantom), `commit-log word '${phantom}' must not be a subcommand`);
+  }
+  assert.ok(!refs.some((r) => r.kind === 'subcommand'), 'a commit-log span yields no subcommand refs at all');
+});
+
 test('@unit doc-refs: `mmd --here` and `mmd "<dream>"` are NOT subcommand refs', () => {
   const text = 'Use `mmd --here` on your repo, or `mmd "<dream>"` for greenfield.';
   const refs = extractDocRefs(text);

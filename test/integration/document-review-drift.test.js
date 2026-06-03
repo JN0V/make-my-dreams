@@ -164,6 +164,56 @@ test('@integration drift: a clean repo reports "No dangling references" honestly
   }
 });
 
+test('@integration drift: an auto-generated recent-commits block yields no phantom dangling subcommands, but a real ref elsewhere is still checked', async () => {
+  // HANDOVER-style doc: a backtick recent-commits block (`<hash> <subject>`) whose
+  // subjects mention `mmdream`/`mmd` + a word must NOT become phantom dangling
+  // subcommand refs, while a genuine dangling invocation elsewhere IS still flagged
+  // (proves the scan still runs on the doc — precision without losing recall).
+  const dir = await mkdtemp(path.join(tmpdir(), 'mmd-drift-commits-'));
+  try {
+    await mkdir(path.join(dir, 'docs', 'adr'), { recursive: true });
+    await mkdir(path.join(dir, 'bin'), { recursive: true });
+    await writeFile(path.join(dir, 'MAKE_MY_DREAMS.md'), ROADMAP);
+    await writeFile(path.join(dir, 'package.json'), '{"version":"0.7.0"}');
+    await writeFile(path.join(dir, 'bin', 'mmd.js'), FIXTURE_BIN);
+    await writeFile(path.join(dir, 'docs', 'adr', '001-x.md'), '# ADR-001 — x\n');
+
+    const handover = [
+      '# Handover', // 1
+      '', // 2
+      'Recent commits:', // 3
+      '- `ea2dc27 rename command mmd to mmdream across all surfaces`', // 4: phantom 'across'
+      '- `dfe79aa fix: avoid an mmdream collision in the global scope`', // 5: phantom 'collision'/'global'
+      '', // 6
+      'But `mmd teleport` was never built.', // 7: GENUINE dangling, still flagged
+    ].join('\n');
+    await writeFile(path.join(dir, 'HANDOVER.md'), handover);
+
+    git(dir, ['init', '-q']);
+    git(dir, ['config', 'user.email', 't@t.t']);
+    git(dir, ['config', 'user.name', 'T']);
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-qm', 'baseline']);
+
+    const r = runMmd(dir, []);
+    assert.equal(r.status, 0, r.stderr);
+    const report = await readFile(path.join(dir, 'docs', 'coherence-review.md'), 'utf8');
+    const driftSection = report.slice(report.indexOf('## Drift / conformance'));
+
+    // No phantom subcommand danglers harvested from commit-log subjects.
+    for (const phantom of ['across', 'collision', 'global']) {
+      assert.ok(
+        !new RegExp(`'${phantom}' is not a known subcommand`).test(driftSection),
+        `commit-log word '${phantom}' must not be flagged as a dangling subcommand`,
+      );
+    }
+    // The genuine dangling invocation elsewhere in the same doc is still flagged.
+    assert.match(driftSection, /HANDOVER\.md:7 → `mmd teleport` — 'teleport' is not a known subcommand/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('@integration drift: --with-claude semantic drift renders from the seam', async () => {
   const dir = await makeRepo();
   const fake = path.join(dir, 'fake-claude-ok.sh');

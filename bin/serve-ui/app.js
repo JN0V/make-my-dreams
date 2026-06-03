@@ -495,12 +495,21 @@
     resultSection.hidden = false;
     if (data.exitCode === 0) {
       resultTitle.textContent = '✅ Ton rêve est prêt ! / Your dream is ready!';
-      resultMessage.textContent = '';
       resultDebug.hidden = true;
-      openAppLink.hidden = false;
-      openAppLink.href = data.resultUrl || '#';
       newDreamBtn.hidden = false;
       retryBtn.hidden = true;
+      if (data.previewable === false) {
+        // v0.10.a (AC-5): a non-web build has no browser preview yet — show the
+        // honest "how to run it" message instead of a phantom index.html link.
+        resultMessage.textContent = data.message
+          || 'Browser preview is not available for this build yet. / Aperçu navigateur indisponible pour ce projet.';
+        openAppLink.hidden = true;
+        openAppLink.removeAttribute('href');
+      } else {
+        resultMessage.textContent = '';
+        openAppLink.hidden = false;
+        openAppLink.href = data.resultUrl || '#';
+      }
     } else {
       resultTitle.textContent = '⚠️ Ça n\'a pas marché. Essaie encore. / Something didn\'t work. Try again.';
       if (logBuffer.length === 0) {

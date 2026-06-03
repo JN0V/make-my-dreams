@@ -133,7 +133,7 @@ Environment variables:
   MMD_FAST_MAX_MINUTES                 Soft FAST budget (default 12; warning only — no kill)
   MMD_TIMEOUT_MS                       Subprocess timeout in ms (default 1800000, 0 to disable)
   MMD_REALITY_CHECK_BACKEND            mcp | playwright | skip
-  MMD_DREAM_MAX_LEN                    Max dream length in chars (default 500)
+  MMD_DREAM_MAX_LEN                    Max dream length in chars (default 4000)
   MMD_PROFILE                          Audience profile threaded into the build (Kid|Curious|Pro);
                                        set by the Dream Catcher dialogue. Kid → safe-by-default prompt (v0.3.b)
   MMD_HERE_PROTECTED_BRANCHES          Comma-separated list (default: main,master)
@@ -1460,7 +1460,10 @@ async function main() {
     return 2;
   }
 
-  const dreamMaxLen = env.MMD_DREAM_MAX_LEN ? Number(env.MMD_DREAM_MAX_LEN) : 500;
+  // Default 4000 chars (was 500 — far too tight: a person describing a dream
+  // writes several sentences, and 500 ≈ 3-4 lines). 4000 matches the Dream
+  // Catcher scope cap; override with MMD_DREAM_MAX_LEN for an even longer prompt.
+  const dreamMaxLen = env.MMD_DREAM_MAX_LEN ? Number(env.MMD_DREAM_MAX_LEN) : 4000;
   if (dream.length > dreamMaxLen) {
     stderr.write(`error: dream string too long (max ${dreamMaxLen} chars)\n`);
     return 2;

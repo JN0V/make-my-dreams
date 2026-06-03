@@ -283,18 +283,20 @@ test('@integration POST /api/dream non-JSON Content-Type → 415 unsupported_med
   assert.equal(json.error, 'unsupported_media_type');
 });
 
-test('@integration POST /api/dream body >4KB → 413 body_too_large', async (t) => {
+test('@integration POST /api/dream body over the 32KB cap → 413 body_too_large', async (t) => {
   const ctx = await bootServer();
   t.after(async () => {
     await ctx.server.shutdown('test');
     ctx.restoreEnv();
     rmSync(ctx.tmp, { recursive: true, force: true });
   });
-  const res = await postDream(ctx.baseUrl, { dream: 'x'.repeat(5000) });
+  // The legacy dream body cap is now 32 KB (was 4 KB) so a real, possibly accented
+  // dream fits. A payload over that is still rejected as body_too_large.
+  const res = await postDream(ctx.baseUrl, { dream: 'x'.repeat(40000) });
   assert.equal(res.status, 413);
   const json = await res.json();
   assert.equal(json.error, 'body_too_large');
-  assert.equal(json.max_bytes, 4096);
+  assert.equal(json.max_bytes, 32 * 1024);
 });
 
 test('@integration POST /api/dream invalid JSON → 400 invalid_json', async (t) => {
@@ -336,14 +338,17 @@ test('@integration POST /api/dream empty/whitespace dream → 400 dream_empty', 
   assert.equal(json.error, 'dream_empty');
 });
 
-test('@integration POST /api/dream dream length 501 → 400 dream_too_long', async (t) => {
+test('@integration POST /api/dream over the 4000-char dream cap → 400 dream_too_long', async (t) => {
   const ctx = await bootServer();
   t.after(async () => {
     await ctx.server.shutdown('test');
     ctx.restoreEnv();
     rmSync(ctx.tmp, { recursive: true, force: true });
   });
-  const res = await postDream(ctx.baseUrl, { dream: 'a'.repeat(501) });
+  // 5000 chars (< 32 KB body, so it passes the body cap) but over the 4000-char
+  // dream-length cap → dream_too_long. A 501-char dream is now ACCEPTED (the old
+  // 500 cap was too tight) — that's the field-bug fix.
+  const res = await postDream(ctx.baseUrl, { dream: 'a'.repeat(5000) });
   assert.equal(res.status, 400);
   const json = await res.json();
   assert.equal(json.error, 'dream_too_long');

@@ -100,6 +100,23 @@ export async function runServe(/* args */) {
   }
   const explicitPort = env.MMD_SERVE_PORT !== undefined && env.MMD_SERVE_PORT !== '';
 
+  // Preflight (field-bug fix): the dream flow scopes via `claude -p
+  // "/bmad-product-brief …"`, a BMAD skill installed per-project. If it isn't
+  // reachable from this directory, fail fast with an honest, actionable message
+  // instead of letting the web user hit a cryptic "Unknown command:
+  // /bmad-product-brief" mid-dream (auto-dev would fail next for the same reason).
+  // Skipped when the spawn is faked (MMD_AUTODEV_CMD — tests/CI) or bypassed.
+  if (!env.MMD_AUTODEV_CMD && env.MMD_SKIP_SETUP !== '1') {
+    const { detectBmadProductBrief, bmadMissingMessage } = await import(
+      '../lib/onboarding/detect-bmad-skill.js'
+    );
+    const probe = detectBmadProductBrief({ cwd: cwd() });
+    if (!probe.available) {
+      stderr.write(bmadMissingMessage({ cwd: cwd(), checked: probe.checked, flow: 'serve' }) + '\n');
+      return 8;
+    }
+  }
+
   // AC-1: announce intent (the listening line comes later, on the `listening` event).
   stdout.write(`Starting Make My Dreams server on http://localhost:${requestedPort || '<random>'}\n`);
 

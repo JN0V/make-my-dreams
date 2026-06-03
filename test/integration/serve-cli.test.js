@@ -26,6 +26,10 @@ function spawnServe(envOverrides = {}, cwd) {
       ...process.env,
       MMD_SERVE_NO_OPEN: '1',
       MMD_SERVE_ALLOW_RANDOM: '1',
+      // These tests exercise server BOOT / port semantics in a bare temp dir, not
+      // the dream flow — bypass the BMAD `bmad-product-brief` preflight (which
+      // would otherwise exit 8 before the server binds).
+      MMD_SKIP_SETUP: '1',
       ...envOverrides,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -131,6 +135,8 @@ test('@integration mmd serve EADDRINUSE on default port retries +1', async () =>
     env: {
       ...process.env,
       MMD_SERVE_NO_OPEN: '1',
+      // Boot/port test in a bare dir — bypass the BMAD preflight (see spawnServe).
+      MMD_SKIP_SETUP: '1',
       // Deliberately do NOT set MMD_SERVE_PORT or MMD_SERVE_ALLOW_RANDOM.
     },
     stdio: ['ignore', 'pipe', 'pipe'],

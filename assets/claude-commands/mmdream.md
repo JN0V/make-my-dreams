@@ -85,6 +85,13 @@ Then **set up a per-run watcher and MONITOR honestly**:
   git -C <REPO_ROOT> log --oneline <base>..slice/<slug>-... | head   # atomic per-AC commits appearing
   pgrep -f "claude -p" >/dev/null && echo "auto-dev alive" || echo "auto-dev exited"
   ```
+- **First run on a fresh repo? The first few minutes are AUTO-SETUP, not a stall.** If the
+  target directory has no MMD/BMAD yet, `--here` auto-runs `install-mmd.sh` (the same guard
+  every spawning command now uses) and commits it on the base branch BEFORE creating the
+  slice branch — so `status.json` and the `slice/<slug>-…` branch only appear AFTER setup
+  finishes (`npx bmad-method` takes a few minutes). Don't read "no status.json yet" as a
+  failure during that window; watch for the setup commit on the base, then the slice. A
+  genuine setup failure surfaces as **exit 8** (handled below). `MMD_SKIP_SETUP=1` skips it.
 - Set up a **per-run watcher** that wakes you when the run ends instead of busy-polling —
   watch the run's OWN log sentinel / `status.json.state` flipping to `done`/`failed`, not a
   shared `pgrep` that could match an unrelated `claude` process. Optionally set

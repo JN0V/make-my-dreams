@@ -397,11 +397,13 @@ async function resolveExistingChoice(flags) {
   if (flags.fresh) return 'fresh';
   if (flags.resume) return 'resume';
   if (!stdin.isTTY) {
-    stderr.write(
-      'Existing dream found and stdin is not a TTY. Use --resume / --fresh / --cancel.\n'
-    );
-    // F7 — usage class: 2.
-    exit(2);
+    // Non-interactive (mmdream serve / CI): the web user can't answer a
+    // resume/fresh/cancel prompt, and dead-ending here is exactly the
+    // accessibility failure we keep fixing. Default to a NON-DESTRUCTIVE new
+    // slug — build into demo/<slug>-2/, leave the existing run untouched (the
+    // same behavior the different-dream slug-collision branch already uses).
+    // An explicit --resume / --fresh / --cancel still wins (handled above).
+    return 'new-slug';
   }
   const ans = await promptRfc();
   if (ans === 'R') return 'resume';
@@ -1616,7 +1618,15 @@ async function main() {
   } else if (existing) {
     const choice = await resolveExistingChoice(flags);
     if (choice === 'cancel') return 1;
-    if (choice === 'resume') {
+    if (choice === 'new-slug') {
+      // Non-interactive default for an existing same-dream demo: build fresh in
+      // the next free slug, never destroying the prior run (see resolveExistingChoice).
+      const newSlug = await nextAvailableSlug(slug, path.join(cwd(), 'demo'));
+      stderr.write(`[mmd] existing dream + non-interactive — building fresh in ${newSlug} (existing run left untouched)\n`);
+      slug = newSlug;
+      demoDir = path.join(cwd(), 'demo', slug);
+      existing = null;
+    } else if (choice === 'resume') {
       // E7: refuse --resume when demoDir is a symlink. Defends against social
       // engineering where an attacker pre-creates demo/<slug> -> /tmp/fake so
       // `mmdream "<dream>" --resume` reports a misleading "state: done" sourced

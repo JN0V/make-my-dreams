@@ -160,16 +160,18 @@ test('@integration AC-1 malformed (non-object) context passes through without cr
 
 /* ── AC-2: opt-in --monitor arg threading ───────────────────────────────── */
 
-test('@integration AC-2 buildMmdAutodevArgs is byte-for-byte today when monitor off', () => {
+test('@integration AC-2 buildMmdAutodevArgs always passes --fresh (serve tracks by slug) when monitor off', () => {
   const entry = '/abs/bin/mmd.js';
-  assert.deepEqual(buildMmdAutodevArgs(entry, 'my dream', false), [entry, 'my dream']);
-  assert.deepEqual(buildMmdAutodevArgs(entry, 'my dream', undefined), [entry, 'my dream']);
-  assert.deepEqual(buildMmdAutodevArgs(entry, 'my dream', 'true'), [entry, 'my dream']); // junk → off
+  // serve always rebuilds in demo/<slug>/ (the dir it polls/opens), so --fresh is
+  // always present; monitor off adds nothing more.
+  assert.deepEqual(buildMmdAutodevArgs(entry, 'my dream', false), [entry, '--fresh', 'my dream']);
+  assert.deepEqual(buildMmdAutodevArgs(entry, 'my dream', undefined), [entry, '--fresh', 'my dream']);
+  assert.deepEqual(buildMmdAutodevArgs(entry, 'my dream', 'true'), [entry, '--fresh', 'my dream']); // junk → monitor off
 });
 
-test('@integration AC-2 buildMmdAutodevArgs threads --monitor before the dream when on', () => {
+test('@integration AC-2 buildMmdAutodevArgs threads --fresh + --monitor before the dream when on', () => {
   const entry = '/abs/bin/mmd.js';
-  assert.deepEqual(buildMmdAutodevArgs(entry, 'my dream', true), [entry, '--monitor', 'my dream']);
+  assert.deepEqual(buildMmdAutodevArgs(entry, 'my dream', true), [entry, '--fresh', '--monitor', 'my dream']);
 });
 
 test('@integration AC-2 monitor:true → spawn args carry --monitor', async (t) => {

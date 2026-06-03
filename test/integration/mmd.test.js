@@ -149,15 +149,20 @@ test('@integration AC-2 slug: drawing-app dream produces drawing-app-overlays-im
   }
 });
 
-test('@integration re-run in non-TTY without flags exits 2', () => {
+test('@integration re-run in non-TTY without flags builds fresh in a NEW slug (no dead-end)', () => {
   const tmp = makeTmp();
   try {
-    // First run to create state
+    // First run creates demo/<slug>/.
     let r = runMmd(['a tiny test app that shows hello world'], { cwd: tmp });
     assert.equal(r.status, 0, r.stderr);
-    // Second run with no flag in non-TTY context
+    // Second run, same dream, non-TTY (mmdream serve / CI): must NOT dead-end on a
+    // resume/fresh/cancel prompt it can't answer. It builds fresh in the next free
+    // slug, leaving the first run untouched (field bug: serve hit exit 2 here).
     r = runMmd(['a tiny test app that shows hello world'], { cwd: tmp });
-    assert.equal(r.status, 2);
+    assert.equal(r.status, 0, `non-TTY re-run should proceed, not exit 2; stderr=${r.stderr}`);
+    assert.match(r.stderr, /non-interactive — building fresh in/);
+    const dirs = readdirSync(path.join(tmp, 'demo'));
+    assert.ok(dirs.length >= 2, `expected a 2nd (collision) demo dir; got: ${dirs.join(', ')}`);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

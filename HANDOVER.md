@@ -19,13 +19,13 @@
 - **Version**: `0.9.2` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 47 (ADR-001..ADR-047)
-- **Tests**: 2003 passing
+- **Tests**: 2002 passing
 - **Recent commits**:
+  - `17de781 docs: refresh mechanical blocks (doc-refs dogfood fix + scope-to-file fix)`
   - `afaa464 fix(autodev): don't inline the dream in the /bmad-adv-auto-dev arg — read it from slice.md`
   - `623cf7a docs: regenerate coherence dashboard — commit-log false positives gone (AC-4 dogfood)`
   - `385f3a9 test(documentalist): drift scan ignores recent-commits block, still checks real refs (AC-3)`
   - `e147fd9 test(documentalist): pin recall — standalone mmdream/mmd serve still captured (AC-2)`
-  - `e97fd86 fix(documentalist): commit-log backtick spans yield no phantom subcommand refs (AC-1)`
 - **Generated**: 2026-06-03 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

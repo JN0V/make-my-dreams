@@ -19,13 +19,13 @@
 - **Version**: `0.9.2` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 47 (ADR-001..ADR-047)
-- **Tests**: 2002 passing
+- **Tests**: 2003 passing
 - **Recent commits**:
+  - `820cba8 fix(serve): disable the build timeout (L-016) — a real serve build was killed at 30 min`
+  - `2b9b6ea docs: refresh mechanical blocks (existing-dream non-TTY/serve fix)`
   - `56a9abe fix(serve,greenfield): existing-dream re-run no longer dead-ends in non-TTY / serve`
   - `b3cd1d0 docs: correct test count to 2002`
   - `17de781 docs: refresh mechanical blocks (doc-refs dogfood fix + scope-to-file fix)`
-  - `afaa464 fix(autodev): don't inline the dream in the /bmad-adv-auto-dev arg — read it from slice.md`
-  - `623cf7a docs: regenerate coherence dashboard — commit-log false positives gone (AC-4 dogfood)`
 - **Generated**: 2026-06-03 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

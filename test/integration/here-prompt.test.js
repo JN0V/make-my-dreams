@@ -88,7 +88,13 @@ test('@integration v0.4.b: buildHerePrompt with sealedDir appends the read-only 
 
 test('@integration AC-4: buildPrompt WITHOUT prompt= falls back to greenfield assembly', { skip: SKIP_ON_WINDOWS }, () => {
   const greenfield = buildPrompt({ dream: 'd', slug: 's', demoDir: '/tmp/r' });
-  // Greenfield assembly retains its v0.2 markers.
-  assert.match(greenfield, /Generate index\.html, style\.css, app\.js, manifest\.json/);
-  assert.match(greenfield, /Stack constraint: vanilla HTML\/CSS\/JS/);
+  // v0.10.a (SPEC_V010A AC-1): greenfield assembly is now technology-agnostic —
+  // the old vanilla/Canvas/manifest hardcoding is GONE, replaced by the
+  // stack-deriving directive + the run-descriptor contract. (The AC-1 absence
+  // and presence assertions live in test/unit/invoke-autodev-tech-agnostic.test.js;
+  // here we just confirm the greenfield branch — not the --here passthrough — ran.)
+  assert.doesNotMatch(greenfield, /Generate index\.html, style\.css, app\.js, manifest\.json/);
+  assert.doesNotMatch(greenfield, /Stack constraint: vanilla HTML\/CSS\/JS/);
+  assert.match(greenfield, /DERIVE the simplest technology/);
+  assert.match(greenfield, /\.mmd\/shared\/run\.json/);
 });

@@ -19,6 +19,7 @@ import { loadDreams } from '../lib/bench/load-dreams.js';
 import { runOneDream } from '../lib/bench/run-one.js';
 import { buildSummary, buildReportMd } from '../lib/bench/aggregate.js';
 import { classifyBenchExit, failingDreamIds } from '../lib/bench/exit-codes.js';
+import { ensureSetupForSpawn } from '../lib/onboarding/ensure-setup.js';
 
 const PKG_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
@@ -123,6 +124,19 @@ export async function runBench(rawArgs) {
   }
 
   const repoRoot = cwd();
+
+  // First-run setup: a real bench runs auto-dev (BMAD) on each dream, so install
+  // MMD here if needed (auto-run non-TTY / confirm on a TTY) rather than failing
+  // per-dream. Only on a REAL run: --dry-run uses the fixture, and a faked spawn
+  // (MMD_AUTODEV_CMD) / MMD_SKIP_SETUP=1 skip it; already set up → no-op.
+  if (!opts.dryRun) {
+    const benchSetup = await ensureSetupForSpawn({
+      targetDir: repoRoot, env, fakeCmdVar: 'MMD_AUTODEV_CMD',
+      tty: !!process.stdin.isTTY, out: (s) => stdout.write(s), err: (s) => stderr.write(s),
+    });
+    if (!benchSetup.ok) return benchSetup.exitCode ?? 8;
+  }
+
   const dreamsDir = path.join(repoRoot, 'bench', 'dreams');
   let dreams;
   try {

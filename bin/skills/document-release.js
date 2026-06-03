@@ -36,6 +36,7 @@ import {
   buildSkillArgs,
 } from '../../lib/skills/_common/invoke-claude.js';
 import { resolveSkillPath } from '../../lib/skills/_common/skill-path.js';
+import { ensureSetupForSpawn } from '../../lib/onboarding/ensure-setup.js';
 
 const PKG_PATH = fileURLToPath(new URL('../../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
@@ -132,6 +133,12 @@ export async function runDocumentRelease(rawArgs) {
     );
     return 0;
   }
+
+  const drSetup = await ensureSetupForSpawn({
+    targetDir: root, env, fakeCmdVar: 'MMD_DOCUMENT_RELEASE_CMD',
+    tty: !!process.stdin.isTTY, out: (s) => stdout.write(s), err: (s) => stderr.write(s),
+  });
+  if (!drSetup.ok) return drSetup.exitCode ?? 8;
 
   // AC-2b pre-flight: assert the gStack document-release skill is installed.
   const installed = assertSkillInstalled({

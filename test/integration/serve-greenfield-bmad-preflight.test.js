@@ -96,6 +96,25 @@ test('@integration greenfield `mmdream "<dream>"` in a BMAD-less dir runs setup;
   }
 });
 
+test('@integration a SECONDARY command (mmdream bench) also auto-runs setup; a setup FAILURE aborts (exit 8)', () => {
+  // bench runs auto-dev (BMAD) per dream → it must auto-install too. A real bench
+  // is gated behind MMD_BENCH_REAL=1; with a failing fake installer and NO
+  // MMD_AUTODEV_CMD (real run), it reaches the setup guard and aborts at exit 8
+  // BEFORE loading dreams — proving the secondary-command wiring fires.
+  const dir = mkdtempSync(path.join(tmpdir(), 'mmd-bare-'));
+  const installer = fakeInstaller(dir, 1);
+  try {
+    const r = spawnSync('node', [MMD, 'bench'], {
+      cwd: dir, encoding: 'utf8', timeout: 15000,
+      env: bareEnv({ MMD_SETUP_CMD: installer, MMD_BENCH_REAL: '1' }), // no MMD_AUTODEV_CMD → real run
+    });
+    assert.equal(r.status, 8, `expected exit 8 on setup failure; stdout=${r.stdout}\nstderr=${r.stderr}`);
+    assert.match(r.stdout + r.stderr, /first-run setup|will not proceed/i);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('@integration MMD_SKIP_SETUP=1 bypasses the auto-setup (no install-mmd.sh spawn)', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'mmd-bare-'));
   const installer = fakeInstaller(dir, 1); // would fail IF it ran — but bypass means it must NOT run

@@ -34,6 +34,7 @@ import { runGit } from '../../lib/skills/_common/git.js';
 import { detectStall, readRecentRunLogs } from '../../lib/conductor/stall-detector.js';
 import { runFiveWhys } from '../../lib/conductor/five-whys.js';
 import { STALL_SIGNALS } from '../../lib/conductor/stall-signals.js';
+import { ensureSetupForSpawn } from '../../lib/onboarding/ensure-setup.js';
 
 const PKG_PATH = fileURLToPath(new URL('../../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
@@ -296,6 +297,16 @@ export async function runUnblock(rawArgs) {
     logTail: safeReadLogTail(root),
     dream: readDream(statusJsonPath),
   };
+
+  // First-run setup: the 5-Whys session spawns claude with BMAD Party-Mode
+  // agents, so install MMD here if needed rather than failing on unknown agents.
+  // Skipped when the spawn is faked (MMD_UNBLOCK_CMD) or MMD_SKIP_SETUP=1; a
+  // no-op when already set up. --dry-run already returned above (never spawns).
+  const ubSetup = await ensureSetupForSpawn({
+    targetDir: root, env, fakeCmdVar: 'MMD_UNBLOCK_CMD',
+    tty: !!process.stdin.isTTY, out: (s) => stdout.write(s), err: (s) => stderr.write(s),
+  });
+  if (!ubSetup.ok) return ubSetup.exitCode ?? 8;
 
   stdout.write(
     `mmdream unblock: ${parsed.force ? '(forced) ' : ''}running 5-Whys session on '${branch}'...\n`,

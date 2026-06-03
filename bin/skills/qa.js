@@ -30,6 +30,7 @@ import {
   buildSkillArgs,
 } from '../../lib/skills/_common/invoke-claude.js';
 import { resolveSkillPath } from '../../lib/skills/_common/skill-path.js';
+import { ensureSetupForSpawn } from '../../lib/onboarding/ensure-setup.js';
 
 const PKG_PATH = fileURLToPath(new URL('../../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
@@ -108,6 +109,16 @@ export async function runQa(rawArgs) {
     );
     return 0;
   }
+
+  // First-run setup: if this dir has no MMD/BMAD setup, install it (auto-run
+  // non-TTY, confirm on a TTY) rather than failing on a missing skill — the same
+  // guard serve/greenfield/--here use. Skipped when the spawn is faked
+  // (MMD_QA_CMD) or MMD_SKIP_SETUP=1; a no-op when already set up.
+  const qaSetup = await ensureSetupForSpawn({
+    targetDir: root, env, fakeCmdVar: 'MMD_QA_CMD',
+    tty: !!process.stdin.isTTY, out: (s) => stdout.write(s), err: (s) => stderr.write(s),
+  });
+  if (!qaSetup.ok) return qaSetup.exitCode ?? 8;
 
   // AC-2b pre-flight: assert the gStack qa skill is installed.
   const installed = assertSkillInstalled({

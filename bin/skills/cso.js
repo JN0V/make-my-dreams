@@ -29,6 +29,7 @@ import {
   buildSkillArgs,
 } from '../../lib/skills/_common/invoke-claude.js';
 import { resolveSkillPath } from '../../lib/skills/_common/skill-path.js';
+import { ensureSetupForSpawn } from '../../lib/onboarding/ensure-setup.js';
 
 const PKG_PATH = fileURLToPath(new URL('../../package.json', import.meta.url));
 const VERSION = JSON.parse(readFileSync(PKG_PATH, 'utf8')).version;
@@ -105,6 +106,12 @@ export async function runCso(rawArgs) {
     );
     return 0;
   }
+
+  const csoSetup = await ensureSetupForSpawn({
+    targetDir: root, env, fakeCmdVar: 'MMD_CSO_CMD',
+    tty: !!process.stdin.isTTY, out: (s) => stdout.write(s), err: (s) => stderr.write(s),
+  });
+  if (!csoSetup.ok) return csoSetup.exitCode ?? 8;
 
   const installed = assertSkillInstalled({
     skillName: 'cso',

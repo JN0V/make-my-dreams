@@ -71,6 +71,25 @@ test('@unit AC-4: a custom prompt (--here) short-circuits, profile NOT injected'
   assert.equal(p, 'CUSTOM HERE PROMPT');
 });
 
+// ── Field-bug fix: the dream/scope is NOT inlined in the prompt ──────────────
+// A Dream Catcher scope is a multi-paragraph product brief. Inlining it after
+// `/bmad-adv-auto-dev` (as the slash-command argument) mangled it (newlines /
+// length / markdown). It is already written verbatim to .mmd/shared/slice.md by
+// initStateFiles, so the greenfield prompt must POINT to that file, not embed it.
+
+test('@unit greenfield prompt does NOT inline the dream — it points at slice.md', () => {
+  const nastyDream =
+    '## Kitchen Timer — Scope\n\nA `multi-paragraph` brief with "quotes",\n' +
+    'newlines, and a $shell-ish token. ' + 'x'.repeat(1200);
+  const p = buildPrompt({ dream: nastyDream, slug: 'kitchen-timer', demoDir: '/tmp/demo/k', env: {} });
+  // The raw brief must NOT appear in the /bmad-adv-auto-dev argument.
+  assert.doesNotMatch(p, /Kitchen Timer — Scope/, 'the raw multi-paragraph dream must not be inlined');
+  assert.ok(!p.includes(nastyDream), 'the verbatim dream string must not be embedded in the prompt');
+  // It must direct the agent to READ the dream from the state file (which holds it).
+  assert.match(p, /\.mmd\/shared\/slice\.md/, 'the prompt must point at .mmd/shared/slice.md for the dream');
+  assert.match(p, /READ the full dream/i);
+});
+
 test('@unit AC-4: a set profile is stated AND the composed block is injected', () => {
   const composeFn = fakeComposer();
   const p = buildPrompt({ ...base, env: { MMD_PROFILE: 'Pro' }, composeFn });

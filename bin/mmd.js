@@ -46,7 +46,6 @@ import { runCliDreamCatcher } from '../lib/dream-catcher/cli-driver.js';
 import { runElicit } from '../lib/dream-catcher/elicit.js';
 import { shouldNotify, buildNotification, sendNotification } from '../lib/conductor/notify.js';
 import { runFirstRunSetup } from '../lib/onboarding/setup.js';
-import { detectBmadProductBrief, bmadMissingMessage } from '../lib/onboarding/detect-bmad-skill.js';
 import { isTreeCleanIgnoringMmd } from '../lib/onboarding/mmd-managed.js';
 
 // F30 — version sourced once from package.json (shared with GET /api/health).
@@ -1514,18 +1513,25 @@ async function main() {
     return 2;
   }
 
-  // Preflight (field-bug fix): a greenfield dream is scoped by `claude -p
+  // First-run setup (field-bug fix): a greenfield dream is scoped by `claude -p
   // "/bmad-product-brief …"` (Dream Catcher) and built by auto-dev — both BMAD
-  // skills installed per-project. From a directory without BMAD the run dies on
-  // a cryptic "Unknown command: /bmad-product-brief"; detect it up front and say
-  // what to do (universal §VI), like the --here first-run guard. Skipped when the
-  // spawn is faked (MMD_AUTODEV_CMD — tests/CI) or explicitly bypassed.
+  // skills installed per-project. From a directory without BMAD the run used to
+  // die on a cryptic "Unknown command: /bmad-product-brief". We do NOT error at
+  // a non-technical user — we INSTALL on first launch, the SAME guard `--here`
+  // uses: TTY → confirm once then run; non-TTY → auto-run install-mmd.sh; already
+  // set up → no-op; a genuine install FAILURE → honest abort (exit 8). Skipped
+  // when the spawn is faked (MMD_AUTODEV_CMD — tests) or MMD_SKIP_SETUP=1.
   if (!env.MMD_AUTODEV_CMD && env.MMD_SKIP_SETUP !== '1') {
-    const probe = detectBmadProductBrief({ cwd: cwd() });
-    if (!probe.available) {
-      stderr.write(bmadMissingMessage({ cwd: cwd(), checked: probe.checked, flow: 'greenfield' }) + '\n');
-      return 8;
-    }
+    const gfSetup = await runFirstRunSetup({
+      targetDir: cwd(),
+      tty: !!stdin.isTTY,
+      env,
+      confirmFn: confirmFirstRunSetup,
+      runnerFn: runInstallMmd,
+      out: (s) => stdout.write(s),
+      err: (s) => stderr.write(s),
+    });
+    if (!gfSetup.ok) return gfSetup.exitCode ?? 8;
   }
 
   // v0.2c AC-7: greenfield path consults the gate too. The greenfield use

@@ -100,21 +100,27 @@ export async function runServe(/* args */) {
   }
   const explicitPort = env.MMD_SERVE_PORT !== undefined && env.MMD_SERVE_PORT !== '';
 
-  // Preflight (field-bug fix): the dream flow scopes via `claude -p
-  // "/bmad-product-brief …"`, a BMAD skill installed per-project. If it isn't
-  // reachable from this directory, fail fast with an honest, actionable message
-  // instead of letting the web user hit a cryptic "Unknown command:
-  // /bmad-product-brief" mid-dream (auto-dev would fail next for the same reason).
-  // Skipped when the spawn is faked (MMD_AUTODEV_CMD — tests/CI) or bypassed.
+  // First-run setup (field-bug fix): the dream flow scopes via `claude -p
+  // "/bmad-product-brief …"` and builds with auto-dev — both BMAD skills
+  // installed per-project. From a directory without BMAD this used to dead-end
+  // on a cryptic "Unknown command: /bmad-product-brief". MMD targets people who
+  // never open a terminal (the kid path), so we do NOT error — we INSTALL on
+  // first launch (the same guard `mmdream --here` uses). serve has no TTY, so
+  // runFirstRunSetup auto-runs install-mmd.sh (with a progress log), then boots.
+  // Already set up → no-op. A genuine install FAILURE → honest abort (exit 8).
+  // Skipped when the spawn is faked (MMD_AUTODEV_CMD — tests) or MMD_SKIP_SETUP=1.
   if (!env.MMD_AUTODEV_CMD && env.MMD_SKIP_SETUP !== '1') {
-    const { detectBmadProductBrief, bmadMissingMessage } = await import(
-      '../lib/onboarding/detect-bmad-skill.js'
-    );
-    const probe = detectBmadProductBrief({ cwd: cwd() });
-    if (!probe.available) {
-      stderr.write(bmadMissingMessage({ cwd: cwd(), checked: probe.checked, flow: 'serve' }) + '\n');
-      return 8;
-    }
+    const { runFirstRunSetup } = await import('../lib/onboarding/setup.js');
+    const { runInstallMmd } = await import('../lib/onboarding/run-install.js');
+    const setup = await runFirstRunSetup({
+      targetDir: cwd(),
+      tty: false, // serve is a server — auto-run, never prompt.
+      env,
+      runnerFn: (t) => runInstallMmd(t, { env }),
+      out: (s) => stdout.write(s),
+      err: (s) => stderr.write(s),
+    });
+    if (!setup.ok) return setup.exitCode ?? 8;
   }
 
   // AC-1: announce intent (the listening line comes later, on the `listening` event).

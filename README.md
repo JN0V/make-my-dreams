@@ -75,7 +75,7 @@ See [ADR-023](./docs/adr/023-dream-catcher-cli-and-profile.md) and [L-022](./doc
 
 **`MMD_PROFILE` — the profile reaches the build — *new in v0.3.b, composer added in v0.3.c*.** The audience profile chosen in the dialogue (`Kid` / `Curious` / `Pro`, default `Curious`) is exported as `MMD_PROFILE` into the auto-dev subprocess on **both** surfaces (CLI greenfield and the web `/api/catch/confirm`). The auto-dev prompt then **states the profile** and injects the **constitution modules bound to it** via the **Layer C composer** (`lib/constitution-compose.js`): `MMD_PROFILE` resolves through `.specify/memory/constitution-bindings.yaml` to `defaults.always ∪ profiles[profile]`, and each `.specify/memory/constitution/<name>.md` is read and concatenated into the prompt under per-module headers. So a **`Kid`** build now carries the full `safe-by-default.md` + `kid.md` text (no network, no third-party services, hardware permission on gesture only, no commerce/social, accessibility, age-appropriate), a **`Curious`** build carries `safe-by-default.md`, and a **`Pro`** build carries `pro.md`. If the bindings file or a module is unreadable the composer returns `null` and `buildPrompt` falls back to v0.3.b's minimal Kid line — graceful, never a crash (universal §VI). An unset `MMD_PROFILE` leaves the prompt unchanged (back-compat). The composer uses a hand-rolled YAML-lite parser (no `yaml` dependency, vanilla stack); it composes by **profile** only for now (engine/context/skill dimensions are a future slice — the resolver is built to extend). The profile is no longer a dead `status.json` field — see [ADR-024](./docs/adr/024-constitution-composer-layer-c.md) and [L-022](./docs/lessons-learned.md).
 
-Env vars: `MMD_AUTODEV_CMD` (override subprocess for testing), `MMD_AUTODEV_MODE` (`cli` | `test` — explicit, replaces the v0.1 path heuristic), `MMD_QUIET=1` (suppress subprocess output on the terminal; log file preserved), `MMD_TIMEOUT_MS` (default 1800000), `MMD_REALITY_CHECK_BACKEND` (`mcp` | `playwright` | `skip`), `MMD_DREAM_MAX_LEN` (default 500), `MMD_PROFILE` (`Kid` | `Curious` | `Pro` — audience profile threaded into the build; usually set by the dialogue, `Kid` → safe-by-default prompt), `MMD_NOTIFY_URL` (opt-in Conductor notification sink — *new in v0.5.a*; when set, MMD POSTs a ✅/❌ payload on run done/failed; unset = no network call), `MMD_HANDOFF_THRESHOLD` (context % that triggers the `--monitor` READY_FOR_HANDOFF signal + `context_70` notification — *new in v0.5.b*; default `0.70`, honored when in `(0,1]`).
+Env vars: `MMD_AUTODEV_CMD` (override subprocess for testing), `MMD_AUTODEV_MODE` (`cli` | `test` — explicit, replaces the v0.1 path heuristic), `MMD_QUIET=1` (suppress subprocess output on the terminal; log file preserved), `MMD_TIMEOUT_MS` (default 1800000), `MMD_REALITY_CHECK_BACKEND` (`mcp` | `playwright` | `skip`), `MMD_DREAM_MAX_LEN` (default 500), `MMD_PROFILE` (`Kid` | `Curious` | `Pro` — audience profile threaded into the build; usually set by the dialogue, `Kid` → safe-by-default prompt), `MMD_NOTIFY_URL` (opt-in Conductor notification sink — *new in v0.5.a*; when set, MMD POSTs a ✅/❌ payload on run done/failed; unset = no network call), `MMD_HANDOFF_THRESHOLD` (context % that triggers the `--monitor` READY_FOR_HANDOFF signal + `context_70` notification — *new in v0.5.b*; default `0.70`, honored when in `(0,1]`), `MMD_MAX_HANDOFFS` (max cooperative handoffs under `--auto-handoff` before one final un-handoffed successor — *new in v0.13.a*; integer ≥ 1, default `3`, junk/0 → default).
 
 ### FAST mode — *new in v0.2*
 
@@ -199,9 +199,24 @@ mmdream --here --monitor "add a dark-mode toggle" # in-place, incl. MMD itself
 
 With `--monitor`, MMD spawns auto-dev as `claude -p … --output-format stream-json --verbose`, parses each event's `usage` as it streams, and computes the **% of the context window** consumed (`input_tokens + cache_read_input_tokens + cache_creation_input_tokens` ÷ the window). It writes the running **max** to `status.json.context = {model, window, tokens, pct, estimated}`, and re-renders **human-readable** progress to the tee — the assistant's text plus periodic `[monitor] context X% (tokens/window)` lines, **not** the raw JSON stream (`MMD_QUIET=1` still silences the terminal tee while keeping the log). The window is looked up from the model id the stream reports: a `[1m]` suffix (e.g. `claude-opus-4-8[1m]`) → **1,000,000**; a known model → **200,000**; an unrecognized one → 200,000 flagged `estimated:true` (an honest default, never a fabricated exact %).
 
-When the context first crosses **`MMD_HANDOFF_THRESHOLD`** (default `0.70`; a custom value in `(0,1]` is honored), MMD writes a `READY_FOR_HANDOFF` marker into `status.json`, logs a line, and — if `MMD_NOTIFY_URL` is set — fires a **`context_70`** notification **exactly once** (debounced), reusing the v0.5.a fan-out. It does **not** stop the run: this is observability + early warning, not an action (auto-handoff is still future — auto-dev is a monolithic BMAD call).
+When the context first crosses **`MMD_HANDOFF_THRESHOLD`** (default `0.70`; a custom value in `(0,1]` is honored), MMD writes a `READY_FOR_HANDOFF` marker into `status.json`, logs a line, and — if `MMD_NOTIFY_URL` is set — fires a **`context_70`** notification **exactly once** (debounced), reusing the v0.5.a fan-out. With plain `--monitor` it does **not** stop the run (observability + early warning); **v0.13.a's `--auto-handoff`** turns that signal into an action (below).
 
-**Opt-in is deliberate and safety-critical.** The default text-spawn path is the one `mmdream --here` uses to build everything *including MMD itself* (the reflexive bootstrap) — so `--monitor` leaves it **byte-for-byte untouched** (the default args carry no `--output-format`, pinned by a test). It is **the orchestrator's** context, not per-sub-agent (the Phase 1–4 sub-agents run in their own fresh contexts the top-level stream can't see). Deferred: the actual auto-handoff/resume, making `--monitor` the default, and per-sub-agent accounting. The serve-UI gauge that displays `status.json.context` landed in **v0.5.c** (below). See [ADR-030](./docs/adr/030-live-context-monitor.md) and [L-027](./docs/lessons-learned.md).
+**Opt-in is deliberate and safety-critical.** The default text-spawn path is the one `mmdream --here` uses to build everything *including MMD itself* (the reflexive bootstrap) — so `--monitor` leaves it **byte-for-byte untouched** (the default args carry no `--output-format`, pinned by a test). It is **the orchestrator's** context, not per-sub-agent (the Phase 1–4 sub-agents run in their own fresh contexts the top-level stream can't see). Deferred: per-sub-agent accounting and making `--monitor` the default. The serve-UI gauge that displays `status.json.context` landed in **v0.5.c** (below); the actual auto-handoff/resume landed in **v0.13.a** (below). See [ADR-030](./docs/adr/030-live-context-monitor.md) and [L-027](./docs/lessons-learned.md).
+
+### Cooperative auto-handoff at 70% (`--auto-handoff`) — *new in v0.13.a*
+
+The Conductor finally **acts** on the 70% signal it has been able to **see** since v0.5.b. For a long run that may fill the orchestrator's context, `--auto-handoff` hands off to a fresh successor instead of letting the macro-context degrade or hit a wall — **cooperatively, never a forced kill**.
+
+```bash
+mmdream --here --auto-handoff "a big multi-AC refactor"   # in-place, incl. MMD itself
+mmdream --auto-handoff "a large greenfield app"           # greenfield
+```
+
+When the orchestrator's context crosses **`MMD_HANDOFF_THRESHOLD`** (default `0.70`), MMD's monitor writes a small **handoff-request marker** (`.mmd/local/handoff-request`, gitignored run state). The auto-dev orchestrator, at each phase boundary **right after** it writes its v0.12.a checkpoint, checks the marker and — if present — **announces the handoff and exits cleanly without starting the next phase**, leaving an incomplete checkpoint. MMD sees the clean exit + incomplete checkpoint + the marker and **relaunches a fresh successor in resume mode** (the v0.12.a `--resume` machinery) that continues from the next phase with low context. It stops only at a boundary it already reached and checkpointed — so **no in-phase work is lost**.
+
+It is **bounded + honest**: handoffs are capped by **`MMD_MAX_HANDOFFS`** (default `3`); at the cap MMD launches **one final successor with handoff disabled** (it runs to done or fails naturally) and logs the cap — progress is never infinitely deferred. A **`handoff`** notification fires per handoff (reusing the v0.5.a fan-out). The v0.11 alignment gate runs **once** on true completion, not per successor.
+
+**Opt-in by construction.** `--auto-handoff` **implies `--monitor`** (the context usage only exists in the stream-json spawn). Without the flag — and even with plain `--monitor` — **no marker is ever written**, so the default text spawn (the reflexive-bootstrap path that builds MMD itself) and the single-spawn flow are **byte-for-byte unchanged** (pinned by a test). It reuses the v0.12.a resume + checkpoint and the v0.5.a notify — **no second resume or spawn path**. Deferred: a forced-kill fallback (when a phase overruns the window before a boundary), sub-phase granularity, adaptive thresholds, parallel handoff. See [ADR-051](./docs/adr/051-cooperative-auto-handoff.md), [ADR-050](./docs/adr/050-stateless-resumable-orchestrator.md), and [L-027](./docs/lessons-learned.md).
 
 ### Context gauge in `mmdream serve` (opt-in "Monitor context" toggle) — *new in v0.5.c*
 
@@ -731,12 +746,12 @@ The folder will be renamed `make-my-dreams/` after v0.1 is validated. The repo i
 ## Status
 
 <!-- mmd:readme:status:start -->
-- **Version**: `0.12.0` (package.json)
+- **Version**: `0.13.0` (package.json)
 - **Latest tag**: `v0.12.0`
-- **ADRs**: 50 (ADR-001..ADR-050)
+- **ADRs**: 51 (ADR-001..ADR-051)
 - **Active lessons**: 21 active
 - **Reflexive slices (release tags)**: 50
-- **Tests**: 2091 passing
+- **Tests**: 2126 passing
 - _Mechanical block — regenerated by `mmdream document-readme`; the prose History and command docs are human-authored._
 <!-- mmd:readme:status:end -->
 

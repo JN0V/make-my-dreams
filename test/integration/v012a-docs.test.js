@@ -28,9 +28,14 @@ test('@integration AC-5: /mmdream template documents --resume as continue-an-int
   assert.match(tpl, /no resumable run|nothing to resume/i, 'documents the honest no-op');
 });
 
-test('@integration AC-5: version bumped to 0.12.0', () => {
+test('@integration AC-5: version is at least 0.12.0 (the v0.12.a bump; later slices move it forward)', () => {
   const pkg = JSON.parse(readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '0.12.0');
+  // The v0.12.a deliverable bumped to 0.12.0; subsequent slices (v0.13.a → 0.13.0)
+  // move the version forward, so assert the minor is >= 12 rather than pinning an
+  // exact value that every later bump would break.
+  const [major, minor] = pkg.version.split('.').map(Number);
+  assert.equal(major, 0);
+  assert.ok(minor >= 12, `expected version >= 0.12.0, got ${pkg.version}`);
 });
 
 test('@integration AC-5: README + CLAUDE.md mention the resumable orchestrator (v0.12.a)', () => {

@@ -77,6 +77,14 @@ Operational rules baked into that command — every one is mandatory:
 - **`--label "<readable-slug>"`** — a short, human-readable, plain-language slug naming
   the work (`wip-salvage-stall-signal`, not a bare timestamp). It becomes the
   `slice/<slug>-…` branch name. Human-readable first (universal §VII).
+- **`--auto-handoff` for a LONG run that may fill the orchestrator's context** (v0.13.a).
+  It implies `--monitor`: when the orchestrator's context crosses 70%, it finishes its
+  current phase, checkpoints, and stops cleanly at the phase boundary, and MMD relaunches
+  a FRESH successor that resumes from the next phase with low context — bounded by
+  `MMD_MAX_HANDOFFS` (default 3), then one final un-handoffed successor. Cooperative, never
+  a forced kill; nothing is redone. Add it for big multi-AC slices that risk a context
+  wall; omit it for short changes (it switches the spawn to stream-json). `MMD_TIMEOUT_MS=0`
+  applies per successor.
 - **The `<DREAM>` MUST instruct incremental commits per AC.** Always append:
   `CRITICAL: commit incrementally per AC (L-019 prevention).`
   An auto-dev run killed mid-flight with no intermediate commits loses everything.

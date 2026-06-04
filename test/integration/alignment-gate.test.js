@@ -145,6 +145,28 @@ test('@integration v0.11.a AC-4: --here persistent gap → exit 7, NOT done, jud
   }
 });
 
+test('@integration v0.11.a AC-4 (honesty edge): NOT-MET overall with no nameable AC → exit 7, NOT done (never a soft done)', { skip: SKIP_ON_WINDOWS }, () => {
+  const tmp = makeTmp();
+  try {
+    initCleanRepo(tmp);
+    const r = runHere(['--here', DREAM], { cwd: tmp, env: { MMD_FAKE_ALIGN_NOTMET_NOAC: '1' } });
+    // A parseable NOT-MET bottom line is a GAP even when no per-AC line is
+    // not-met — the oracle said the ask is unmet, so we fail honestly (§VI),
+    // we do NOT mark it done with an "unverified" note.
+    assert.equal(r.status, 7, `expected exit 7; got ${r.status}; stderr=${r.stderr}`);
+    assert.match(r.stderr, /ALIGNMENT GAP/);
+    assert.match(r.stderr, /OVERALL: not-met/);
+    // No nameable AC → no relaunch (nothing to iterate on).
+    assert.doesNotMatch(r.stdout, /re-launching auto-dev/);
+    const status = readHereStatus(tmp);
+    assert.equal(status.state, 'failed');
+    assert.equal(status.judge.overall, 'not-met');
+    assert.equal(coderCount(tmp), 1);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('@integration v0.11.a AC-4: MMD_ALIGN_MAX_ITERS=0 + gap → exit 7 immediately, NO re-launch (one coder attempt)', { skip: SKIP_ON_WINDOWS }, () => {
   const tmp = makeTmp();
   try {

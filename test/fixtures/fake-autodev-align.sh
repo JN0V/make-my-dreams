@@ -47,6 +47,13 @@ if printf '%s' "$ALL_ARGS" | grep -q "BEHAVIORAL JUDGE"; then
     echo "OVERALL: NOT-MET — at least one acceptance criterion is not satisfied"
     exit 0
   fi
+  if [ -n "${MMD_FAKE_ALIGN_NOTMET_NOAC:-}" ]; then
+    # Degenerate but PARSEABLE: a NOT-MET bottom line with NO per-AC not-met
+    # line. Must still FAIL (exit 7), never be marked done with a soft note.
+    echo "AC 1: MET — the basic feature renders"
+    echo "OVERALL: NOT-MET — the implementation does not satisfy the request overall"
+    exit 0
+  fi
   if [ -n "${MMD_FAKE_ALIGN_GAP_THEN_MET:-}" ] && [ "$n" -eq 1 ]; then
     # First judge call: a gap. The re-judge (call 2+) returns MET below.
     echo "AC 1: MET — the basic feature renders"

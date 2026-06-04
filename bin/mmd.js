@@ -1153,18 +1153,26 @@ function buildDiffArtifactsSummary(targetDir, baseSha) {
 async function runAlignmentGate({
   dream, slice = null, sealedDir, targetDir, logPath, buildArtifacts, relaunch, timeoutMs,
 }) {
-  const judgeLog = logPath.replace(/\.log$/, '.judge.log');
-
-  // One judge call: build the prompt with the FRESH evidence, invoke, then apply
-  // the OVERALL-met downgrade guard verbatim (never trust an over-eager OVERALL:
-  // MET while a per-AC line is not-met/uncertain — universal §VI).
-  const runJudge = () => {
-    const judge = invokeJudge({
-      demoDir: targetDir,
-      prompt: buildJudgePrompt({ dream, slice, sealedDir, artifactsSummary: buildArtifacts() }),
-      logPath: judgeLog,
-      timeoutMs,
-    });
+  // One judge call (per attempt): build the prompt with FRESH evidence, invoke,
+  // then apply the OVERALL-met downgrade guard verbatim (never trust an over-eager
+  // OVERALL: MET while a per-AC line is not-met/uncertain — universal §VI). The
+  // judge log is suffixed per attempt so an iterate's re-judge does NOT clobber
+  // the original gap verdict's forensic trail. Wrapped so the gate keeps its
+  // never-crash contract even if buildJudgePrompt's preconditions ever fail — any
+  // unexpected throw degrades to the sacred `uncertain` fallback, never exit 99.
+  const runJudge = (attempt) => {
+    const judgeLog = logPath.replace(/\.log$/, attempt > 0 ? `.judge.${attempt}.log` : '.judge.log');
+    let judge;
+    try {
+      judge = invokeJudge({
+        demoDir: targetDir,
+        prompt: buildJudgePrompt({ dream, slice, sealedDir, artifactsSummary: buildArtifacts() }),
+        logPath: judgeLog,
+        timeoutMs,
+      });
+    } catch (err) {
+      return judgeFallback(`judge invocation threw: ${err.message}`);
+    }
     if (judge.overall === 'met' && judge.verdicts.some((v) => v.status !== 'met')) {
       judge.overall = judge.verdicts.some((v) => v.status === 'not-met') ? 'not-met' : 'uncertain';
       judge.reason =
@@ -1177,7 +1185,7 @@ async function runAlignmentGate({
   const maxIters = parseMaxIters(env.MMD_ALIGN_MAX_ITERS, 1);
   stdout.write('Alignment gate — grading the implementation against WHAT WAS ASKED (default-on; MMD_SKIP_ALIGN=1 opts out)...\n');
 
-  let judge = runJudge();
+  let judge = runJudge(0);
   let agg = aggregateAlignment(judge);
   let iteration = 0;
 
@@ -1206,12 +1214,17 @@ async function runAlignmentGate({
       );
       break;
     }
-    judge = runJudge();
+    judge = runJudge(iteration);
     agg = aggregateAlignment(judge);
   }
 
+  // Classify the final verdict. A NOT-MET overall is a GAP → exit 7 (NOT done),
+  // EVEN if no per-AC line was nameable (a parseable-but-odd NOT-MET reply) — the
+  // oracle's bottom line said the ask is unmet, so we never mark it done with a
+  // soft note (matches the sealed judge's "overall !== met fails", §VI). Only an
+  // `uncertain`/unparseable/gate-absent bottom line takes the sacred hold branch.
   if (agg.aligned) return { outcome: 'aligned', judge, iterations: iteration };
-  if (agg.gapAcs.length > 0) return { outcome: 'gap', judge, iterations: iteration };
+  if (judge.overall === 'not-met') return { outcome: 'gap', judge, iterations: iteration };
   return { outcome: 'unverified', judge, iterations: iteration };
 }
 

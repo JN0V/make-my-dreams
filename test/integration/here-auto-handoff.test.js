@@ -202,13 +202,17 @@ test('@integration AC-4: without --auto-handoff the single-spawn flow is unchang
   }
 });
 
-// ── AC-2 + AC-4 end-to-end: the MONITOR writes the marker at 70% ────────────
-// Uses the stream-json fake (no checkpoint/marker of its own). The ONLY thing
-// that can produce a handoff-request marker here is MMD's own monitor crossing
-// 70% — so a handoff happening proves AC-2 (monitor writes the marker) + the
-// loop acting on it. MMD_MAX_HANDOFFS=1 bounds it to a quick terminate.
+// ── AC-2 + v0.13.1 regression: monitor writes the marker at 70%, but a run that
+// reached NO phase boundary (no resumable checkpoint) must NOT false-handoff ──
+// Uses the stream-json fake (crosses 70% but writes NO checkpoint of its own).
+// This is exactly the scenario a live `--auto-handoff` run surfaced: the monitor
+// correctly writes the marker (AC-2), but the orchestrator completed without ever
+// reaching a phase boundary — so there is nothing to resume TO. The v0.13.1 fix
+// makes `decideHandoff` FINISH here (a handoff would relaunch wasteful no-op
+// successors). So we assert: the marker WAS requested (AC-2) AND the loop did NOT
+// hand off (exactly one spawn, no `Auto-handoff` line) — the regression guard.
 
-test('@integration AC-2: --auto-handoff makes the monitor write the marker at 70% and the loop relaunches', { skip: SKIP_ON_WINDOWS }, () => {
+test('@integration AC-2 + v0.13.1: monitor writes the 70% marker, but NO checkpoint → no false handoff (exactly one spawn)', { skip: SKIP_ON_WINDOWS }, () => {
   const tmp = makeTmp();
   try {
     initCleanRepo(tmp);
@@ -218,14 +222,14 @@ test('@integration AC-2: --auto-handoff makes the monitor write the marker at 70
       env: { MMD_MAX_HANDOFFS: '1' },
     });
     assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}\nstdout=${r.stdout}`);
-    // The monitor crossed 70% → READY_FOR_HANDOFF + a cooperative handoff request.
+    // AC-2: the monitor crossed 70% → READY_FOR_HANDOFF + requested a cooperative handoff.
     assert.match(r.stdout, /READY_FOR_HANDOFF/);
     assert.match(r.stdout, /Requesting a cooperative handoff/i, 'monitor logs it is requesting a handoff');
-    // The loop acted: a handoff then the cap (max 1) → final successor.
-    assert.match(r.stdout, /Auto-handoff 1\/1/);
-    assert.match(r.stdout, /cap reached \(1\)/i);
-    // Terminates cleanly with no stale marker.
-    assert.ok(!existsSync(path.join(tmp, '.mmd', 'local', 'handoff-request')), 'marker cleared at the end');
+    // v0.13.1: with NO resumable checkpoint (no phase boundary reached), the loop
+    // must NOT hand off — a handoff would relaunch a wasteful no-op successor. The
+    // absence of any `Auto-handoff` line proves the loop did not relaunch (the
+    // stream fake doesn't write the autodev-calls counter, so callCount is N/A here).
+    assert.ok(!/Auto-handoff \d/.test(r.stdout), 'no false handoff without a resumable checkpoint (v0.13.1)');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

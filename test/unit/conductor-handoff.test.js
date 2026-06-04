@@ -97,9 +97,16 @@ test('@unit AC-1: maxHandoffs=1 → first stop handoffs, second stop caps', () =
   assert.equal(second.action, 'cap-final');
 });
 
-// ── a missing checkpoint counts as incomplete ───────────────────────────────
+// ── a missing / phase-0 checkpoint is NOT resumable → finish (v0.13.1) ───────
+// LIVE FINDING: the original v0.13.a code treated "requested + null checkpoint"
+// as a handoff ("not a fabricated finish"), and a real `--auto-handoff` run
+// exposed the bug — a trivial run that COMPLETED without ever writing a
+// checkpoint relaunched wasteful successors up to the cap (each found the work
+// already done). A handoff only makes sense with genuine mid-pipeline progress
+// (lastCompletedPhase >= 1, a real boundary reached). No checkpoint / phase 0 →
+// there is nothing to resume TO → finish (the exit code reports done/failed).
 
-test('@unit AC-1: null checkpoint + requested + under cap → handoff (not a fabricated finish)', () => {
+test('@unit v0.13.1: null checkpoint + requested → finish (no resumable progress, not a false handoff)', () => {
   const r = decideHandoff({
     checkpoint: null,
     handoffRequested: true,
@@ -107,8 +114,31 @@ test('@unit AC-1: null checkpoint + requested + under cap → handoff (not a fab
     maxHandoffs: 3,
     totalPhases: TOTAL,
   });
+  assert.equal(r.action, 'finish');
+  assert.match(r.reason, /no resumable checkpoint/);
+});
+
+test('@unit v0.13.1: phase-0 checkpoint + requested → finish (no boundary reached yet)', () => {
+  const r = decideHandoff({
+    checkpoint: { lastCompletedPhase: 0 },
+    handoffRequested: true,
+    handoffsSoFar: 0,
+    maxHandoffs: 3,
+    totalPhases: TOTAL,
+  });
+  assert.equal(r.action, 'finish');
+  assert.match(r.reason, /no resumable checkpoint/);
+});
+
+test('@unit v0.13.1: phase-1 checkpoint (real boundary) + requested + under cap → handoff', () => {
+  const r = decideHandoff({
+    checkpoint: { lastCompletedPhase: 1 },
+    handoffRequested: true,
+    handoffsSoFar: 0,
+    maxHandoffs: 3,
+    totalPhases: TOTAL,
+  });
   assert.equal(r.action, 'handoff');
-  assert.match(r.reason, /no phase boundary reached yet/);
 });
 
 // ── never throws on hostile / odd input ─────────────────────────────────────

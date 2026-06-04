@@ -182,21 +182,23 @@ test('@integration AC-4: at MMD_MAX_HANDOFFS the loop launches one final un-hand
   }
 });
 
-// ── AC-4: WITHOUT --auto-handoff a marker is ignored; exactly one spawn ─────
+// ── v0.15.a AC-1: MMD_NO_AUTO_HANDOFF=1 restores the single-spawn flow ───────
+// Pre-v0.15 this property held "without --auto-handoff"; the transparent
+// Conductor (SPEC_V015A) makes the handoff loop default-on, so the OFF state is
+// now the explicit opt-out. With it, even a fake that requests a handoff every
+// call is never acted on → exactly one spawn (today's EXACT behavior).
 
-test('@integration AC-4: without --auto-handoff the single-spawn flow is unchanged (a marker is never acted on)', { skip: SKIP_ON_WINDOWS }, () => {
+test('@integration v0.15.a AC-1: MMD_NO_AUTO_HANDOFF=1 → single-spawn flow, a marker is never acted on', { skip: SKIP_ON_WINDOWS }, () => {
   const tmp = makeTmp();
   try {
     initCleanRepo(tmp);
-    // The fake would request a handoff every call, but without --auto-handoff
-    // MMD never reads/acts on the marker → exactly one spawn.
     const r = runMmd(['--here', 'a plain change'], {
       cwd: tmp,
-      env: { MMD_FAKE_HANDOFF_MODE: 'always-stop' },
+      env: { MMD_FAKE_HANDOFF_MODE: 'always-stop', MMD_NO_AUTO_HANDOFF: '1' },
     });
     assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}`);
-    assert.equal(callCount(tmp), 1, 'no --auto-handoff → exactly one auto-dev spawn');
-    assert.ok(!/Auto-handoff \d/.test(r.stdout), 'no handoff log line without the flag');
+    assert.equal(callCount(tmp), 1, 'opt-out → exactly one auto-dev spawn');
+    assert.ok(!/Auto-handoff \d/.test(r.stdout), 'no handoff log line under the opt-out');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -235,23 +237,47 @@ test('@integration AC-2 + v0.13.1: monitor writes the 70% marker, but NO checkpo
   }
 });
 
-// ── AC-4 default-unchanged: plain --monitor never writes a marker ───────────
+// ── v0.15.a AC-1: the opt-out runs no monitor + writes no marker ─────────────
 
-test('@integration AC-4: plain --monitor (no --auto-handoff) writes NO request marker', { skip: SKIP_ON_WINDOWS }, () => {
+test('@integration v0.15.a AC-1: MMD_NO_AUTO_HANDOFF=1 → no monitor, NO request marker', { skip: SKIP_ON_WINDOWS }, () => {
   const tmp = makeTmp();
   try {
     initCleanRepo(tmp);
-    const r = runMmd(['--here', '--monitor', 'monitored but not handed off'], {
+    const r = runMmd(['--here', 'monitored but opted out'], {
       cwd: tmp,
       autodevCmd: FAKE_STREAM,
+      env: { MMD_NO_AUTO_HANDOFF: '1' },
     });
     assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}`);
-    // The monitor still crosses 70% (READY_FOR_HANDOFF) but writes NO marker and
-    // the run is a single spawn (it says so: "no auto-handoff yet").
+    // The opt-out uses the historical TEXT spawn → no monitor at all, so no
+    // READY_FOR_HANDOFF line and no handoff-request marker (today's EXACT path).
+    assert.doesNotMatch(r.stdout, /READY_FOR_HANDOFF/);
+    assert.ok(!existsSync(path.join(tmp, '.mmd', 'local', 'handoff-request')), 'opt-out writes no marker');
+    assert.ok(!/Auto-handoff \d/.test(r.stdout), 'no handoff loop under the opt-out');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+// ── v0.15.a AC-2: the legacy --monitor / --auto-handoff flags are INERT ──────
+// They parse without error (no "unknown flag") and change nothing — the
+// Conductor is already default-on, so a run passing the legacy flag still
+// monitors + requests a cooperative handoff at 70%, exactly as the no-flag run.
+
+test('@integration v0.15.a AC-2: legacy --monitor is accepted but inert (default-on Conductor still active)', { skip: SKIP_ON_WINDOWS }, () => {
+  const tmp = makeTmp();
+  try {
+    initCleanRepo(tmp);
+    const r = runMmd(['--here', '--monitor', 'a change with the legacy monitor flag'], {
+      cwd: tmp,
+      autodevCmd: FAKE_STREAM,
+      env: { MMD_MAX_HANDOFFS: '1' },
+    });
+    assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}\nstdout=${r.stdout}`);
+    // Default-on: the monitor crossed 70% and requested a cooperative handoff —
+    // the legacy flag neither errored nor changed the default behavior.
     assert.match(r.stdout, /READY_FOR_HANDOFF/);
-    assert.match(r.stdout, /no auto-handoff yet/i);
-    assert.ok(!existsSync(path.join(tmp, '.mmd', 'local', 'handoff-request')), 'plain --monitor writes no marker');
-    assert.ok(!/Auto-handoff \d/.test(r.stdout), 'no handoff loop without the flag');
+    assert.match(r.stdout, /Requesting a cooperative handoff/i, 'default-on Conductor active despite the inert flag');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

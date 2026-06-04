@@ -1,10 +1,10 @@
-// @unit regression lock for SPEC_V013A AC-4: "WITHOUT --auto-handoff the spawn
-// args + single-spawn flow MUST be byte-for-byte today's." The cooperative
-// auto-handoff loop is a POST-spawn wrapper that runs ONLY under --auto-handoff;
-// it must NEVER alter how auto-dev is launched (the bootstrap / --monitor
-// byte-for-byte contract that builds MMD itself). This pins buildAutodevArgs +
-// asserts the new --auto-handoff flag parses without leaking into the argv of a
-// non-flag run. Mirrors the v0.5.b / v0.11 spawn-pin locks.
+// @unit regression lock for the handoff loop's spawn contract. The hybrid
+// auto-handoff loop is a POST-spawn wrapper driven by the marker + checkpoint
+// files, never by a new spawn flag — so it must add NO handoff-specific argv.
+// v0.15.a (SPEC_V015A) made the monitored spawn the DEFAULT (transparent
+// Conductor), so the pin is INVERTED: the default now carries the monitor
+// (stream-json), and the opt-out (monitor:false, resolved from
+// MMD_NO_AUTO_HANDOFF=1) is the historical shape. Either way: no handoff token.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,20 +12,20 @@ import assert from 'node:assert/strict';
 import { buildAutodevArgs } from '../../lib/invoke-autodev.js';
 import { parseArgv, HANDOFF_FLAGS, KNOWN_FLAGS } from '../../lib/argv-parser.js';
 
-test('@unit AC-4: default CLI auto-dev args are byte-for-byte unchanged (no handoff token)', () => {
+test('@unit AC-4: default CLI auto-dev args carry the monitor but NO handoff token', () => {
   const args = buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd' });
-  assert.deepEqual(args, ['-p', '/bmad-adv-auto-dev BODY']);
+  assert.deepEqual(args, ['-p', '/bmad-adv-auto-dev BODY', '--output-format', 'stream-json', '--verbose']);
   assert.ok(!args.some((a) => /handoff|auto-handoff|MMD_MAX_HANDOFFS/i.test(a)),
     'no auto-handoff token may leak into the auto-dev spawn args');
-  assert.ok(!args.includes('--output-format'));
 });
 
-test('@unit AC-4: monitor CLI auto-dev args are unchanged (handoff implies monitor, adds nothing more)', () => {
-  // --auto-handoff implies --monitor; the resulting spawn is the EXISTING monitor
-  // spawn (stream-json), with NO extra handoff-specific argv. The loop is driven
-  // by the marker + checkpoint files, never by a new spawn flag.
-  const args = buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd', monitor: true });
-  assert.deepEqual(args, ['-p', '/bmad-adv-auto-dev BODY', '--output-format', 'stream-json', '--verbose']);
+test('@unit AC-4: opt-out (monitor:false) CLI args are byte-for-byte the historical shape', () => {
+  // MMD_NO_AUTO_HANDOFF=1 resolves monitor:false → the pre-v0.15 text spawn, with
+  // NO --output-format and NO handoff-specific argv (the loop never runs).
+  const args = buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd', monitor: false });
+  assert.deepEqual(args, ['-p', '/bmad-adv-auto-dev BODY']);
+  assert.ok(!args.includes('--output-format'));
+  assert.ok(!args.some((a) => /handoff|auto-handoff|MMD_MAX_HANDOFFS/i.test(a)));
 });
 
 test('@unit AC-4: --auto-handoff is a known boolean flag, default false', () => {

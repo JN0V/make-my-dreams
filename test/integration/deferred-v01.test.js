@@ -39,6 +39,12 @@ function runMmd(args, opts = {}) {
     ...baseEnv,
     MMD_AUTODEV_CMD: opts.autodevCmd ?? FIXTURE_OK,
     MMD_REALITY_CHECK_BACKEND: 'skip',
+    // v0.15.a: these are pre-monitor, text-spawn-era behaviors (B2 autodev mode,
+    // B4 quiet terminal-tee-vs-logfile, FAST engine). The transparent Conductor
+    // (default-on monitor) re-renders stdout from stream-json, which would swallow
+    // the plain-text fixture output these tests assert on. Opt out to the historical
+    // text spawn — exactly the behavior B4's tee semantics belong to (SPEC_V015A).
+    MMD_NO_AUTO_HANDOFF: '1',
     ...(opts.env || {}),
   };
   return spawnSync('node', [MMD, ...args], {

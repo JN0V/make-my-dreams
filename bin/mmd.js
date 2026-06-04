@@ -40,7 +40,7 @@ import {
 import { writeRunOutcomeSync } from '../lib/autolearn/run-outcome.js';
 import { computeBlastRadius } from '../lib/sealed-tests/blast-radius.js';
 import { realityCheck } from '../lib/reality-check.js';
-import { parseArgv, resolveEngine, resolveShouldCatch } from '../lib/argv-parser.js';
+import { parseArgv, resolveEngine, resolveShouldCatch, resolveConductorMode } from '../lib/argv-parser.js';
 import { deriveSpec } from '../lib/spec-derive.js';
 import { buildEngineRecord, withDuration, fastBudgetExceeded } from '../lib/engine.js';
 import {
@@ -2205,13 +2205,21 @@ async function main() {
     return 2;
   }
 
-  // v0.13.a — `--auto-handoff` IMPLIES `--monitor` (SPEC_V013A §4): the
-  // cooperative handoff needs the stream-json spawn's context usage to know when
-  // the orchestrator fills. Resolve the implication here, once, so both surfaces
-  // see monitor:true. Without `--auto-handoff` nothing changes (autoHandoff is
-  // false → the single-spawn flow stays byte-for-byte today's).
-  const autoHandoff = flags['auto-handoff'] === true;
-  if (autoHandoff) flags.monitor = true;
+  // v0.15.a — TRANSPARENT Conductor (SPEC_V015A AC-1/AC-2, ADR-054): the
+  // monitored spawn + the proven v0.14.0 hybrid auto-handoff loop are now the
+  // DEFAULT. The conductor mode is resolved from the single env opt-out
+  // `MMD_NO_AUTO_HANDOFF=1` (resolveConductorMode), NOT from the legacy
+  // `--auto-handoff` / `--monitor` flags — those are now accepted-but-INERT
+  // no-ops (back-compat: a script passing them neither errors nor changes
+  // anything; we deliberately overwrite flags.monitor with the resolved value so
+  // the old flags can't flip behavior). Default → monitor + handoff on (the
+  // §4.2 invisible Conductor); `MMD_NO_AUTO_HANDOFF=1` → today's EXACT behavior
+  // (text spawn, one un-looped invocation, no monitor) — the bootstrap/cost
+  // escape hatch. autoHandoff implies monitor (the handoff needs the stream-json
+  // spawn's context usage), so the resolver returns both together.
+  const conductor = resolveConductorMode(env);
+  const autoHandoff = conductor.autoHandoff;
+  flags.monitor = conductor.monitor;
   const maxHandoffs = parseMaxHandoffs(env.MMD_MAX_HANDOFFS);
 
   // v0.5.b — the sealed pipeline short-circuits before the monitor is wired on

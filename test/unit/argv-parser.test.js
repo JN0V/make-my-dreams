@@ -8,6 +8,7 @@ import {
   parseArgv,
   resolveEngine,
   resolveShouldCatch,
+  resolveConductorMode,
   ENGINE_FLAGS,
   SESSION_FLAGS,
   MODE_FLAGS,
@@ -129,6 +130,32 @@ test('@unit AC-3 resolveShouldCatch: TTY default ON, --no-catch opts out, --catc
   // --catch forces it regardless of isTTY (the non-TTY error is bin/mmd's job).
   assert.equal(resolveShouldCatch({ catch: true, 'no-catch': false }, false), true);
   assert.equal(resolveShouldCatch({ catch: true, 'no-catch': false }, true), true);
+});
+
+// ── v0.15.a — resolveConductorMode: transparent Conductor default-on + opt-out ──
+
+test('@unit v0.15.a AC-1: resolveConductorMode default → monitor + autoHandoff ON', () => {
+  // No opt-out env → the transparent Conductor is active by default.
+  assert.deepEqual(resolveConductorMode({}), { monitor: true, autoHandoff: true });
+  assert.deepEqual(resolveConductorMode({ MMD_OTHER: 'x' }), { monitor: true, autoHandoff: true });
+});
+
+test('@unit v0.15.a AC-1: MMD_NO_AUTO_HANDOFF=1 → both OFF (the single opt-out)', () => {
+  assert.deepEqual(resolveConductorMode({ MMD_NO_AUTO_HANDOFF: '1' }), { monitor: false, autoHandoff: false });
+});
+
+test('@unit v0.15.a AC-1: only the exact value "1" opts out (anything else stays default-on)', () => {
+  // Mirrors the strict MMD_SKIP_* / MMD_QUIET convention — junk never silently opts out.
+  assert.deepEqual(resolveConductorMode({ MMD_NO_AUTO_HANDOFF: '0' }), { monitor: true, autoHandoff: true });
+  assert.deepEqual(resolveConductorMode({ MMD_NO_AUTO_HANDOFF: 'true' }), { monitor: true, autoHandoff: true });
+  assert.deepEqual(resolveConductorMode({ MMD_NO_AUTO_HANDOFF: '' }), { monitor: true, autoHandoff: true });
+});
+
+test('@unit v0.15.a AC-2: resolveConductorMode ignores the legacy --monitor / --auto-handoff flags (env-only)', () => {
+  // The resolver reads ONLY the env opt-out, so the legacy flags are inert: the
+  // result is identical whether or not a caller would have parsed them. (The
+  // flags still parse cleanly — pinned by the conductor-handoff-spawn-pin tests.)
+  assert.deepEqual(resolveConductorMode({}), { monitor: true, autoHandoff: true });
 });
 
 test('@unit parseArgv: lone dream → positional only', () => {

@@ -110,7 +110,15 @@ test('@integration AC-3: --no-catch on a non-TTY launches the verbatim dream (no
 test('@integration happy path end-to-end with autodev stub creates demo dir + state files', () => {
   const tmp = makeTmp();
   try {
-    const r = runMmd(['a tiny test app that shows hello world'], { cwd: tmp });
+    // v0.15.a: this validates the text-spawn CAPTURE mechanic (the plain-text
+    // fixture marker reaches the run log). The transparent Conductor's default
+    // monitored spawn re-renders stdout from stream-json and would swallow the
+    // fixture's plain text, so opt out to the historical text spawn — the run/
+    // state mechanics (demo dir, decisions.log) are identical on both paths. A
+    // dedicated AC-3 test (conductor-transparent-default) covers the monitored default.
+    const r = runMmd(['a tiny test app that shows hello world'], {
+      cwd: tmp, env: { MMD_NO_AUTO_HANDOFF: '1' },
+    });
     assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}\nstdout=${r.stdout}`);
     const demoDir = path.join(tmp, 'demo', 'tiny-test-app-shows-hello-world');
     assert.ok(existsSync(demoDir), 'demoDir should exist');

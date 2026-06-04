@@ -12,39 +12,44 @@ import { buildAutodevArgs, makeMonitorConsumer } from '../../lib/invoke-autodev.
 
 // ── buildAutodevArgs — bootstrap safety (AC-3) ──────────────────────────────
 
-test('@unit buildAutodevArgs: DEFAULT CLI args carry no --output-format (bootstrap-safe)', () => {
+test('@unit buildAutodevArgs: DEFAULT CLI args carry the monitor (transparent Conductor, v0.15.a)', () => {
+  // v0.15.a (SPEC_V015A): the monitored spawn is the DEFAULT, so the default args
+  // now INCLUDE --output-format stream-json --verbose. (Pre-v0.15 this asserted
+  // the opposite; the contract was inverted by the transparent-Conductor flip.)
   const args = buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd' });
-  assert.deepEqual(args, ['-p', '/bmad-adv-auto-dev BODY']);
-  assert.ok(!args.includes('--output-format'), 'default path must NOT request stream-json');
-  assert.ok(!args.includes('stream-json'));
-  assert.ok(!args.includes('--verbose'));
-});
-
-test('@unit buildAutodevArgs: monitor CLI args append stream-json + --verbose only', () => {
-  const args = buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd', monitor: true });
   assert.deepEqual(args, [
     '-p', '/bmad-adv-auto-dev BODY', '--output-format', 'stream-json', '--verbose',
   ]);
 });
 
-test('@unit buildAutodevArgs: model override appends --model only when set (default still byte-for-byte)', () => {
-  // No model → byte-for-byte the historical shape (bootstrap-safe).
+test('@unit buildAutodevArgs: OPT-OUT (monitor:false) is byte-for-byte the historical shape', () => {
+  // MMD_NO_AUTO_HANDOFF=1 → monitor:false → today's EXACT text spawn (no stream-json).
+  const args = buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd', monitor: false });
+  assert.deepEqual(args, ['-p', '/bmad-adv-auto-dev BODY']);
+  assert.ok(!args.includes('--output-format'), 'opt-out path must NOT request stream-json');
+  assert.ok(!args.includes('stream-json'));
+  assert.ok(!args.includes('--verbose'));
+});
+
+test('@unit buildAutodevArgs: model override appends --model only when set; composes with the default monitor', () => {
+  // No model, OPT-OUT → byte-for-byte the historical shape.
   assert.deepEqual(
-    buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd' }),
+    buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd', monitor: false }),
     ['-p', '/bmad-adv-auto-dev BODY'],
   );
-  // Empty / whitespace model → still no --model (treated as unset).
+  // Empty / whitespace model, OPT-OUT → still no --model (treated as unset).
   assert.deepEqual(
-    buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd', model: '  ' }),
+    buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd', model: '  ', monitor: false }),
     ['-p', '/bmad-adv-auto-dev BODY'],
   );
-  // A model → appended as `--model <model>`, before any monitor flags.
+  // A model, OPT-OUT → appended as `--model <model>`, no monitor flags.
   assert.deepEqual(
-    buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd', model: 'haiku' }),
+    buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd', model: 'haiku', monitor: false }),
     ['-p', '/bmad-adv-auto-dev BODY', '--model', 'haiku'],
   );
+  // A model with the DEFAULT monitor → --model before the monitor flags (MMD_AUTODEV_MODEL still composes).
   assert.deepEqual(
-    buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd', monitor: true, model: 'haiku' }),
+    buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd', model: 'haiku' }),
     ['-p', '/bmad-adv-auto-dev BODY', '--model', 'haiku', '--output-format', 'stream-json', '--verbose'],
   );
   // Test-fixture mode ignores the model (args stay [dream]).

@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.13.2`
-- **Branch**: `slice/here-hybrid-auto-handoff-incite-enforce-1780570509`
+- **Latest tag**: `v0.14.0`
+- **Branch**: `main`
 - **Version**: `0.14.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 52 (ADR-001..ADR-053)
-- **Tests**: 2151 passing
+- **Tests**: 2153 passing
 - **Recent commits**:
+  - `84c1ac1 fix(conductor): never enforce-kill a COMPLETE pipeline; prove the group-kill (Phase 4 review)`
+  - `0cf8960 docs: HYBRID auto-handoff README section + env var + refresh mechanical blocks (v0.14.b)`
   - `c20d24a docs(spec): ADR-053 hybrid auto-handoff + CLAUDE.md entry + version 0.14.0 (v0.14.b)`
   - `6ef5a22 test(conductor): assert the heredoc KEEPS the cooperative incitation (v0.14.b AC-4)`
   - `30604d8 feat(conductor): wire the HYBRID auto-handoff loop — enforce backstop (v0.14.b AC-3)`
-  - `a7dfa9d feat(invoke-autodev): abort seam — grace then SIGTERM the process group (v0.14.b AC-1)`
-  - `2da4d39 feat(conductor): pure shouldForceHandoff enforce gate + parseHandoffGraceMs (v0.14.b AC-2)`
 - **Generated**: 2026-06-04 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

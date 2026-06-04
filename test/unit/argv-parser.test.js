@@ -15,6 +15,7 @@ import {
   CATCH_FLAGS,
   SEALED_FLAGS,
   MONITOR_FLAGS,
+  HANDOFF_FLAGS,
   KNOWN_FLAGS,
 } from '../../lib/argv-parser.js';
 
@@ -30,6 +31,7 @@ test('@unit parseArgv: empty argv → all flags false, no positional, no error',
     'no-catch': false,
     sealed: false,
     monitor: false,
+    'auto-handoff': false,
   });
   assert.deepEqual(r.positional, []);
   assert.equal(r.error, null);
@@ -247,10 +249,10 @@ test('@unit resolveEngine: --deep alone (forward-compat) resolves to "standard" 
   assert.equal(resolveEngine({ fast: false, standard: false, deep: true }), 'standard');
 });
 
-test('@unit KNOWN_FLAGS is the union of ENGINE_FLAGS, SESSION_FLAGS, MODE_FLAGS, VALUE_FLAGS, CATCH_FLAGS, SEALED_FLAGS, and MONITOR_FLAGS (v0.5.b)', () => {
+test('@unit KNOWN_FLAGS is the union of ENGINE_FLAGS, SESSION_FLAGS, MODE_FLAGS, VALUE_FLAGS, CATCH_FLAGS, SEALED_FLAGS, MONITOR_FLAGS, and HANDOFF_FLAGS (v0.13.a)', () => {
   assert.deepEqual(
     [...KNOWN_FLAGS].sort(),
-    [...ENGINE_FLAGS, ...SESSION_FLAGS, ...MODE_FLAGS, ...VALUE_FLAGS, ...CATCH_FLAGS, ...SEALED_FLAGS, ...MONITOR_FLAGS].sort(),
+    [...ENGINE_FLAGS, ...SESSION_FLAGS, ...MODE_FLAGS, ...VALUE_FLAGS, ...CATCH_FLAGS, ...SEALED_FLAGS, ...MONITOR_FLAGS, ...HANDOFF_FLAGS].sort(),
   );
   // Defensive: arrays are frozen (immutable contract).
   assert.ok(Object.isFrozen(ENGINE_FLAGS));
@@ -260,6 +262,7 @@ test('@unit KNOWN_FLAGS is the union of ENGINE_FLAGS, SESSION_FLAGS, MODE_FLAGS,
   assert.ok(Object.isFrozen(CATCH_FLAGS));
   assert.ok(Object.isFrozen(SEALED_FLAGS));
   assert.ok(Object.isFrozen(MONITOR_FLAGS));
+  assert.ok(Object.isFrozen(HANDOFF_FLAGS));
   assert.ok(Object.isFrozen(KNOWN_FLAGS));
 });
 

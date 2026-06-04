@@ -116,6 +116,11 @@ Mode flags (orthogonal to engine):
                                        report the orchestrator's context % to status.json.context, and at
                                        MMD_HANDOFF_THRESHOLD (default 0.70) emit a READY_FOR_HANDOFF signal +
                                        a context_70 notification. Default spawn is unchanged when absent.
+  --auto-handoff                       Cooperative auto-handoff at 70% (v0.13.a, implies --monitor): when the
+                                       orchestrator's context fills, it stops cleanly at a phase boundary and
+                                       MMD relaunches a FRESH successor that resumes from the checkpoint —
+                                       bounded by MMD_MAX_HANDOFFS (default 3), then one final un-handoffed run.
+                                       Never a forced kill. For long runs that may fill context.
   --label <name>                       Human-readable branch name for --here (e.g. --label wip-salvage); else derived from the dream
   --skip-onboarding                    Bypass the v0.2c Project Onboarder gate (NOT RECOMMENDED)
 
@@ -155,6 +160,8 @@ Environment variables:
                                        Example: MMD_NOTIFY_URL=https://ntfy.sh/<your-topic>
   MMD_HANDOFF_THRESHOLD                Context % that triggers the --monitor READY_FOR_HANDOFF signal +
                                        context_70 notification (v0.5.b). Default 0.70; honored when in (0,1].
+  MMD_MAX_HANDOFFS                     Max cooperative handoffs before one final un-handoffed successor
+                                       (v0.13.a --auto-handoff). Integer >= 1, default 3; junk/0 → default.
 `;
 
 function nowIso() {
@@ -453,7 +460,7 @@ async function resolveExistingChoice(flags) {
  *   - Reality Check is short-circuited (AC-6).
  *   - status.json carries mode/target_dir/slice_branch/base_branch/base_sha (AC-5).
  */
-async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, engine, skipOnboarding, sealed = false, monitor = false }) {
+async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, engine, skipOnboarding, sealed = false, monitor = false, autoHandoff = false, maxHandoffs = 3 }) {
   // F2 (Phase 4 review): canonicalize the target dir via fs.realpath so we
   // do NOT record a symlinked path in status.json (audit trail integrity)
   // while git operates on the real path. path.resolve alone does not follow
@@ -754,13 +761,36 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
   // v0.5.b — opt-in live context monitor (SPEC_V05B). When --monitor is set the
   // spawn switches to stream-json and onContext writes status.json.context live
   // + fires the 70% signal. Absent → null and the spawn is unchanged.
-  const hereMonitor = monitor
-    ? makeContextMonitor({
-        slice: sliceBranch,
-        writeIntermediate: (fields) =>
-          writeStatus(absTargetDir, { ...inProgressStatus, updated_at: nowIso(), ...fields }),
-      })
-    : null;
+  // v0.13.a — a monitor FACTORY (one fresh monitor per successor). Under
+  // --auto-handoff the monitor ALSO writes the cooperative handoff-request marker
+  // at threshold (enableHandoffRequest); the cap-final successor disables it so it
+  // runs to completion. Plain --monitor never enables it (no marker, byte-for-byte
+  // today's behavior).
+  const timeoutMs = env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000;
+  const makeHereMonitor = ({ enableHandoffRequest = false } = {}) =>
+    monitor
+      ? makeContextMonitor({
+          slice: sliceBranch,
+          writeIntermediate: (fields) =>
+            writeStatus(absTargetDir, { ...inProgressStatus, updated_at: nowIso(), ...fields }),
+          requestHandoff: enableHandoffRequest
+            ? (ctx) =>
+                writeHandoffRequest(absTargetDir, {
+                  slice: sliceBranch,
+                  pct: ctx.pct,
+                  tokens: ctx.tokens,
+                  window: ctx.window,
+                  model: ctx.model,
+                })
+            : undefined,
+        })
+      : null;
+
+  // Start from a clean slate so a stale marker from a prior run can never make
+  // the first phase boundary stop spuriously (idempotent no-op if absent).
+  if (autoHandoff) clearHandoffRequest(absTargetDir);
+
+  let hereMonitor = makeHereMonitor({ enableHandoffRequest: autoHandoff });
 
   const startNs = process.hrtime.bigint();
   let invokeResult;
@@ -771,11 +801,45 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
       slug,
       promptParts: { dream, slug, demoDir: absTargetDir, prompt: herePrompt, mode: 'here' },
       logPath,
-      timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+      timeoutMs,
       engine,
       monitor,
       onContext: hereMonitor ? hereMonitor.onContext : undefined,
     });
+    // v0.13.a — cooperative auto-handoff loop (SPEC_V013A AC-4). ONLY under
+    // --auto-handoff: relaunch fresh successors in resume mode on each clean
+    // cooperative stop, bounded by maxHandoffs. Without the flag this block is
+    // skipped entirely, so the single-spawn flow above is byte-for-byte today's.
+    if (autoHandoff) {
+      const loop = await runHandoffLoop({
+        runDir: absTargetDir,
+        slice: sliceBranch,
+        maxHandoffs,
+        firstResult: invokeResult,
+        firstMonitor: hereMonitor,
+        makeMonitor: makeHereMonitor,
+        relaunch: ({ monitor: succMonitor, checkpoint }) =>
+          invokeAutodev({
+            demoDir: absTargetDir,
+            dream,
+            slug,
+            promptParts: {
+              dream,
+              slug,
+              demoDir: absTargetDir,
+              prompt: `${herePrompt}\n\n${buildResumeFeedback(checkpoint)}`,
+              mode: 'here',
+            },
+            logPath,
+            timeoutMs, // MMD_TIMEOUT_MS=0 honored per successor — L-016.
+            engine,
+            monitor: true,
+            onContext: succMonitor ? succMonitor.onContext : undefined,
+          }),
+      });
+      invokeResult = loop.invokeResult;
+      hereMonitor = loop.monitor;
+    }
   } catch (err) {
     const elapsedFail = Number(process.hrtime.bigint() - startNs) / 1e9;
     if (hereMonitor) await hereMonitor.drain();
@@ -1583,6 +1647,103 @@ function buildResumeFeedback(checkpoint) {
 }
 
 /**
+ * v0.13.a — cooperative auto-handoff loop (SPEC_V013A AC-4, ADR-051). Wraps the
+ * auto-dev spawn so MMD hands the run off to a FRESH successor when the
+ * orchestrator's context fills — cooperatively (the orchestrator stops at a phase
+ * boundary it already checkpointed), never a forced kill. Reused by --here and
+ * greenfield; only the per-successor `relaunch` closure + the `makeMonitor`
+ * factory differ.
+ *
+ * The CALLER does the FIRST spawn (byte-for-byte today's flow) and passes its
+ * result + monitor in. This helper runs ONLY under --auto-handoff (the caller
+ * skips it otherwise, so a non-flag run never enters here). On each clean
+ * cooperative stop (exit 0 + incomplete checkpoint + request marker) it asks
+ * decideHandoff:
+ *   - finish    → return (the orchestrator completed, or stopped on its own with
+ *                 no request — the safe default that prevents an infinite loop)
+ *   - handoff   → log + `handoff` notify + clear marker + FRESH monitor + relaunch
+ *                 resume (reusing the v0.12.a resume directive)
+ *   - cap-final → honest cap log + ONE final successor with handoff DISABLED
+ *                 (its monitor writes no marker, so it runs to done / fails)
+ *
+ * A non-zero exit is a real failure — the loop stops and the caller's existing
+ * failure path handles invokeResult.code. Returns the LAST successor's
+ * { invokeResult, monitor, handoffs } so the caller's completion logic (alignment
+ * gate, done-status, finalFields) runs ONCE on the final result, not per
+ * successor. All marker/notify side effects are best-effort and never throw.
+ *
+ * @param {{
+ *   runDir: string, slice: string, maxHandoffs: number,
+ *   firstResult: object, firstMonitor: object|null,
+ *   makeMonitor: (opts?: {enableHandoffRequest?: boolean}) => object|null,
+ *   relaunch: (a: {monitor: object|null, checkpoint: object|null}) => Promise<object>,
+ * }} args
+ * @returns {Promise<{invokeResult: object, monitor: object|null, handoffs: number}>}
+ */
+async function runHandoffLoop({ runDir, slice, maxHandoffs, firstResult, firstMonitor, makeMonitor, relaunch }) {
+  let invokeResult = firstResult;
+  let monitor = firstMonitor;
+  let handoffs = 0;
+
+  for (;;) {
+    // A non-zero (or missing) exit is a real failure, not a cooperative stop —
+    // let the caller's failure path own it.
+    if (!invokeResult || invokeResult.code !== 0) break;
+
+    const checkpoint = readCheckpoint(runDir);
+    const requested = readHandoffRequest(runDir) != null;
+    const decision = decideHandoff({
+      checkpoint,
+      handoffRequested: requested,
+      handoffsSoFar: handoffs,
+      maxHandoffs,
+      totalPhases: TOTAL_AUTODEV_PHASES,
+    });
+    if (decision.action === 'finish') break;
+
+    const isCap = decision.action === 'cap-final';
+    const rawPhase = checkpoint ? Number(checkpoint.lastCompletedPhase) : NaN;
+    const phaseN = Number.isFinite(rawPhase) ? rawPhase : null;
+    const phaseLabel = phaseN != null ? `phase ${phaseN}` : 'an early boundary';
+    const nextLabel = phaseN != null ? `phase ${phaseN + 1}` : 'the next phase';
+
+    if (isCap) {
+      stdout.write(
+        `⚠ Auto-handoff cap reached (${maxHandoffs}) at ${phaseLabel} — ${decision.reason}. ` +
+          `Launching one FINAL successor with handoff DISABLED (it runs to completion or fails naturally).\n`,
+      );
+    } else {
+      handoffs += 1;
+      stdout.write(
+        `↪ Auto-handoff ${handoffs}/${maxHandoffs}: orchestrator stopped cleanly at ${phaseLabel} boundary. ` +
+          `Relaunching a fresh successor in resume mode (continue from ${nextLabel}).\n`,
+      );
+      await maybeNotify({
+        event: 'handoff',
+        slice,
+        state: 'in_progress',
+        summary: `handoff ${handoffs}/${maxHandoffs} at ${phaseLabel}`,
+      });
+    }
+
+    // Drain the prior monitor's chained best-effort writes, clear the marker so
+    // the fresh successor doesn't immediately re-stop, then spin a FRESH monitor
+    // (its context accounting restarts low). The cap-final successor's monitor
+    // writes NO marker (enableHandoffRequest=false) so it runs through to done.
+    if (monitor) await monitor.drain();
+    clearHandoffRequest(runDir);
+    monitor = makeMonitor({ enableHandoffRequest: !isCap });
+    invokeResult = await relaunch({ monitor, checkpoint });
+    if (isCap) break; // the final successor is not eligible for another handoff
+  }
+
+  // No stale request marker survives the orchestration (a later run / --resume
+  // must not inherit a spurious stop signal).
+  clearHandoffRequest(runDir);
+  return { invokeResult, monitor, handoffs };
+}
+
+/**
  * Decide + (if resumable) relaunch a fresh auto-dev to continue from the
  * checkpoint. Shared by the --here and greenfield surfaces — only the runDir
  * and the relaunch-prompt builder differ. A complete run or no checkpoint →
@@ -1914,15 +2075,26 @@ async function main() {
     return 2;
   }
 
+  // v0.13.a — `--auto-handoff` IMPLIES `--monitor` (SPEC_V013A §4): the
+  // cooperative handoff needs the stream-json spawn's context usage to know when
+  // the orchestrator fills. Resolve the implication here, once, so both surfaces
+  // see monitor:true. Without `--auto-handoff` nothing changes (autoHandoff is
+  // false → the single-spawn flow stays byte-for-byte today's).
+  const autoHandoff = flags['auto-handoff'] === true;
+  if (autoHandoff) flags.monitor = true;
+  const maxHandoffs = parseMaxHandoffs(env.MMD_MAX_HANDOFFS);
+
   // v0.5.b — the sealed pipeline short-circuits before the monitor is wired on
   // both surfaces, so --monitor + --sealed silently does no monitoring. The
   // flags parse together (no mutex), so say so out loud rather than ignore the
-  // user's request in silence (universal.md §VI; ADR-030 §Consequences).
+  // user's request in silence (universal.md §VI; ADR-030 §Consequences). v0.13.a:
+  // --auto-handoff implies --monitor, so it is likewise inert under --sealed.
   if (flags.monitor && flags.sealed) {
     stderr.write(
-      'note: --monitor is not active under --sealed in v0.5.b (the sealed ' +
-        'pipeline owns its own spawn); the run proceeds sealed, without the ' +
-        'context monitor. See ADR-030.\n',
+      `note: ${autoHandoff ? '--auto-handoff (which implies --monitor)' : '--monitor'} ` +
+        'is not active under --sealed (the sealed pipeline owns its own spawn); ' +
+        'the run proceeds sealed, without the context monitor' +
+        `${autoHandoff ? ' or auto-handoff' : ''}. See ADR-030 / ADR-051.\n`,
     );
   }
 
@@ -1946,7 +2118,7 @@ async function main() {
   // No demo/<slug>/ is created; state files live under <cwd>/.mmd/shared/.
   // The greenfield path below is unchanged when --here is absent.
   if (flags.here) {
-    return runHereMode({ cwd: cwd(), dream, slug, branchSlug, engine, skipOnboarding, sealed: flags.sealed, monitor: flags.monitor });
+    return runHereMode({ cwd: cwd(), dream, slug, branchSlug, engine, skipOnboarding, sealed: flags.sealed, monitor: flags.monitor, autoHandoff, maxHandoffs });
   }
 
   // v0.3.b AC-3: `--catch` forces the interactive Dream Catcher dialogue, which
@@ -2175,13 +2347,31 @@ async function main() {
   // v0.5.b — opt-in live context monitor on the greenfield path (SPEC_V05B).
   // Mirrors the --here wiring: stream-json spawn + live status.json.context +
   // 70% signal when --monitor is set; null (and an unchanged spawn) otherwise.
-  const greenfieldMonitor = flags.monitor
-    ? makeContextMonitor({
-        slice: slug,
-        writeIntermediate: (fields) =>
-          writeStatus(demoDir, { ...inProgressStatus, updated_at: nowIso(), ...fields }),
-      })
-    : null;
+  // v0.13.a — a monitor FACTORY (fresh per successor); under --auto-handoff the
+  // monitor also writes the handoff-request marker at threshold.
+  const greenfieldTimeoutMs = env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000;
+  const makeGreenfieldMonitor = ({ enableHandoffRequest = false } = {}) =>
+    flags.monitor
+      ? makeContextMonitor({
+          slice: slug,
+          writeIntermediate: (fields) =>
+            writeStatus(demoDir, { ...inProgressStatus, updated_at: nowIso(), ...fields }),
+          requestHandoff: enableHandoffRequest
+            ? (ctx) =>
+                writeHandoffRequest(demoDir, {
+                  slice: slug,
+                  pct: ctx.pct,
+                  tokens: ctx.tokens,
+                  window: ctx.window,
+                  model: ctx.model,
+                })
+            : undefined,
+        })
+      : null;
+
+  if (autoHandoff) clearHandoffRequest(demoDir);
+
+  let greenfieldMonitor = makeGreenfieldMonitor({ enableHandoffRequest: autoHandoff });
 
   const startNs = process.hrtime.bigint();
   let invokeResult;
@@ -2192,11 +2382,43 @@ async function main() {
       slug,
       promptParts: { dream, slug, demoDir },
       logPath,
-      timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+      timeoutMs: greenfieldTimeoutMs,
       engine,
       monitor: flags.monitor,
       onContext: greenfieldMonitor ? greenfieldMonitor.onContext : undefined,
     });
+    // v0.13.a — cooperative auto-handoff loop on the greenfield path (AC-4).
+    // ONLY under --auto-handoff; skipped otherwise so the single-spawn flow is
+    // byte-for-byte today's.
+    if (autoHandoff) {
+      const loop = await runHandoffLoop({
+        runDir: demoDir,
+        slice: slug,
+        maxHandoffs,
+        firstResult: invokeResult,
+        firstMonitor: greenfieldMonitor,
+        makeMonitor: makeGreenfieldMonitor,
+        relaunch: ({ monitor: succMonitor, checkpoint }) =>
+          invokeAutodev({
+            demoDir,
+            dream,
+            slug,
+            promptParts: {
+              dream,
+              slug,
+              demoDir,
+              prompt: `${buildPrompt({ dream, slug, demoDir, engine })}\n\n${buildResumeFeedback(checkpoint)}`,
+            },
+            logPath,
+            timeoutMs: greenfieldTimeoutMs, // MMD_TIMEOUT_MS=0 honored per successor — L-016.
+            engine,
+            monitor: true,
+            onContext: succMonitor ? succMonitor.onContext : undefined,
+          }),
+      });
+      invokeResult = loop.invokeResult;
+      greenfieldMonitor = loop.monitor;
+    }
   } catch (err) {
     const elapsedFail = Number(process.hrtime.bigint() - startNs) / 1e9;
     if (greenfieldMonitor) await greenfieldMonitor.drain();

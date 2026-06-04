@@ -96,8 +96,9 @@ Usage:
   mmdream handover [--tests N] [--dry-run] Refresh HANDOVER.md's mechanical State block (v0.2.p)
   mmdream document-readme [--tests N] [--dry-run]
                                        Refresh README.md's Status + Changelog blocks; report doc drift (v0.3.d)
-  mmdream document-review [--with-claude] [--dry-run]
-                                       Documentalist coherence review — designed-vs-built + doc-health (v0.7.a)
+  mmdream document-review [--with-claude] [--dry-run] [--check]
+                                       Documentalist coherence review — designed-vs-built + doc-health + drift;
+                                       --check gates (exit 1) on any conformance drift (v0.7.a, --check v0.18.0)
   mmdream document-compact [--dry-run]     Documentalist active compaction — archive root SPEC_V*.md into docs/specs/ (v0.7.c)
   mmdream test-health [--dry-run]          Test Curator — test-corpus health (stratification/untagged/oversized) → docs/test-health.md (v0.7.6)
   mmdream secret-scan [--staged | --since <ref>]

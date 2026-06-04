@@ -85,6 +85,7 @@ const USAGE = `mmdream document-review — the Documentalist's coherence review 
 
 Usage:
   mmdream document-review [--with-claude] [--dry-run]
+  mmdream document-review --check
   mmdream document-review --since <ref>
   mmdream document-review --help
 
@@ -112,7 +113,16 @@ Behavior:
   which neighbors to review". This mode is a QUERY: it writes NOTHING (it does
   NOT rewrite ${REPORT_REL_PATH}). Coupling is a review hint, never a gate.
 
+  --check (v0.18.0): the GATE (teeth). Runs the full review, writes the same
+  dashboard, then EXITS 1 if ANY conformance drift is found (dangling references
+  / stale facts / stale promises / deprecated-surface), 0 when clean — the same
+  gate contract as secret-scan/deps-gate (pre-push / CI). The roadmap
+  reconciliation heuristic is advisory and does NOT affect the exit. The plain
+  run (no --check) stays report-only.
+
 Flags:
+  --check        Gate: exit 1 on any conformance drift, 0 when clean. Writes the
+                 dashboard as usual; adds only the exit code (for pre-push / CI).
   --since <ref>  Staleness-on-diff: report the coupled neighbors of what changed
                  since <ref>. Read-only (writes nothing). Standalone mode.
   --with-claude  Layer an LLM judgment pass on top of the deterministic
@@ -123,11 +133,12 @@ Flags:
   --help, -h     Print this usage and exit 0.
 
 Exit codes:
-  0  ok (written, or printed under --dry-run / --since)
+  0  ok (written, or printed under --dry-run / --since; --check clean)
+  1  --check: a conformance drift finding was detected (gate failed)
   2  user/argv error
   3  cannot write ${REPORT_REL_PATH}
   4  MAKE_MY_DREAMS.md unreadable (no roadmap to reconcile)
-  5  --since: git diff failed (not a git repo, or a bad/unknown <ref>)
+  5  --since: git diff failed (not a git repo / bad ref); or --check outside a git repo
 
 mmdream ${VERSION}
 `;
@@ -139,11 +150,15 @@ mmdream ${VERSION}
  * `--since <ref>` switches to the v0.7.d staleness-on-diff mode (a read-only
  * query — it never rewrites the dashboard). It requires a value (the git ref).
  *
+ * `--check` (SPEC_V018A AC-5) adds the GATE: after writing the dashboard, exit 1
+ * if any conformance drift (dangling refs / stale facts / stale promises /
+ * deprecated-surface) is found, 0 when clean. The roadmap heuristic does NOT gate.
+ *
  * @param {string[]} rawArgs
- * @returns {{ withClaude: boolean, dryRun: boolean, help: boolean, since: string|null, error: { message: string, exitCode: number }|null }}
+ * @returns {{ withClaude: boolean, dryRun: boolean, check: boolean, help: boolean, since: string|null, error: { message: string, exitCode: number }|null }}
  */
 export function parseDocumentReviewArgs(rawArgs) {
-  const out = { withClaude: false, dryRun: false, help: false, since: null, error: null };
+  const out = { withClaude: false, dryRun: false, check: false, help: false, since: null, error: null };
   if (!Array.isArray(rawArgs)) {
     out.error = { message: 'parseDocumentReviewArgs: rawArgs must be an array', exitCode: 2 };
     return out;
@@ -152,6 +167,7 @@ export function parseDocumentReviewArgs(rawArgs) {
     const tok = rawArgs[i];
     if (tok === '--with-claude') out.withClaude = true;
     else if (tok === '--dry-run') out.dryRun = true;
+    else if (tok === '--check') out.check = true;
     else if (tok === '--help' || tok === '-h') out.help = true;
     else if (tok === '--since') {
       const val = rawArgs[i + 1];
@@ -171,6 +187,18 @@ export function parseDocumentReviewArgs(rawArgs) {
       };
       return out;
     }
+  }
+  // --check is the gate mode (writes the dashboard + sets the exit). It is
+  // incompatible with --since (a standalone read-only query) and with --dry-run
+  // (the gate must write + scan the same report). Reject the contradiction up
+  // front rather than silently picking one (defensive, error-handling §I).
+  if (out.check && out.since) {
+    out.error = { message: '--check cannot be combined with --since (--since is a read-only query, not a gate).', exitCode: 2 };
+    return out;
+  }
+  if (out.check && out.dryRun) {
+    out.error = { message: '--check cannot be combined with --dry-run (the gate writes the dashboard it scans).', exitCode: 2 };
+    return out;
   }
   return out;
 }
@@ -447,6 +475,26 @@ const isJs = (f) => /\.(?:js|mjs|cjs)$/.test(f);
 const isMd = (f) => /\.md$/i.test(f);
 
 /**
+ * Is `root` inside a git work tree? The not-a-git-repo oracle for the --check
+ * gate (SPEC_V018A AC-5). Mirrors the secret-scan/deps-gate contract: an honest
+ * exit 5 outside a repo, never a fabricated pass. Never throws (any failure →
+ * false → exit 5).
+ *
+ * @param {string} root
+ * @returns {boolean}
+ */
+function defaultIsGitRepo(root) {
+  try {
+    const out = execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
+      cwd: root, encoding: 'utf8', timeout: 20000, stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return out.trim() === 'true';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * The default git seam for --since: the list of files changed since <ref>, and
  * the repo's tracked files (the universe of graph nodes). Both via git; a
  * failure (not a repo / bad ref) is returned as an error, never thrown.
@@ -698,6 +746,22 @@ export async function runDocumentReview(rawArgs, injected = {}) {
     return runSinceMode(root, parsed.since, injected);
   }
 
+  // SPEC_V018A AC-5: --check is a GATE (for pre-push / CI). It must honor the
+  // gate-family not-a-git-repo contract (exit 5, mirrors secret-scan/deps-gate):
+  // a gate that silently "passes" outside a repo is dishonest. The plain dashboard
+  // run does NOT require a git repo (it degrades tags to []), so this check is
+  // scoped to --check only — back-compat for the no-flag path.
+  if (parsed.check) {
+    const isGit = injected.isGitRepo ? injected.isGitRepo(root) : defaultIsGitRepo(root);
+    if (!isGit) {
+      stderr.write(
+        `error: --check needs a git repo at ${root} (it is a pre-push/CI gate).\n` +
+        '  Run it inside a git repository, or use the plain `mmdream document-review` dashboard.\n',
+      );
+      return 5;
+    }
+  }
+
   // The roadmap is mandatory input — without it there is nothing to reconcile.
   let roadmapText;
   try {
@@ -775,5 +839,25 @@ export async function runDocumentReview(rawArgs, injected = {}) {
     (semantic.requested && !semantic.text ? `  (--with-claude semantic drift unavailable: ${semantic.note})\n` : '') +
     '  Read-only: nothing else in the repo was modified. Regenerate after material changes.\n',
   );
+
+  // SPEC_V018A AC-5: --check is the GATE (teeth). The dashboard is already written
+  // (identical to the plain run); now set the exit from CONFORMANCE drift only.
+  // The roadmap reconciliation is a noisy heuristic — it does NOT gate (advisory
+  // only, mirroring deps-gate's "single signals stay advisory"). A clean repo
+  // exits 0; ANY dangling ref / stale fact / stale promise / deprecated-surface
+  // finding exits 1 (pre-push / CI fails honestly).
+  if (parsed.check) {
+    const driftTotal = dangling.length + staleFacts.length + deprecated.length + stalePromises.length;
+    if (driftTotal > 0) {
+      stderr.write(
+        `\ndocument-review --check: FAIL — ${driftTotal} conformance drift finding${driftTotal === 1 ? '' : 's'} ` +
+        `(${dangling.length} dangling · ${staleFacts.length} stale fact${staleFacts.length === 1 ? '' : 's'} · ` +
+        `${deprecated.length} deprecated-surface · ${stalePromises.length} stale promise${stalePromises.length === 1 ? '' : 's'}).\n` +
+        `  See ${REPORT_REL_PATH} for the details. (The roadmap heuristic is advisory and does NOT affect this gate.)\n`,
+      );
+      return 1;
+    }
+    stdout.write('document-review --check: PASS — no conformance drift.\n');
+  }
   return 0;
 }

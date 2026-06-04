@@ -31,7 +31,12 @@ import {
   readCheckpoint, decideResume,
   writeHandoffRequest, readHandoffRequest, clearHandoffRequest, handoffRequestPath,
 } from '../lib/conductor/checkpoint.js';
-import { decideHandoff, parseMaxHandoffs } from '../lib/conductor/handoff.js';
+import {
+  decideHandoff,
+  parseMaxHandoffs,
+  shouldForceHandoff,
+  parseHandoffGraceMs,
+} from '../lib/conductor/handoff.js';
 import { writeRunOutcomeSync } from '../lib/autolearn/run-outcome.js';
 import { computeBlastRadius } from '../lib/sealed-tests/blast-radius.js';
 import { realityCheck } from '../lib/reality-check.js';
@@ -116,11 +121,14 @@ Mode flags (orthogonal to engine):
                                        report the orchestrator's context % to status.json.context, and at
                                        MMD_HANDOFF_THRESHOLD (default 0.70) emit a READY_FOR_HANDOFF signal +
                                        a context_70 notification. Default spawn is unchanged when absent.
-  --auto-handoff                       Cooperative auto-handoff at 70% (v0.13.a, implies --monitor): when the
-                                       orchestrator's context fills, it stops cleanly at a phase boundary and
-                                       MMD relaunches a FRESH successor that resumes from the checkpoint —
-                                       bounded by MMD_MAX_HANDOFFS (default 3), then one final un-handoffed run.
-                                       Never a forced kill. For long runs that may fill context.
+  --auto-handoff                       HYBRID auto-handoff at 70% (v0.13.a + v0.14.b, implies --monitor): when
+                                       the orchestrator's context fills it is INCITED to stop cleanly at a phase
+                                       boundary; if it OBEYS, MMD relaunches a FRESH successor that resumes from
+                                       the checkpoint (cooperative). If it IGNORES the incitation — advancing a
+                                       new boundary while still alive over the threshold — MMD waits a grace
+                                       (MMD_HANDOFF_GRACE_MS) then ENFORCES a terminate AT that checkpoint (no
+                                       committed work lost) and relaunches resume. Bounded by MMD_MAX_HANDOFFS
+                                       (default 3), then one final un-enforced run. For long runs that fill context.
   --label <name>                       Human-readable branch name for --here (e.g. --label wip-salvage); else derived from the dream
   --skip-onboarding                    Bypass the v0.2c Project Onboarder gate (NOT RECOMMENDED)
 
@@ -161,8 +169,11 @@ Environment variables:
                                        Example: MMD_NOTIFY_URL=https://ntfy.sh/<your-topic>
   MMD_HANDOFF_THRESHOLD                Context % that triggers the --monitor READY_FOR_HANDOFF signal +
                                        context_70 notification (v0.5.b). Default 0.70; honored when in (0,1].
-  MMD_MAX_HANDOFFS                     Max cooperative handoffs before one final un-handoffed successor
-                                       (v0.13.a --auto-handoff). Integer >= 1, default 3; junk/0 → default.
+  MMD_MAX_HANDOFFS                     Max handoffs before one final un-enforced successor
+                                       (v0.13.a/v0.14.b --auto-handoff). Integer >= 1, default 3; junk/0 → default.
+  MMD_HANDOFF_GRACE_MS                 HYBRID enforce grace (v0.14.b): ms MMD waits for the orchestrator to exit
+                                       cooperatively after it ignores the incitation, before terminating its
+                                       process group AT the checkpoint. Non-negative integer, default 15000; 0 honored.
 `;
 
 function nowIso() {
@@ -793,6 +804,14 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
 
   let hereMonitor = makeHereMonitor({ enableHandoffRequest: autoHandoff });
 
+  // v0.14.b — HYBRID enforce backstop (SPEC_V014B AC-3). Under --auto-handoff the
+  // first spawn carries the abort predicate (phaseAtSpawn = checkpoint at launch,
+  // 0 handoffs so far) + the grace; without the flag both are inert and the spawn
+  // is byte-for-byte today's.
+  const hereThreshold = handoffThreshold();
+  const hereGraceMs = parseHandoffGraceMs(env.MMD_HANDOFF_GRACE_MS);
+  const herePhaseAtSpawn = (() => { const cp = readCheckpoint(absTargetDir); return cp ? cp.lastCompletedPhase : 0; })();
+
   const startNs = process.hrtime.bigint();
   let invokeResult;
   try {
@@ -806,6 +825,15 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
       engine,
       monitor,
       onContext: hereMonitor ? hereMonitor.onContext : undefined,
+      abortPredicate: makeForceHandoffPredicate({
+        enabled: autoHandoff,
+        runDir: absTargetDir,
+        threshold: hereThreshold,
+        phaseAtSpawn: herePhaseAtSpawn,
+        handoffsSoFar: 0,
+        maxHandoffs,
+      }),
+      graceMs: hereGraceMs,
     });
     // v0.13.a — cooperative auto-handoff loop (SPEC_V013A AC-4). ONLY under
     // --auto-handoff: relaunch fresh successors in resume mode on each clean
@@ -819,7 +847,7 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
         firstResult: invokeResult,
         firstMonitor: hereMonitor,
         makeMonitor: makeHereMonitor,
-        relaunch: ({ monitor: succMonitor, checkpoint }) =>
+        relaunch: ({ monitor: succMonitor, checkpoint, handoffsSoFar, phaseAtSpawn }) =>
           invokeAutodev({
             demoDir: absTargetDir,
             dream,
@@ -836,6 +864,15 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
             engine,
             monitor: true,
             onContext: succMonitor ? succMonitor.onContext : undefined,
+            abortPredicate: makeForceHandoffPredicate({
+              enabled: true, // inside the --auto-handoff loop
+              runDir: absTargetDir,
+              threshold: hereThreshold,
+              phaseAtSpawn,
+              handoffsSoFar,
+              maxHandoffs,
+            }),
+            graceMs: hereGraceMs,
           }),
       });
       invokeResult = loop.invokeResult;
@@ -1648,12 +1685,51 @@ function buildResumeFeedback(checkpoint) {
 }
 
 /**
- * v0.13.a — cooperative auto-handoff loop (SPEC_V013A AC-4, ADR-051). Wraps the
- * auto-dev spawn so MMD hands the run off to a FRESH successor when the
- * orchestrator's context fills — cooperatively (the orchestrator stops at a phase
- * boundary it already checkpointed), never a forced kill. Reused by --here and
+ * v0.14.b — build the ENFORCE abort predicate for a given spawn (SPEC_V014B
+ * AC-3, ADR-053). The HYBRID hands off cooperatively when the orchestrator obeys
+ * the incitation, and ENFORCES when it does not: this predicate is what
+ * invokeAutodev's abort seam checks on each monitor tick. It captures
+ * `phaseAtSpawn` (the checkpoint phase at launch — 0 if none) so a successor
+ * enforces ONLY after IT completes a NEW phase boundary (preventing an immediate
+ * re-kill on the inherited checkpoint), reads the live `pct` from the tick, and
+ * polls `readCheckpoint(runDir)` fresh each call. Pure delegation to
+ * shouldForceHandoff (which never throws); returns a closure or `undefined` when
+ * not under --auto-handoff (the seam then stays inert — the default path).
+ *
+ * @param {{ enabled: boolean, runDir: string, threshold: number, phaseAtSpawn: number, handoffsSoFar: number, maxHandoffs: number }} a
+ * @returns {((ctx: object) => boolean)|undefined}
+ */
+function makeForceHandoffPredicate({ enabled, runDir, threshold, phaseAtSpawn, handoffsSoFar, maxHandoffs }) {
+  if (!enabled) return undefined;
+  return (ctx) => {
+    const cp = readCheckpoint(runDir);
+    return shouldForceHandoff({
+      pct: ctx ? ctx.pct : NaN,
+      threshold,
+      lastCompletedPhase: cp ? cp.lastCompletedPhase : 0,
+      phaseAtSpawn,
+      handoffsSoFar,
+      maxHandoffs,
+    });
+  };
+}
+
+/**
+ * v0.13.a/v0.14.b — the HYBRID auto-handoff loop (SPEC_V013A AC-4 + SPEC_V014B
+ * AC-3, ADR-051/053). Wraps the auto-dev spawn so MMD hands the run off to a
+ * FRESH successor when the orchestrator's context fills. Reused by --here and
  * greenfield; only the per-successor `relaunch` closure + the `makeMonitor`
  * factory differ.
+ *
+ * Two ways a successor ends up handing off, both relaunching resume:
+ *   - COOPERATIVE (Path A, v0.13.a): the orchestrator obeyed the incitation and
+ *     exited cleanly at a boundary (exit 0 + incomplete checkpoint + marker).
+ *   - ENFORCED (Path B, v0.14.b): the orchestrator IGNORED the incitation, so
+ *     MMD's abort seam terminated it at a checkpoint after a grace — invokeAutodev
+ *     resolves `{ aborted: 'handoff', code: null }`. The loop treats that exactly
+ *     like a cooperative stop (NOT a failure) and relaunches via the same
+ *     decideHandoff path (the marker is present — the monitor wrote it at the
+ *     threshold; the checkpoint advanced — so the v0.13.1 gate passes).
  *
  * The CALLER does the FIRST spawn (byte-for-byte today's flow) and passes its
  * result + monitor in. This helper runs ONLY under --auto-handoff (the caller
@@ -1687,9 +1763,13 @@ async function runHandoffLoop({ runDir, slice, maxHandoffs, firstResult, firstMo
   let handoffs = 0;
 
   for (;;) {
-    // A non-zero (or missing) exit is a real failure, not a cooperative stop —
-    // let the caller's failure path own it.
-    if (!invokeResult || invokeResult.code !== 0) break;
+    if (!invokeResult) break;
+    // v0.14.b — an ENFORCED abort (Path B) resolves `{ aborted: 'handoff' }` with
+    // code null; that is a handoff trigger, NOT a failure, so do not break on it.
+    // A non-zero (or missing) exit that is NOT an abort IS a real failure (incl. a
+    // timeout's code:null) — let the caller's failure path own it.
+    const wasAborted = invokeResult.aborted === 'handoff';
+    if (!wasAborted && invokeResult.code !== 0) break;
 
     const checkpoint = readCheckpoint(runDir);
     const requested = readHandoffRequest(runDir) != null;
@@ -1708,6 +1788,12 @@ async function runHandoffLoop({ runDir, slice, maxHandoffs, firstResult, firstMo
     const phaseLabel = phaseN != null ? `phase ${phaseN}` : 'an early boundary';
     const nextLabel = phaseN != null ? `phase ${phaseN + 1}` : 'the next phase';
 
+    // v0.14.b — honest wording: Path A (the orchestrator obeyed → clean exit) vs
+    // Path B (it ignored the incitation → MMD ENFORCED a terminate at the
+    // checkpoint). Both relaunch resume; the operator should see which happened.
+    const how = wasAborted
+      ? 'ignored the incitation — MMD ENFORCED a terminate at the'
+      : 'stopped cleanly at the';
     if (isCap) {
       stdout.write(
         `⚠ Auto-handoff cap reached (${maxHandoffs}) at ${phaseLabel} — ${decision.reason}. ` +
@@ -1716,14 +1802,14 @@ async function runHandoffLoop({ runDir, slice, maxHandoffs, firstResult, firstMo
     } else {
       handoffs += 1;
       stdout.write(
-        `↪ Auto-handoff ${handoffs}/${maxHandoffs}: orchestrator stopped cleanly at ${phaseLabel} boundary. ` +
+        `↪ Auto-handoff ${handoffs}/${maxHandoffs}: orchestrator ${how} ${phaseLabel} boundary. ` +
           `Relaunching a fresh successor in resume mode (continue from ${nextLabel}).\n`,
       );
       await maybeNotify({
         event: 'handoff',
         slice,
         state: 'in_progress',
-        summary: `handoff ${handoffs}/${maxHandoffs} at ${phaseLabel}`,
+        summary: `${wasAborted ? 'enforced ' : ''}handoff ${handoffs}/${maxHandoffs} at ${phaseLabel}`,
       });
     }
 
@@ -1742,7 +1828,18 @@ async function runHandoffLoop({ runDir, slice, maxHandoffs, firstResult, firstMo
       );
     }
     monitor = makeMonitor({ enableHandoffRequest: !isCap });
-    invokeResult = await relaunch({ monitor, checkpoint });
+    // v0.14.b — the successor's enforce predicate is scoped to ITS launch:
+    // phaseAtSpawn = the checkpoint phase it resumes from (so it enforces only
+    // after completing a NEW phase), handoffsSoFar = the running count (so the
+    // cap-final successor, with handoffsSoFar === maxHandoffs, never enforces —
+    // shouldForceHandoff's cap gate disables it for free → the "one final
+    // un-enforced run" guarantee).
+    invokeResult = await relaunch({
+      monitor,
+      checkpoint,
+      handoffsSoFar: handoffs,
+      phaseAtSpawn: phaseN != null ? phaseN : 0,
+    });
     if (isCap) break; // the final successor is not eligible for another handoff
   }
 
@@ -2382,6 +2479,11 @@ async function main() {
 
   let greenfieldMonitor = makeGreenfieldMonitor({ enableHandoffRequest: autoHandoff });
 
+  // v0.14.b — HYBRID enforce backstop on the greenfield path (mirrors --here).
+  const greenThreshold = handoffThreshold();
+  const greenGraceMs = parseHandoffGraceMs(env.MMD_HANDOFF_GRACE_MS);
+  const greenPhaseAtSpawn = (() => { const cp = readCheckpoint(demoDir); return cp ? cp.lastCompletedPhase : 0; })();
+
   const startNs = process.hrtime.bigint();
   let invokeResult;
   try {
@@ -2395,6 +2497,15 @@ async function main() {
       engine,
       monitor: flags.monitor,
       onContext: greenfieldMonitor ? greenfieldMonitor.onContext : undefined,
+      abortPredicate: makeForceHandoffPredicate({
+        enabled: autoHandoff,
+        runDir: demoDir,
+        threshold: greenThreshold,
+        phaseAtSpawn: greenPhaseAtSpawn,
+        handoffsSoFar: 0,
+        maxHandoffs,
+      }),
+      graceMs: greenGraceMs,
     });
     // v0.13.a — cooperative auto-handoff loop on the greenfield path (AC-4).
     // ONLY under --auto-handoff; skipped otherwise so the single-spawn flow is
@@ -2407,7 +2518,7 @@ async function main() {
         firstResult: invokeResult,
         firstMonitor: greenfieldMonitor,
         makeMonitor: makeGreenfieldMonitor,
-        relaunch: ({ monitor: succMonitor, checkpoint }) =>
+        relaunch: ({ monitor: succMonitor, checkpoint, handoffsSoFar, phaseAtSpawn }) =>
           invokeAutodev({
             demoDir,
             dream,
@@ -2423,6 +2534,15 @@ async function main() {
             engine,
             monitor: true,
             onContext: succMonitor ? succMonitor.onContext : undefined,
+            abortPredicate: makeForceHandoffPredicate({
+              enabled: true, // inside the --auto-handoff loop
+              runDir: demoDir,
+              threshold: greenThreshold,
+              phaseAtSpawn,
+              handoffsSoFar,
+              maxHandoffs,
+            }),
+            graceMs: greenGraceMs,
           }),
       });
       invokeResult = loop.invokeResult;

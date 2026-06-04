@@ -103,10 +103,14 @@ test('@unit reconcile: full Documentalist / polymorphic Reality Check → partia
   assert.equal(byVersion['v0.6'].status, 'partial');
 });
 
-test('@unit reconcile: Plan-Review Worker is never "built" (unbuilt or partial)', () => {
+test('@unit reconcile: Plan-Review Worker is never "built" — and a weak-only match reads unknown, not a false partial (AC-1)', () => {
   const { byVersion } = classify();
   assert.notEqual(byVersion['v0.3b'].status, 'built');
-  assert.ok(['unbuilt', 'partial'].includes(byVersion['v0.3b'].status));
+  // "Plan-Review Worker" weak-matches `review` (from `document-review`) but never
+  // NAME-matches a real Plan-Review surface — so it is honestly unknown/unbuilt,
+  // NEVER a falsely-comforting partial (the AC-1 fix).
+  assert.ok(['unbuilt', 'unknown'].includes(byVersion['v0.3b'].status));
+  assert.notEqual(byVersion['v0.3b'].status, 'partial', 'a weak-only match must not read partial');
 });
 
 test('@unit reconcile: NONE of the six big rocks is classified "built"', () => {
@@ -122,14 +126,35 @@ test('@unit reconcile: each entry carries a human-readable signal string', () =>
   assert.equal(byVersion['v0.3a'].signal, '(none)');
 });
 
-// ── tag-presence weak signal ────────────────────────────────────────────────
+// ── tag-presence / weak signal → UNKNOWN, never a false partial (AC-1) ───────
 
-test('@unit reconcile: a numeric version with a shipped tag but no name signal → partial (not unbuilt)', () => {
-  // "v0.4 — Mystery capability" has no name signal, but tags v0.4.x exist.
+test('@unit reconcile: a numeric version with a shipped tag but NO name match → unknown (NOT partial — AC-1)', () => {
+  // "v0.4 — Mystery capability" has no capability-NAME signal, only a v0.4.x tag
+  // NUMBER. A tag number is not proof THIS capability shipped (the "Voice mode"
+  // false-partial bug) → honestly UNKNOWN, never a falsely-comforting partial.
   const roadmap = '### v0.4 — Mystery capability nobody named  *(1 day)*\n';
   const out = reconcileRoadmap({ roadmapText: roadmap, inventory: INVENTORY });
-  assert.equal(out.entries[0].status, 'partial');
+  assert.equal(out.entries[0].status, 'unknown');
   assert.match(out.entries[0].signal, /tag v0\.4\.x shipped/);
+  assert.match(out.entries[0].signal, /no capability-name match|unverified/i);
+});
+
+test('@unit reconcile: a weak related-token match (no NAME match) → unknown (NOT partial — AC-1)', () => {
+  // "monitor" is a distinctive weak token (it appears only in an ADR TITLE —
+  // "Live context monitor" — never as a subcommand/lib-module NAME). The
+  // capability "Voice monitor experiments" weak-matches `monitor` but never
+  // NAME-matches a real surface thing → the weak token alone must NOT read
+  // partial; it is honestly unknown.
+  const roadmap = '### v0.20 — Voice monitor experiments  *(1 day)*\n';
+  const out = reconcileRoadmap({ roadmapText: roadmap, inventory: INVENTORY });
+  assert.equal(out.entries[0].status, 'unknown', 'weak-only signal must be unknown, not partial');
+  assert.match(out.entries[0].signal, /related:/);
+});
+
+test('@unit reconcile: NO weak/strong signal AND no tag → unbuilt (honest default)', () => {
+  const roadmap = '### v0.30 — Telepathic dream ingestion  *(1 day)*\n';
+  const out = reconcileRoadmap({ roadmapText: roadmap, inventory: INVENTORY });
+  assert.equal(out.entries[0].status, 'unbuilt');
 });
 
 test('@unit reconcile: a lettered version (v0.4b) does NOT borrow the v0.4.x tag', () => {

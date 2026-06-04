@@ -106,10 +106,15 @@ test('@integration AC-4: bare index.html back-compat (no descriptor) → proceed
   }
 });
 
-test('@integration AC-4: --here short-circuit is unchanged (SKIPPED, run npm test)', async () => {
+test('@integration v0.17.a AC-3: --here is no longer a blanket SKIP — it runs the deterministic face', async () => {
+  // A cli-kind build with no project test command: the deterministic face runs
+  // the descriptor's `run` command via the injected exec seam (must exit 0).
   const dir = demo({ descriptor: { kind: 'cli', run: 'node x.js' } });
-  const r = await realityCheck({ demoDir: dir, hereMode: true });
-  assert.equal(r.status, 'SKIPPED');
-  assert.match(r.reason, /--here mode/);
-  assert.match(r.reason, /npm test/);
+  const calls = [];
+  const injectedExec = (cmd, args) => { calls.push([cmd, ...args].join(' ')); return { status: 0, stdout: '', stderr: '' }; };
+  const r = await realityCheck({ demoDir: dir, hereMode: true, injectedExec });
+  // It actually ran the cli `run` command (no longer a blanket skip / no npm-test prose).
+  assert.equal(r.status, 'PASS');
+  assert.equal(r.face, 'deterministic');
+  assert.ok(calls.some((c) => c.includes('node x.js')), `expected the cli run command to be executed; calls=${JSON.stringify(calls)}`);
 });

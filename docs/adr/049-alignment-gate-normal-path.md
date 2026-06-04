@@ -100,5 +100,5 @@ observability/HITL. The **polymorphic Reality Check** (invoke `/qa`/`/cso` by
 deliverable type) is the *deterministic/tool* alignment face complementing this
 *semantic/judge* face — also deferred.
 
-See SPEC_V011A.md, L-025 (P-09 judge), and ADR-028 (the original sealed-pipeline
+See docs/specs/SPEC_V011A.md, L-025 (P-09 judge), and ADR-028 (the original sealed-pipeline
 judge this slice reuses).

@@ -149,6 +149,6 @@ bare-`index.html` check, so nothing regresses.
 - Honest residual: a non-web build is **detected and reported**, not yet
   **verified** or **richly previewed** — that is slices 2-3, named above.
 
-See SPEC_V010A (`SPEC_V010A.md`), the constitution §VIII (`universal.md`), and the
+See SPEC_V010A (`docs/specs/SPEC_V010A.md`), the constitution §VIII (`universal.md`), and the
 preview/honesty couple in §VI. Related: ADR-042/043/044 (the analysis-side §VIII
 reckonings this mirrors on the generation side).

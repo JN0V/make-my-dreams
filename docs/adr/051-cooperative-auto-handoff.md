@@ -139,5 +139,5 @@ not behave as designed (never papered over).
   §III): the v0.12.a resume already does exactly "relaunch a fresh auto-dev
   continuing from the checkpoint." Handoff is just resume triggered by the marker.
 
-See SPEC_V013A.md, ADR-030 (the monitor), ADR-050 (the resume foundation),
+See docs/specs/SPEC_V013A.md, ADR-030 (the monitor), ADR-050 (the resume foundation),
 ADR-029 (the notify fan-out), L-027 (opt-in spawn-changing observability).

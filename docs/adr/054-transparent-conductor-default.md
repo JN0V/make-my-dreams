@@ -118,7 +118,7 @@ detected, so it does not block the flip.)
 - **Remove `--auto-handoff` / `--monitor` now** — rejected: keeping them inert is
   free back-compat; a future major may drop them.
 
-See SPEC_V015A.md, ADR-053 (the proven hybrid this makes default — note its
+See docs/specs/SPEC_V015A.md, ADR-053 (the proven hybrid this makes default — note its
 "Default-on — rejected (L-027)" alternative is the decision this ADR reverses now
 that the hybrid is proven), ADR-051 (cooperative), ADR-050 (resume), ADR-030 (the
 monitor), ADR-049 (the alignment gate that still runs once), L-027 (the opt-in

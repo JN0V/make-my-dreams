@@ -149,6 +149,6 @@ green-by-fakes done — the exact trap that hid the cooperative bug).
   bootstrap that builds MMD itself. Opt-in (`--auto-handoff` implies `--monitor`)
   is the safety contract.
 
-See SPEC_V014B.md, ADR-051 (the cooperative path this hardens), ADR-050 (the
+See docs/specs/SPEC_V014B.md, ADR-051 (the cooperative path this hardens), ADR-050 (the
 resume foundation), ADR-030 (the monitor), L-027 (opt-in spawn-changing
 observability), L-004/L-019 (the green-by-fakes + lost-WIP traps this guards).

@@ -1,8 +1,16 @@
 # Archived SPECs
 
-> Shipped specifications, archived from the repo root by `mmd document-compact`.
-> Newest first. GENERATED — do not hand-edit (regenerate with `mmd document-compact`).
+> Shipped specifications, archived from the repo root by `mmdream document-compact`.
+> Newest first. GENERATED — do not hand-edit (regenerate with `mmdream document-compact`).
 
+- **v0.9.b** — [`SPEC_V09B.md`](SPEC_V09B.md) — Make My Dreams — v0.9.2 Spec: `mmd deps-gate` — the second Bundle A Security brick (polyglot dependency / supply-chain gate)
+- **v0.9.0** — [`SPEC_V090.md`](SPEC_V090.md) — Make My Dreams — v0.9.0 Spec: close the autolearning loop (validated-reuse counter + LLM promotion gate)
+- **v0.8.1** — [`SPEC_V081.md`](SPEC_V081.md) — Make My Dreams — v0.8.1 Spec: polyglot import graph (§VIII debt — blast-radius + coherence-graph code edges)
+- **v0.8.0** — [`SPEC_V080.md`](SPEC_V080.md) — Make My Dreams — v0.8.0 Spec: the Test Curator goes POLYGLOT (adapter architecture)
+- **v0.7.7** — [`SPEC_V077.md`](SPEC_V077.md) — Make My Dreams — v0.7.7 Spec: the Test Curator's REDUNDANCY face (`mmd test-health`)
+- **v0.7.6** — [`SPEC_V076.md`](SPEC_V076.md) — Make My Dreams — v0.7.6 Spec: the Test Curator (`mmd test-health`)
+- **v0.7.e** — [`SPEC_V07E.md`](SPEC_V07E.md) — Make My Dreams — v0.7.e Spec: cap hub-SOURCE neighbor floods in the coherence-graph staleness report
+- **v0.7.d** — [`SPEC_V07D.md`](SPEC_V07D.md) — Make My Dreams — v0.7.d Spec: the coherence graph — staleness-on-diff (`mmd document-review --since`)
 - **v0.7.c** — [`SPEC_V07C.md`](SPEC_V07C.md) — Make My Dreams — v0.7.c Spec: the Documentalist compacts — SPEC archival (`mmd document-compact`)
 - **v0.7.b** — [`SPEC_V07B.md`](SPEC_V07B.md) — Make My Dreams — v0.7.b Spec: the Documentalist checks DRIFT — is the doc still TRUE? (`mmd document-review` conformance)
 - **v0.7.a** — [`SPEC_V07A.md`](SPEC_V07A.md) — Make My Dreams — v0.7.a Spec: the Documentalist's coherence review (`mmd document-review`)
@@ -37,4 +45,12 @@
 - **v0.2.b** — [`SPEC_V02B.md`](SPEC_V02B.md) — Make My Dreams — v0.2b Spec: `mmd bench` (dream-bench v0)
 - **v0.2.a** — [`SPEC_V02A.md`](SPEC_V02A.md) — Make My Dreams — v0.2a Spec: `--here` mode (self / brownfield-in-place)
 - **v0.2** — [`SPEC_V02.md`](SPEC_V02.md) — Make My Dreams — v0.2 Spec: FAST engine (`mmd --fast`)
+- **v0.1.6.a** — [`SPEC_V016A.md`](SPEC_V016A.md) — Make My Dreams — v0.16.0 Spec (slice v0.16.a): model-per-task — the Conductor allocates the model to the role
+- **v0.1.5.a** — [`SPEC_V015A.md`](SPEC_V015A.md) — Make My Dreams — v0.15.0 Spec (slice v0.15.a): the transparent Conductor — auto-handoff default-on
+- **v0.1.4.b** — [`SPEC_V014B.md`](SPEC_V014B.md) — Make My Dreams — v0.14.0 Spec (slice v0.14.b): hybrid auto-handoff (incite, then enforce at a checkpoint)
+- **v0.1.4.a** — [`SPEC_V014A.md`](SPEC_V014A.md) — Make My Dreams — v0.14.0 Spec (slice v0.14.a): the transparent Conductor — auto-handoff default-on
+- **v0.1.3.a** — [`SPEC_V013A.md`](SPEC_V013A.md) — Make My Dreams — v0.13.0 Spec (slice v0.13.a): cooperative auto-handoff at 70% (Conductor step C)
+- **v0.1.2.a** — [`SPEC_V012A.md`](SPEC_V012A.md) — Make My Dreams — v0.12.0 Spec (slice v0.12.a): the stateless, resumable orchestrator (Conductor step B.1)
+- **v0.1.1.a** — [`SPEC_V011A.md`](SPEC_V011A.md) — Make My Dreams — v0.11.0 Spec (slice v0.11.a): alignment gate on the normal path + iterate-on-gap
+- **v0.1.0.a** — [`SPEC_V010A.md`](SPEC_V010A.md) — Make My Dreams — v0.10.0 Spec (slice v0.10.a): technology-agnostic greenfield generation + honest preview
 - **v0.1** — [`SPEC_V01.md`](SPEC_V01.md) — Make My Dreams — v0.1 Walking Skeleton Spec

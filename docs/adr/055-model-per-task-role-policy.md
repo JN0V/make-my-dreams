@@ -130,7 +130,7 @@ override is live today for L1 and the orchestrator parent.
   as drift-prone: the values mirror `model-policy.js` `DEFAULTS` with a documented
   canonical-source comment + an AC-3 assertion against `DEFAULTS`.
 
-See SPEC_V016A.md, ADR-050 (the resumable orchestrator the parent model rides on),
+See docs/specs/SPEC_V016A.md, ADR-050 (the resumable orchestrator the parent model rides on),
 ADR-051/053/054 (the Conductor handoff machinery the light orchestrator complements),
 ADR-028 (the judge), ADR-026 (the sealed tester), ADR-011 (the unblock 5-Whys),
 L-027 (the detached-vs-attached / `[1m]` window finding), §VI / [[always-verify-live]]

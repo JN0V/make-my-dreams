@@ -121,7 +121,7 @@ signal). The confusion that let the wrong signal drive promotion is now visible 
 
 ## References
 
-- SPEC: [SPEC_V090.md](../../SPEC_V090.md)
+- SPEC: [docs/specs/SPEC_V090.md](../../SPEC_V090.md)
 - The wrong signal it corrects: [ADR-010 §Q3](./010-composer-minimal-keyword-overlap.md)
 - The counter mechanism it rewires: [ADR-014](./014-documentalist-lite-counter-incrementer.md)
 - The judge pattern it mirrors: [ADR-028](./028-llm-judge-behavioral-oracle.md)

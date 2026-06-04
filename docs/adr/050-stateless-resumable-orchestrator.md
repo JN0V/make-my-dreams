@@ -107,4 +107,4 @@ is an explicit **operator/live validation** (AC-6), like the greenfield captures
   `.mmd/`.
 - **Parallel orchestrators (step D)** and **Bundle C observability (step E)**.
 
-See SPEC_V012A.md for the full acceptance criteria.
+See docs/specs/SPEC_V012A.md for the full acceptance criteria.

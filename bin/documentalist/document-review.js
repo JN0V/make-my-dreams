@@ -36,7 +36,10 @@ import { extractDocRefs } from '../../lib/documentalist/doc-refs.js';
 import {
   checkArtifactConformance,
   checkFactConformance,
+  checkDeprecatedSurface,
+  checkVersionPinnedPromises,
 } from '../../lib/documentalist/conformance.js';
+import { buildUxTextSurface } from '../../lib/documentalist/ux-text-surface.js';
 import { extractDocLinks } from '../../lib/documentalist/doc-links.js';
 import { buildCoherenceGraph, coupledNeighbors } from '../../lib/documentalist/coherence-graph.js';
 import { computeBlastRadius } from '../../lib/sealed-tests/blast-radius.js';
@@ -249,21 +252,38 @@ function gatherTruthDocs(root) {
 }
 
 /**
- * Run the deterministic drift / conformance scan (AC-3/AC-4). Pure-ish: the
- * only I/O is reading the truth docs + the injected fileExistsFn; the judgment
- * is the two pure conformance checks.
+ * Build the wider "UX-text surface" (SPEC_V018A AC-2): the user-facing strings
+ * beyond the markdown truth docs — shell-script printf/echo output (install-mmd.sh
+ * + siblings) + the CLI --help/USAGE text. Injected reader; never throws.
+ *
+ * @param {string} root
+ * @returns {Array<{ path: string, text: string }>}
+ */
+function gatherUxTextSurface(root) {
+  const readFile = (rel) => readFileSync(path.join(root, rel), 'utf8');
+  return buildUxTextSurface({ repoRoot: root, readFile });
+}
+
+/**
+ * Run the deterministic drift / conformance scan (AC-3/AC-4 + AC-2/AC-3/AC-4 of
+ * SPEC_V018A). Pure-ish: the only I/O is reading the truth docs + the UX-text
+ * surface + the injected fileExistsFn; the judgment is the pure conformance checks.
+ *
+ * The conformance scan now reaches BEYOND markdown (SPEC_V018A AC-2): the
+ * dangling-ref scan, the deprecated-surface check, and the version-pinned-promise
+ * check all run over the markdown truth docs PLUS the shell-script printf/echo
+ * output PLUS the CLI --help/USAGE text. The markdown checks are unchanged
+ * (additive — the wider surface never narrows what was scanned).
  *
  * @param {string} root
  * @param {object} inventory
- * @returns {{ dangling: object[], staleFacts: object[], scannedDocs: number }}
+ * @returns {{ dangling: object[], staleFacts: object[], deprecated: object[],
+ *             stalePromises: object[], scannedDocs: number, scannedUx: number }}
  */
 function scanDrift(root, inventory) {
   const truthDocs = gatherTruthDocs(root);
-  const docRefs = [];
-  for (const { doc, text } of truthDocs) {
-    for (const r of extractDocRefs(text)) docRefs.push({ ...r, doc });
-  }
-  const fileExistsFn = (rel) => existsSync(path.join(root, rel));
+  const uxSurface = gatherUxTextSurface(root); // AC-2: scripts + --help/USAGE
+
   // The repo's REAL top-level directories — the derived (not hardcoded) successor
   // to the old lib|bin|test|docs allowlist (§VIII polyglot precision). A doc's
   // file ref is judged dangling ONLY when rooted at one of these, so a broadened
@@ -278,12 +298,39 @@ function scanDrift(root, inventory) {
   } catch {
     repoTopDirs = [];
   }
+  const fileExistsFn = (rel) => existsSync(path.join(root, rel));
+
+  // Dangling refs — over the markdown docs AND the wider UX-text surface (AC-2).
+  // Each ref carries its source path (a doc rel-path or a "<script>"/"bin/mmd.js
+  // --help" label) so a finding points back at the real location.
+  const docRefs = [];
+  for (const { doc, text } of truthDocs) {
+    for (const r of extractDocRefs(text)) docRefs.push({ ...r, doc });
+  }
+  for (const { path: uxPath, text } of uxSurface) {
+    for (const r of extractDocRefs(text)) docRefs.push({ ...r, doc: uxPath });
+  }
   const dangling = checkArtifactConformance({ docRefs, inventory, fileExistsFn, repoTopDirs });
+
   // Fact conformance only on the living current-state docs (counts in historical
   // ADRs/lessons are correct-as-of-writing, not drift).
   const factDocs = truthDocs.filter((d) => CURRENT_STATE_DOCS.has(d.doc));
   const staleFacts = checkFactConformance({ docs: factDocs, inventory });
-  return { dangling, staleFacts, scannedDocs: truthDocs.length };
+
+  // Deprecated-surface (AC-3) + version-pinned promises (AC-4) — over the markdown
+  // truth docs AND the UX-text surface (AC-2). The markdown docs carry a {doc,text}
+  // shape; the new checks consume {path,text} — adapt the truth docs to that shape.
+  const wideSurface = [
+    ...truthDocs.map((d) => ({ path: d.doc, text: d.text })),
+    ...uxSurface,
+  ];
+  const deprecated = checkDeprecatedSurface(wideSurface);
+  const stalePromises = checkVersionPinnedPromises(wideSurface, { currentVersion: VERSION });
+
+  return {
+    dangling, staleFacts, deprecated, stalePromises,
+    scannedDocs: truthDocs.length, scannedUx: uxSurface.length,
+  };
 }
 
 /**
@@ -667,8 +714,11 @@ export async function runDocumentReview(rawArgs, injected = {}) {
   const inventory = gatherRealInventory(root);
   const reconciliation = reconcileRoadmap({ roadmapText, inventory });
 
-  // Drift / conformance scan (deterministic — AC-3/AC-4).
-  const { dangling, staleFacts, scannedDocs } = scanDrift(root, inventory);
+  // Drift / conformance scan (deterministic — dangling refs + stale facts +
+  // SPEC_V018A AC-2 wider surface + AC-3 deprecated + AC-4 stale promises).
+  const {
+    dangling, staleFacts, deprecated, stalePromises, scannedDocs, scannedUx,
+  } = scanDrift(root, inventory);
 
   // Optional LLM enrichment (opt-in, graceful fallback).
   let llm = { requested: false, enrichment: null, note: null };
@@ -684,7 +734,9 @@ export async function runDocumentReview(rawArgs, injected = {}) {
     semantic = { requested: true, text, note: dnote };
   }
 
-  const drift = { dangling, staleFacts, scannedDocs, semantic };
+  const drift = {
+    dangling, staleFacts, deprecated, stalePromises, scannedDocs, scannedUx, semantic,
+  };
   const report = renderCoherenceReport({ inventory, reconciliation, llm, drift, version: VERSION });
 
   if (parsed.dryRun) {
@@ -715,7 +767,9 @@ export async function runDocumentReview(rawArgs, injected = {}) {
     `  Inventory: ${inventory.subcommands.length} subcommands · ${inventory.adrs.length} ADRs · ` +
     `${inventory.lessonCount == null ? '?' : inventory.lessonCount} lessons · ${inventory.specCount} root SPECs.\n` +
     `  Drift: ${dangling.length} dangling reference${dangling.length === 1 ? '' : 's'} · ` +
-    `${staleFacts.length} stale fact${staleFacts.length === 1 ? '' : 's'} (scanned ${scannedDocs} truth docs, heuristic).\n` +
+    `${staleFacts.length} stale fact${staleFacts.length === 1 ? '' : 's'} · ` +
+    `${deprecated.length} deprecated-surface · ${stalePromises.length} stale promise${stalePromises.length === 1 ? '' : 's'} ` +
+    `(scanned ${scannedDocs} truth docs + ${scannedUx} UX-text surfaces, heuristic).\n` +
     (flags.length ? `  Doc-health: ${flags.join(', ')}.\n` : '  Doc-health: no length-cap flags.\n') +
     (llm.requested && !llm.enrichment ? `  (--with-claude enrichment unavailable: ${llm.note})\n` : '') +
     (semantic.requested && !semantic.text ? `  (--with-claude semantic drift unavailable: ${semantic.note})\n` : '') +

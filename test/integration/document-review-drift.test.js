@@ -214,6 +214,67 @@ test('@integration drift: an auto-generated recent-commits block yields no phant
   }
 });
 
+test('@integration drift(AC-2/AC-3): a stale /bmad-adv-auto-dev recommendation in install-mmd.sh printf is detected', async () => {
+  // SPEC_V018A AC-2: the conformance scan now reaches install-mmd.sh printf/echo
+  // output — exactly where the stale `/bmad-adv-auto-dev` "try this" lived (it was
+  // 100% outside the markdown-only scope before). AC-3: it is flagged as a
+  // deprecated-surface recommendation, deterministically (no --with-claude).
+  const dir = await mkdtemp(path.join(tmpdir(), 'mmd-drift-ux-'));
+  try {
+    await mkdir(path.join(dir, 'docs', 'adr'), { recursive: true });
+    await writeFile(path.join(dir, 'MAKE_MY_DREAMS.md'), ROADMAP);
+    await writeFile(path.join(dir, 'package.json'), '{"version":"0.18.0"}');
+    await writeFile(path.join(dir, 'README.md'), '# clean\n\nNothing claimed here.\n');
+    await writeFile(path.join(dir, 'docs', 'adr', '001-x.md'), '# ADR-001 — x\n');
+    // The stale recommendation lives in a printf — markdown-only scanning misses it.
+    await writeFile(
+      path.join(dir, 'install-mmd.sh'),
+      '#!/usr/bin/env bash\nset -e\nprintf "To begin, try /bmad-adv-auto-dev in your session\\n"\n',
+    );
+    git(dir, ['init', '-q']);
+    git(dir, ['config', 'user.email', 't@t.t']);
+    git(dir, ['config', 'user.name', 'T']);
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-qm', 'baseline']);
+
+    const r = runMmd(dir, []);
+    assert.equal(r.status, 0, r.stderr);
+    const report = await readFile(path.join(dir, 'docs', 'coherence-review.md'), 'utf8');
+    assert.match(report, /### Deprecated surface/);
+    assert.match(report, /install-mmd\.sh:3 recommends `\/bmad-adv-auto-dev`/);
+    // The summary line reports the deprecated-surface count from the wider scan.
+    assert.match(r.stdout, /1 deprecated-surface/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('@integration drift(AC-4): a version-pinned promise that came due is flagged', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'mmd-drift-promise-'));
+  try {
+    await mkdir(path.join(dir, 'docs', 'adr'), { recursive: true });
+    await writeFile(path.join(dir, 'MAKE_MY_DREAMS.md'), ROADMAP);
+    await writeFile(path.join(dir, 'package.json'), '{"version":"0.18.0"}');
+    // The README's "License — to be added in v0.1" while v0.18 has long shipped.
+    await writeFile(path.join(dir, 'README.md'), '# Fixture\n\n## License\n\nMIT — to be added in v0.1.\n');
+    await writeFile(path.join(dir, 'docs', 'adr', '001-x.md'), '# ADR-001 — x\n');
+    git(dir, ['init', '-q']);
+    git(dir, ['config', 'user.email', 't@t.t']);
+    git(dir, ['config', 'user.name', 'T']);
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-qm', 'baseline']);
+
+    const r = runMmd(dir, []);
+    assert.equal(r.status, 0, r.stderr);
+    const report = await readFile(path.join(dir, 'docs', 'coherence-review.md'), 'utf8');
+    assert.match(report, /### Stale promises/);
+    assert.match(report, /README\.md:5 promises "to be added in v0\.1"/);
+    assert.match(r.stdout, /1 stale promise/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('@integration drift: --with-claude semantic drift renders from the seam', async () => {
   const dir = await makeRepo();
   const fake = path.join(dir, 'fake-claude-ok.sh');

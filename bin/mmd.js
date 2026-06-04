@@ -27,7 +27,11 @@ import { buildManifest, verifyManifest, sealIntact } from '../lib/sealed-tests/m
 import { buildTesterPrompt, buildCoderPrompt } from '../lib/sealed-tests/tester-prompt.js';
 import { buildJudgePrompt, parseJudgeVerdict, judgeFallback } from '../lib/sealed-tests/judge.js';
 import { aggregateAlignment, buildGapFeedback, parseMaxIters } from '../lib/conductor/alignment-gate.js';
-import { readCheckpoint, decideResume } from '../lib/conductor/checkpoint.js';
+import {
+  readCheckpoint, decideResume,
+  writeHandoffRequest, readHandoffRequest, clearHandoffRequest,
+} from '../lib/conductor/checkpoint.js';
+import { decideHandoff, parseMaxHandoffs } from '../lib/conductor/handoff.js';
 import { writeRunOutcomeSync } from '../lib/autolearn/run-outcome.js';
 import { computeBlastRadius } from '../lib/sealed-tests/blast-radius.js';
 import { realityCheck } from '../lib/reality-check.js';
@@ -217,9 +221,16 @@ function handoffThreshold(envObj = env) {
  * All side effects are best-effort: a status-write or notify fault is swallowed
  * and NEVER changes the run's exit code (error-handling.md; mirrors maybeNotify).
  *
- * @param {{ slice: string, writeIntermediate: (fields: object) => Promise<void> }} a
+ * v0.13.a — when `requestHandoff` is provided (the `--auto-handoff` path), the
+ * monitor ALSO writes the cooperative handoff-REQUEST marker on the first
+ * threshold crossing, so the auto-dev orchestrator can stop cleanly at its next
+ * phase boundary. Absent (plain `--monitor`, the default), NO marker is written
+ * — the spawn + monitor behavior is byte-for-byte today's, so a non-auto-handoff
+ * run never sees a request marker (SPEC_V013A AC-3 invariant).
+ *
+ * @param {{ slice: string, writeIntermediate: (fields: object) => Promise<void>, requestHandoff?: (ctx: object) => void }} a
  */
-function makeContextMonitor({ slice, writeIntermediate }) {
+function makeContextMonitor({ slice, writeIntermediate, requestHandoff }) {
   const threshold = handoffThreshold();
   const accumulated = {};
   let notified = false;
@@ -239,11 +250,25 @@ function makeContextMonitor({ slice, writeIntermediate }) {
         model: ctx.model,
         estimated: ctx.estimated,
       };
+      const handing = typeof requestHandoff === 'function';
       stdout.write(
         `[monitor] READY_FOR_HANDOFF — orchestrator context ` +
           `${(ctx.pct * 100).toFixed(1)}% (${ctx.tokens}/${ctx.window}) ` +
-          `≥ ${(threshold * 100).toFixed(0)}% threshold. Run continues (no auto-handoff yet).\n`,
+          `≥ ${(threshold * 100).toFixed(0)}% threshold. ` +
+          (handing
+            ? `Requesting a cooperative handoff at the next phase boundary.\n`
+            : `Run continues (no auto-handoff yet).\n`),
       );
+      // v0.13.a — write the cooperative handoff-REQUEST marker (auto-handoff
+      // only). Best-effort: writeHandoffRequest never throws, the try is
+      // defense-in-depth so a marker fault can never escape into the run flow.
+      if (handing) {
+        try {
+          requestHandoff(ctx);
+        } catch {
+          /* best-effort — a marker-write fault never changes the run outcome */
+        }
+      }
       pending = pending
         .then(() =>
           maybeNotify({

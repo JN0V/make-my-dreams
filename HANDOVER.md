@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.17.0`
-- **Branch**: `slice/here-documentalist-close-5-blind-spots-1780599161`
+- **Latest tag**: `v0.18.0`
+- **Branch**: `main`
 - **Version**: `0.18.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 56 (ADR-001..ADR-057)
-- **Tests**: 2266 passing
+- **Tests**: 2271 passing
 - **Recent commits**:
+  - `1b73165 docs(v0.18.0): ADR-057, README + CLAUDE.md + mmdream.md, version bump + live capture (AC-6)`
   - `f758c82 feat(documentalist): --check flag exits 1 on any conformance drift (AC-5)`
   - `d7fc926 feat(documentalist): broaden conformance scan to install-mmd.sh printf + CLI --help/USAGE text (AC-2)`
   - `95cc657 feat(documentalist): deterministic deprecated-surface + version-pinned-promise checks (AC-3, AC-4)`
   - `d065c26 fix(roadmap-reconcile): stop false-partial on tag-number/weak-token match — unknown when no name match (AC-1)`
-  - `4fff7f7 docs(spec): freeze SPEC_V018A — close the Documentalist's 5 blind-spots`
 - **Generated**: 2026-06-04 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

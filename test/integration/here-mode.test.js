@@ -157,8 +157,12 @@ test('@integration v0.2a AC-1+3+5+6: --here on clean repo creates slice branch, 
       'demo/ must NOT exist in --here mode',
     );
 
-    // AC-6: Reality Check skipped on stdout with the documented reason.
-    assert.match(r.stdout, /Reality Check: SKIPPED — --here mode/);
+    // v0.17.a (AC-3): the blanket --here Reality-Check SKIP is gone. The
+    // deterministic face now runs inside the alignment gate; on a repo with no
+    // detectable test command / runnable kind it honestly SKIPs (no fabricated
+    // pass) — surfaced as the gate's deterministic-face line.
+    assert.match(r.stdout, /deterministic face: SKIPPED/);
+    assert.match(r.stdout, /no detectable test command or runnable entry point/);
 
     // F1 (Phase 4 review): two independent oracles for AC-3.
     //   (a) The fixture-recorded branchRecord (what auto-dev SAW during its

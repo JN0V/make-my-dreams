@@ -26,7 +26,10 @@ import { invokeAutodev, buildSubprocessEnv, resolveAutodevMode, buildPrompt } fr
 import { buildManifest, verifyManifest, sealIntact } from '../lib/sealed-tests/manifest.js';
 import { buildTesterPrompt, buildCoderPrompt } from '../lib/sealed-tests/tester-prompt.js';
 import { buildJudgePrompt, parseJudgeVerdict, judgeFallback } from '../lib/sealed-tests/judge.js';
-import { aggregateAlignment, buildGapFeedback, parseMaxIters } from '../lib/conductor/alignment-gate.js';
+import {
+  aggregateAlignment, buildGapFeedback, parseMaxIters,
+  evaluateDeterministicFace, buildDeterministicFeedback, combineFaceFeedback,
+} from '../lib/conductor/alignment-gate.js';
 import { writeExpectation, resolveAlignmentAnchor } from '../lib/conductor/expectation.js';
 import { modelForRole } from '../lib/conductor/model-policy.js';
 import {
@@ -964,6 +967,10 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
       logPath,
       buildArtifacts: () => buildDiffArtifactsSummary(absTargetDir, baseSha),
       timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+      // v0.17.a (AC-4) — the DETERMINISTIC face on --here: the un-skipped Reality
+      // Check (project tests + run.json-kind "does it run"), anchored to the same
+      // run. Runs inside the gate so a deterministic FAIL drives the iterate loop.
+      runDeterministic: () => realityCheck({ demoDir: absTargetDir, hereMode: true }),
       relaunch: (feedback) =>
         invokeAutodev({
           demoDir: absTargetDir,
@@ -979,23 +986,24 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
     });
     hereJudge = gate.judge;
     if (gate.outcome === 'gap') {
-      // A confirmed behavioral gap survived the bounded iterations → exit 7
-      // (the EXISTING behavioral-gap code), status records the gap, NOT done.
+      // A confirmed gap (deterministic and/or semantic) survived the bounded
+      // iterations → exit 7, status records the FAILING FACE, NOT done.
+      const face = gate.face || 'semantic';
       const perAc = gate.judge.verdicts.map((v) => `  AC ${v.ac}: ${v.status} — ${v.reason}`);
       await writeStatus(absTargetDir, {
         ...inProgressStatus,
         state: 'failed',
         updated_at: nowIso(),
-        reason: `behavioral gap (judge OVERALL: ${gate.judge.overall})`,
-        judge: gate.judge,
+        reason: `alignment gap on the ${face} face (judge OVERALL: ${gate.judge.overall})`,
+        judge: { ...gate.judge, face, ...(gate.deterministicReason ? { deterministic_reason: gate.deterministicReason } : {}) },
         ...(hereMonitor ? hereMonitor.finalFields() : {}),
         ...finalEngineRecord,
       });
       writeRunOutcomeSync(logPath, { state: 'failed' });
       stderr.write(
-        `error: ALIGNMENT GAP (P-09) — auto-dev completed but the judge graded the ` +
-          `implementation OVERALL: ${gate.judge.overall} against what was asked, and the ` +
-          `gap survived ${gate.iterations} iteration(s).\n` +
+        `error: ALIGNMENT GAP (P-09) — auto-dev completed but the ${face} face is unsatisfied ` +
+          `(judge OVERALL: ${gate.judge.overall}), and the gap survived ${gate.iterations} iteration(s).\n` +
+          (gate.deterministicReason ? `  deterministic: ${gate.deterministicReason}\n` : '') +
           (perAc.length ? `${perAc.join('\n')}\n` : '') +
           (gate.judge.reason ? `  reason: ${gate.judge.reason}\n` : '') +
           `The slice is NOT done. Exit 7 (behavioral-gap). Review with: git diff ${baseSha}..HEAD\n`,
@@ -1004,9 +1012,9 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
         event: 'run_failed',
         slice: sliceBranch,
         state: 'failed',
-        summary: `alignment gap (judge OVERALL: ${gate.judge.overall})`,
+        summary: `alignment gap on the ${face} face (judge OVERALL: ${gate.judge.overall})`,
       });
-      const e = new Error(`alignment gap (judge OVERALL: ${gate.judge.overall})`);
+      const e = new Error(`alignment gap on the ${face} face (judge OVERALL: ${gate.judge.overall})`);
       e.mmdExitCode = 7;
       throw e;
     }
@@ -1028,13 +1036,18 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
     }
   }
 
-  // AC-6 — Reality Check short-circuited in --here mode (no PWA to open).
-  // Also suggest `npm test` when the target repo has a test script.
-  try {
-    const rc = await realityCheck({ demoDir: absTargetDir, hereMode: true });
-    stdout.write(`Reality Check: ${rc.status}${rc.reason ? ' — ' + rc.reason : ''}\n`);
-  } catch (err) {
-    stderr.write(`Reality Check: error — ${err.message}\n`);
+  // Reality Check on --here (v0.17.a AC-3): the deterministic face. When the
+  // alignment gate ran (default), it ALREADY ran this inside the gate (and a FAIL
+  // there exits 7 above), so we don't double-run it. Only when the gate was opted
+  // out (MMD_SKIP_ALIGN=1) do we run the standalone deterministic check here for
+  // back-compat reporting (advisory — never fails the run on this path).
+  if (env.MMD_SKIP_ALIGN === '1') {
+    try {
+      const rc = await realityCheck({ demoDir: absTargetDir, hereMode: true });
+      stdout.write(`Reality Check: ${rc.status}${rc.reason ? ' — ' + rc.reason : ''}\n`);
+    } catch (err) {
+      stderr.write(`Reality Check: error — ${err.message}\n`);
+    }
   }
   await maybeSuggestNpmTest(absTargetDir);
 
@@ -1307,6 +1320,14 @@ function resolveAlignmentOracle(expectationDir, dream) {
  * sealed dir is empty/absent, so the real evidence rides in `buildArtifacts()`
  * (recomputed each judge call so a post-iteration diff is graded, not a stale one).
  *
+ * v0.17.a (SPEC_V017A AC-4) — the gate is DUAL-FACE: the DETERMINISTIC face
+ * (`runDeterministic`, a Reality Check — does it actually WORK?) runs FIRST, then
+ * the SEMANTIC judge (does it fulfil the ask?). The run is aligned only when BOTH
+ * are satisfied; a failure on EITHER drives the bounded iterate loop with feedback
+ * naming the failing face; an unresolved gap → outcome 'gap' with `face`
+ * ('deterministic' | 'semantic' | 'both'). When `runDeterministic` is omitted the
+ * gate is semantic-only (the v0.11 behavior — back-compat for any caller).
+ *
  * @param {{
  *   dream: string,
  *   slice: string|null,
@@ -1316,12 +1337,14 @@ function resolveAlignmentOracle(expectationDir, dream) {
  *   buildArtifacts: () => string,
  *   relaunch: (feedback: string) => Promise<{ code: number|null }>,
  *   timeoutMs: number,
+ *   expectationDir?: string|null,
+ *   runDeterministic?: (() => Promise<{status:string, reason?:string}>)|null,
  * }} opts
- * @returns {Promise<{ outcome: 'aligned'|'gap'|'unverified', judge: object, iterations: number }>}
+ * @returns {Promise<{ outcome: 'aligned'|'gap'|'unverified', judge: object, iterations: number, face?: string, deterministicReason?: string }>}
  */
 async function runAlignmentGate({
   dream, slice = null, sealedDir, targetDir, logPath, buildArtifacts, relaunch, timeoutMs,
-  expectationDir = null,
+  expectationDir = null, runDeterministic = null,
 }) {
   // v0.17.a (SPEC_V017A AC-2) — the judge grades against the FROZEN expectation
   // oracle (expectation.md), not the mutable slice.md / in-memory dream, so the
@@ -1359,23 +1382,55 @@ async function runAlignmentGate({
     return judge;
   };
 
-  const maxIters = parseMaxIters(env.MMD_ALIGN_MAX_ITERS, 1);
-  stdout.write('Alignment gate — grading the implementation against WHAT WAS ASKED (default-on; MMD_SKIP_ALIGN=1 opts out)...\n');
+  // The DETERMINISTIC face (v0.17.a AC-4): run the Reality Check, classify it.
+  // Wrapped so an unexpected throw degrades to a non-failing skip (the semantic
+  // face still governs — we never fabricate a deterministic fail out of nothing).
+  const runDet = async () => {
+    if (typeof runDeterministic !== 'function') {
+      return { failed: false, skipped: true, reason: '' }; // semantic-only (back-compat)
+    }
+    let rc;
+    try {
+      rc = await runDeterministic();
+    } catch (err) {
+      return { failed: false, skipped: true, reason: `deterministic face errored: ${err.message}` };
+    }
+    const det = evaluateDeterministicFace(rc);
+    stdout.write(
+      `Alignment gate — deterministic face: ${rc && rc.status ? rc.status : 'SKIPPED'}` +
+        `${det.reason ? ` — ${det.reason}` : ''}\n`,
+    );
+    return det;
+  };
 
+  const maxIters = parseMaxIters(env.MMD_ALIGN_MAX_ITERS, 1);
+  stdout.write('Alignment gate — verifying the result against the ORIGINAL expectation, BOTH faces (deterministic + semantic; default-on; MMD_SKIP_ALIGN=1 opts out)...\n');
+
+  let det = await runDet();
   let judge = runJudge(0);
   let agg = aggregateAlignment(judge);
   let iteration = 0;
 
-  // ITERATE-on-gap (bounded): a NOT-MET AC (gapAcs non-empty) → re-launch auto-dev
-  // with the unmet-AC feedback, up to maxIters, re-judging after each. An
-  // uncertain/empty verdict has gapAcs.length === 0 → never iterates (the sacred
+  // A gap exists when EITHER face fails: the deterministic face FAILED (tests red /
+  // won't run) OR the semantic judge named unmet ACs. ITERATE (bounded) with the
+  // combined feedback naming the failing face(s). An uncertain semantic verdict
+  // with no deterministic fail has no actionable gap → never iterates (the sacred
   // fallback). maxIters === 0 → gate-but-never-iterate (a gap → exit 7 at once).
-  while (!agg.aligned && agg.gapAcs.length > 0 && iteration < maxIters) {
+  const hasGap = () => det.failed || (!agg.aligned && agg.gapAcs.length > 0);
+  while (hasGap() && iteration < maxIters) {
     iteration += 1;
-    const feedback = buildGapFeedback({ gapAcs: agg.gapAcs, dream });
+    const semanticFeedback = (!agg.aligned && agg.gapAcs.length > 0)
+      ? buildGapFeedback({ gapAcs: agg.gapAcs, dream })
+      : null;
+    const deterministicFeedback = det.failed
+      ? buildDeterministicFeedback({ reason: det.reason, dream })
+      : null;
+    const feedback = combineFaceFeedback({ deterministic: deterministicFeedback, semantic: semanticFeedback });
+    const failingFaces = [det.failed ? 'deterministic' : null, semanticFeedback ? 'semantic' : null]
+      .filter(Boolean).join(' + ');
     stdout.write(
-      `Alignment gate — gap on ${agg.gapAcs.length} AC(s); re-launching auto-dev ` +
-        `(iteration ${iteration}/${maxIters}) with the unmet-AC feedback...\n`,
+      `Alignment gate — gap on the ${failingFaces} face(s); re-launching auto-dev ` +
+        `(iteration ${iteration}/${maxIters}) with the failing-face feedback...\n`,
     );
     let relaunchResult;
     try {
@@ -1391,17 +1446,23 @@ async function runAlignmentGate({
       );
       break;
     }
+    det = await runDet();
     judge = runJudge(iteration);
     agg = aggregateAlignment(judge);
   }
 
-  // Classify the final verdict. A NOT-MET overall is a GAP → exit 7 (NOT done),
-  // EVEN if no per-AC line was nameable (a parseable-but-odd NOT-MET reply) — the
-  // oracle's bottom line said the ask is unmet, so we never mark it done with a
-  // soft note (matches the sealed judge's "overall !== met fails", §VI). Only an
-  // `uncertain`/unparseable/gate-absent bottom line takes the sacred hold branch.
-  if (agg.aligned) return { outcome: 'aligned', judge, iterations: iteration };
-  if (judge.overall === 'not-met') return { outcome: 'gap', judge, iterations: iteration };
+  // Classify the final verdict (BOTH faces). A deterministic FAIL and/or a NOT-MET
+  // semantic overall is a GAP → exit 7 (NOT done), with `face` naming what failed.
+  // A NOT-MET semantic overall counts even if no per-AC line was nameable — the
+  // oracle's bottom line said the ask is unmet (matches the sealed judge, §VI).
+  // Only when the deterministic face did NOT fail AND the semantic bottom line is
+  // `uncertain`/unparseable do we take the sacred hold branch (unverified).
+  const semanticGap = judge.overall === 'not-met';
+  if (!det.failed && agg.aligned) return { outcome: 'aligned', judge, iterations: iteration };
+  if (det.failed || semanticGap) {
+    const face = det.failed && semanticGap ? 'both' : (det.failed ? 'deterministic' : 'semantic');
+    return { outcome: 'gap', judge, iterations: iteration, face, deterministicReason: det.reason };
+  }
   return { outcome: 'unverified', judge, iterations: iteration };
 }
 
@@ -2705,21 +2766,27 @@ async function main() {
     throw e;
   }
 
-  // Reality Check — advisory in v0.1, never fails the run.
-  try {
-    const rc = await realityCheck({
-      demoDir,
-      screenshotDir: path.join(demoDir, '.mmd', 'local', 'reality-checks'),
-    });
-    stdout.write(`Reality Check: ${rc.status}${rc.reason ? ' — ' + rc.reason : ''}\n`);
-  } catch (err) {
-    stderr.write(`Reality Check: error — ${err.message}\n`);
+  // Reality Check on greenfield: the DETERMINISTIC face. When the alignment gate
+  // runs (default), it runs the web check INSIDE the gate (so a FAIL drives the
+  // iterate loop). Only when the gate is opted out (MMD_SKIP_ALIGN=1) do we run
+  // the standalone advisory check here (never fails the run on that back-compat path).
+  if (env.MMD_SKIP_ALIGN === '1') {
+    try {
+      const rc = await realityCheck({
+        demoDir,
+        screenshotDir: path.join(demoDir, '.mmd', 'local', 'reality-checks'),
+      });
+      stdout.write(`Reality Check: ${rc.status}${rc.reason ? ' — ' + rc.reason : ''}\n`);
+    } catch (err) {
+      stderr.write(`Reality Check: error — ${err.message}\n`);
+    }
   }
 
-  // v0.11.a — ALIGNMENT GATE on the greenfield path (SPEC_V011A AC-3/AC-4), AFTER
-  // the reality check and BEFORE marking done. Same gate as --here; evidence is
-  // the produced demoDir files (no sealed suite). Default-on; MMD_SKIP_ALIGN=1 →
-  // today's behavior. The sealed greenfield path returned earlier (it judges).
+  // v0.11.a / v0.17.a — DUAL-FACE ALIGNMENT GATE on the greenfield path
+  // (SPEC_V017A AC-4), BEFORE marking done. Both faces anchored to the frozen
+  // expectation: the SEMANTIC judge (graded against expectation.md) + the
+  // DETERMINISTIC web Reality Check. Default-on; MMD_SKIP_ALIGN=1 → today's
+  // behavior. The sealed greenfield path returned earlier (it judges).
   let greenfieldJudge;
   if (env.MMD_SKIP_ALIGN !== '1') {
     let greenSlice = null;
@@ -2742,6 +2809,13 @@ async function main() {
       logPath,
       buildArtifacts,
       timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+      // v0.17.a (AC-4) — the DETERMINISTIC face on greenfield: the web Reality
+      // Check (open + screenshot + no-JS-error), run inside the gate so a FAIL
+      // drives the iterate loop. A SKIPPED (no browser) is an honest non-signal.
+      runDeterministic: () => realityCheck({
+        demoDir,
+        screenshotDir: path.join(demoDir, '.mmd', 'local', 'reality-checks'),
+      }),
       relaunch: (feedback) =>
         invokeAutodev({
           demoDir,
@@ -2758,21 +2832,22 @@ async function main() {
     });
     greenfieldJudge = gate.judge;
     if (gate.outcome === 'gap') {
+      const face = gate.face || 'semantic';
       const perAc = gate.judge.verdicts.map((v) => `  AC ${v.ac}: ${v.status} — ${v.reason}`);
       await writeStatus(demoDir, {
         ...inProgressStatus,
         state: 'failed',
         updated_at: nowIso(),
-        reason: `behavioral gap (judge OVERALL: ${gate.judge.overall})`,
-        judge: gate.judge,
+        reason: `alignment gap on the ${face} face (judge OVERALL: ${gate.judge.overall})`,
+        judge: { ...gate.judge, face, ...(gate.deterministicReason ? { deterministic_reason: gate.deterministicReason } : {}) },
         ...(greenfieldMonitor ? greenfieldMonitor.finalFields() : {}),
         ...finalEngineRecord,
       });
       writeRunOutcomeSync(logPath, { state: 'failed' });
       stderr.write(
-        `error: ALIGNMENT GAP (P-09) — the build completed but the judge graded it ` +
-          `OVERALL: ${gate.judge.overall} against what was asked, and the gap survived ` +
-          `${gate.iterations} iteration(s).\n` +
+        `error: ALIGNMENT GAP (P-09) — the build completed but the ${face} face is unsatisfied ` +
+          `(judge OVERALL: ${gate.judge.overall}), and the gap survived ${gate.iterations} iteration(s).\n` +
+          (gate.deterministicReason ? `  deterministic: ${gate.deterministicReason}\n` : '') +
           (perAc.length ? `${perAc.join('\n')}\n` : '') +
           (gate.judge.reason ? `  reason: ${gate.judge.reason}\n` : '') +
           `The build is NOT marked done. Exit 7 (behavioral-gap). Inspect ${demoDir}.\n`,
@@ -2781,9 +2856,9 @@ async function main() {
         event: 'run_failed',
         slice: slug,
         state: 'failed',
-        summary: `alignment gap (judge OVERALL: ${gate.judge.overall})`,
+        summary: `alignment gap on the ${face} face (judge OVERALL: ${gate.judge.overall})`,
       });
-      const e = new Error(`alignment gap (judge OVERALL: ${gate.judge.overall})`);
+      const e = new Error(`alignment gap on the ${face} face (judge OVERALL: ${gate.judge.overall})`);
       e.mmdExitCode = 7;
       throw e;
     }

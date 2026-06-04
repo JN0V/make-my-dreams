@@ -11,6 +11,9 @@ import {
   aggregateAlignment,
   buildGapFeedback,
   parseMaxIters,
+  evaluateDeterministicFace,
+  buildDeterministicFeedback,
+  combineFaceFeedback,
 } from '../../lib/conductor/alignment-gate.js';
 
 // ── aggregateAlignment ───────────────────────────────────────────────────────
@@ -136,4 +139,47 @@ test('@unit AC-4: parseMaxIters honors a valid non-negative integer, including 0
   assert.equal(parseMaxIters(2), 2);
   // A custom fallback is honored when the value is junk.
   assert.equal(parseMaxIters('junk', 2), 2);
+});
+
+// ── v0.17.a AC-4: the DETERMINISTIC face helpers ─────────────────────────────
+
+test('@unit v0.17.a AC-4: evaluateDeterministicFace — FAIL → failed; SKIPPED → skipped non-fail; PASS → neither', () => {
+  assert.deepEqual(evaluateDeterministicFace({ status: 'FAIL', reason: 'tests red' }), { failed: true, skipped: false, reason: 'tests red' });
+  assert.deepEqual(evaluateDeterministicFace({ status: 'SKIPPED', reason: 'nothing runnable' }), { failed: false, skipped: true, reason: 'nothing runnable' });
+  const pass = evaluateDeterministicFace({ status: 'PASS' });
+  assert.equal(pass.failed, false);
+  assert.equal(pass.skipped, false);
+});
+
+test('@unit v0.17.a AC-4: evaluateDeterministicFace never fabricates a fail from odd input', () => {
+  for (const bad of [null, undefined, {}, { status: 'WAT' }, 42, 'nope']) {
+    const r = evaluateDeterministicFace(bad);
+    assert.equal(r.failed, false, `odd input must NOT be a deterministic fail: ${JSON.stringify(bad)}`);
+    assert.equal(typeof r.reason, 'string');
+  }
+});
+
+test('@unit v0.17.a AC-4: buildDeterministicFeedback restates the goal twice and names the failing check', () => {
+  const dream = 'a working counter app';
+  const f = buildDeterministicFeedback({ reason: 'tests red (npm test exited 1)', dream });
+  assert.ok(f.split(dream).length - 1 >= 2, 'goal restated at least twice');
+  assert.match(f, /DETERMINISTIC GAP/);
+  assert.match(f, /tests red \(npm test exited 1\)/);
+});
+
+test('@unit v0.17.a AC-4: buildDeterministicFeedback never throws on empty/odd input', () => {
+  assert.doesNotThrow(() => buildDeterministicFeedback());
+  assert.doesNotThrow(() => buildDeterministicFeedback({ reason: null, dream: 42 }));
+  assert.match(buildDeterministicFeedback({ dream: 'd' }), /no detail given/);
+});
+
+test('@unit v0.17.a AC-4: combineFaceFeedback joins both fragments and drops falsy ones', () => {
+  const both = combineFaceFeedback({ deterministic: 'DET', semantic: 'SEM' });
+  assert.match(both, /DET/);
+  assert.match(both, /SEM/);
+  assert.match(both, /---/, 'a divider separates the two faces');
+  // Only one face → no divider, just that fragment.
+  assert.equal(combineFaceFeedback({ deterministic: 'only-det', semantic: null }), 'only-det');
+  assert.equal(combineFaceFeedback({}), '');
+  assert.doesNotThrow(() => combineFaceFeedback());
 });

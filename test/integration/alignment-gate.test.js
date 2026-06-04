@@ -73,7 +73,7 @@ test('@integration v0.11.a AC-2: --here all-MET → slice done + status.json.jud
     initCleanRepo(tmp);
     const r = runHere(['--here', DREAM], { cwd: tmp });
     assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}\nstdout=${r.stdout}`);
-    assert.match(r.stdout, /Alignment gate — grading the implementation against WHAT WAS ASKED/);
+    assert.match(r.stdout, /Alignment gate — verifying the result against the ORIGINAL expectation, BOTH faces/);
     assert.match(r.stdout, /Alignment gate: ALIGNED/);
 
     const status = readHereStatus(tmp);

@@ -16,7 +16,7 @@ import { rm, lstat, writeFile, realpath } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
-import { readFileSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -27,6 +27,7 @@ import { buildManifest, verifyManifest, sealIntact } from '../lib/sealed-tests/m
 import { buildTesterPrompt, buildCoderPrompt } from '../lib/sealed-tests/tester-prompt.js';
 import { buildJudgePrompt, parseJudgeVerdict, judgeFallback } from '../lib/sealed-tests/judge.js';
 import { aggregateAlignment, buildGapFeedback, parseMaxIters } from '../lib/conductor/alignment-gate.js';
+import { writeExpectation } from '../lib/conductor/expectation.js';
 import { modelForRole } from '../lib/conductor/model-policy.js';
 import {
   readCheckpoint, decideResume,
@@ -672,6 +673,15 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
         `Acceptance: the change is applied on the slice branch, all existing tests still pass, and a human reviews + merges.\n`,
       'utf8',
     );
+
+    // v0.17.a (SPEC_V017A AC-1) — FREEZE the original expectation as the immutable
+    // alignment oracle. Written ONCE; a resume/re-run never overwrites it, so the
+    // build's later edits to slice.md/spec cannot redefine its own success. The
+    // dual-face gate (AC-2/AC-4) grades against THIS file, not the mutable slice.
+    const expRes = writeExpectation(sharedDir, dream, undefined, { fs: { writeFileSync }, existsSync });
+    if (expRes.written) {
+      stdout.write('Frozen the original expectation → .mmd/shared/expectation.md (immutable alignment oracle)\n');
+    }
 
     await writeStatus(absTargetDir, inProgressStatus);
   } catch (err) {
@@ -2183,6 +2193,10 @@ async function main() {
   // `dream` is mutable: the v0.3.b Dream Catcher dialogue (greenfield, on a TTY)
   // may replace it with a refined scope before launch (AC-3).
   let dream = positional[0];
+  // v0.17.a (SPEC_V017A AC-1) — the ORIGINAL dream, captured before the Dream
+  // Catcher may overwrite `dream` with a refined scope. The frozen expectation
+  // oracle records the original ask + (when caught) the refined scope as scope.
+  const originalDream = dream;
 
   // v0.12.a — REAL `--resume` (SPEC_V012A AC-4): continue an interrupted run by
   // relaunching a fresh auto-dev from the externalized checkpoint, instead of
@@ -2446,6 +2460,20 @@ async function main() {
 
   await ensureLayout(demoDir);
   await initStateFiles(demoDir, dream, slug);
+
+  // v0.17.a (SPEC_V017A AC-1) — FREEZE the original expectation as the immutable
+  // alignment oracle. The ORIGINAL dream is the verbatim ask; when the Dream
+  // Catcher refined it, `dream` now holds the refined scope, so record it as the
+  // scope. Written ONCE; a resume/re-run never overwrites it (anti-drift — the
+  // dual-face gate grades against THIS file, not the mutable slice.md).
+  {
+    const greenSharedDir = path.join(demoDir, '.mmd', 'shared');
+    const caughtScope = dream !== originalDream ? dream : undefined;
+    const expRes = writeExpectation(greenSharedDir, originalDream, caughtScope, { fs: { writeFileSync }, existsSync });
+    if (expRes.written) {
+      stdout.write('Frozen the original expectation → .mmd/shared/expectation.md (immutable alignment oracle)\n');
+    }
+  }
 
   // AC-4: FAST mode overwrites slice.md with a 1-page heuristic spec BEFORE
   // auto-dev runs. Without this grounding the trimmed pipeline diverges

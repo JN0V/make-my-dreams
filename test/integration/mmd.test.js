@@ -128,8 +128,12 @@ test('@integration happy path end-to-end with autodev stub creates demo dir + st
     // AC-3: subprocess stdout/stderr captured into .mmd/local/runs/<ts>.log
     const runsDir = path.join(demoDir, '.mmd', 'local', 'runs');
     assert.ok(existsSync(runsDir), 'runs dir missing');
-    const runFiles = readdirSync(runsDir).filter(f => f.endsWith('.log'));
-    assert.equal(runFiles.length, 1, `expected exactly one run log; got ${runFiles.length}`);
+    // v0.11.a: the default-on alignment gate writes a sibling <ts>.judge.log
+    // (the judge's forensic tee). The auto-dev run log is the one WITHOUT the
+    // .judge.log suffix — count that specifically (intent: auto-dev stdout was
+    // captured), so the new judge artifact doesn't make this assertion stale.
+    const runFiles = readdirSync(runsDir).filter(f => f.endsWith('.log') && !f.endsWith('.judge.log'));
+    assert.equal(runFiles.length, 1, `expected exactly one auto-dev run log; got ${runFiles.length}`);
     const runLog = readFileSync(path.join(runsDir, runFiles[0]), 'utf8');
     assert.match(runLog, /fake-autodev: received prompt/, `run log missing stub marker; content=${runLog}`);
   } finally {

@@ -22,10 +22,11 @@ import { fileURLToPath } from 'node:url';
 
 import { slugify, deriveBranchSlug, initStateFiles, nextAvailableSlug } from '../lib/parse-dream.js';
 import { ensureLayout, readStatus, writeStatus, ensureGitignore } from '../lib/state.js';
-import { invokeAutodev, buildSubprocessEnv, resolveAutodevMode } from '../lib/invoke-autodev.js';
+import { invokeAutodev, buildSubprocessEnv, resolveAutodevMode, buildPrompt } from '../lib/invoke-autodev.js';
 import { buildManifest, verifyManifest, sealIntact } from '../lib/sealed-tests/manifest.js';
 import { buildTesterPrompt, buildCoderPrompt } from '../lib/sealed-tests/tester-prompt.js';
 import { buildJudgePrompt, parseJudgeVerdict, judgeFallback } from '../lib/sealed-tests/judge.js';
+import { aggregateAlignment, buildGapFeedback, parseMaxIters } from '../lib/conductor/alignment-gate.js';
 import { writeRunOutcomeSync } from '../lib/autolearn/run-outcome.js';
 import { computeBlastRadius } from '../lib/sealed-tests/blast-radius.js';
 import { realityCheck } from '../lib/reality-check.js';
@@ -805,6 +806,88 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
     throw e;
   }
 
+  // v0.11.a — ALIGNMENT GATE (SPEC_V011A AC-2/AC-4). Default-on; MMD_SKIP_ALIGN=1
+  // opts out → today's behavior EXACTLY (mirrors MMD_SKIP_GROUNDING). After
+  // auto-dev completes and BEFORE the run is marked done, grade the produced
+  // change against WHAT WAS ASKED (reusing the sealed judge), and on a gap
+  // iterate (bounded) before failing honestly. The auto-dev spawn above is
+  // UNCHANGED — this is a pure post-completion step (AC-2 spawn-args pin). The
+  // sealed --here branch returned earlier with its own judge (no double-judge).
+  let hereJudge;
+  if (env.MMD_SKIP_ALIGN !== '1') {
+    const sealedDir = path.join(absTargetDir, '.mmd', 'shared', 'sealed-tests');
+    const gate = await runAlignmentGate({
+      dream,
+      slice: null, // --here has no slice.md ACs — grade against the dream + diff
+      sealedDir,
+      targetDir: absTargetDir,
+      logPath,
+      buildArtifacts: () => buildDiffArtifactsSummary(absTargetDir, baseSha),
+      timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+      relaunch: (feedback) =>
+        invokeAutodev({
+          demoDir: absTargetDir,
+          dream,
+          slug,
+          promptParts: {
+            dream, slug, demoDir: absTargetDir, prompt: `${herePrompt}\n\n${feedback}`, mode: 'here',
+          },
+          logPath,
+          timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+          engine,
+        }),
+    });
+    hereJudge = gate.judge;
+    if (gate.outcome === 'gap') {
+      // A confirmed behavioral gap survived the bounded iterations → exit 7
+      // (the EXISTING behavioral-gap code), status records the gap, NOT done.
+      const perAc = gate.judge.verdicts.map((v) => `  AC ${v.ac}: ${v.status} — ${v.reason}`);
+      await writeStatus(absTargetDir, {
+        ...inProgressStatus,
+        state: 'failed',
+        updated_at: nowIso(),
+        reason: `behavioral gap (judge OVERALL: ${gate.judge.overall})`,
+        judge: gate.judge,
+        ...(hereMonitor ? hereMonitor.finalFields() : {}),
+        ...finalEngineRecord,
+      });
+      writeRunOutcomeSync(logPath, { state: 'failed' });
+      stderr.write(
+        `error: ALIGNMENT GAP (P-09) — auto-dev completed but the judge graded the ` +
+          `implementation OVERALL: ${gate.judge.overall} against what was asked, and the ` +
+          `gap survived ${gate.iterations} iteration(s).\n` +
+          (perAc.length ? `${perAc.join('\n')}\n` : '') +
+          (gate.judge.reason ? `  reason: ${gate.judge.reason}\n` : '') +
+          `The slice is NOT done. Exit 7 (behavioral-gap). Review with: git diff ${baseSha}..HEAD\n`,
+      );
+      await maybeNotify({
+        event: 'run_failed',
+        slice: sliceBranch,
+        state: 'failed',
+        summary: `alignment gap (judge OVERALL: ${gate.judge.overall})`,
+      });
+      const e = new Error(`alignment gap (judge OVERALL: ${gate.judge.overall})`);
+      e.mmdExitCode = 7;
+      throw e;
+    }
+    if (gate.outcome === 'unverified') {
+      // The SACRED fallback: uncertain / unparseable / gate-absent → an honest
+      // note, never a fabricated pass. The change IS on the branch (done), but
+      // its alignment with the ask was NOT confirmed.
+      stdout.write(
+        `Alignment gate: UNVERIFIED — ${gate.judge.reason || 'the judge could not grade the implementation'}. ` +
+          `The change is on the slice branch but its alignment with the ask was NOT confirmed ` +
+          `(no fabricated pass). Review the diff manually: git diff ${baseSha}..HEAD\n`,
+      );
+    } else {
+      stdout.write(
+        `Alignment gate: ALIGNED — the implementation satisfies what was asked ` +
+          `(${gate.judge.verdicts.length} AC(s) graded` +
+          `${gate.iterations ? `, after ${gate.iterations} iteration(s)` : ''}).\n`,
+      );
+    }
+  }
+
   // AC-6 — Reality Check short-circuited in --here mode (no PWA to open).
   // Also suggest `npm test` when the target repo has a test script.
   try {
@@ -820,6 +903,7 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
     state: 'done',
     updated_at: nowIso(),
     tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
+    ...(hereJudge ? { judge: hereJudge } : {}),
     ...(hereMonitor ? hereMonitor.finalFields() : {}),
     ...finalEngineRecord,
   });
@@ -1001,6 +1085,134 @@ function invokeJudge({ demoDir, prompt, logPath, timeoutMs }) {
     return judgeFallback(`judge exited with code ${r.status}`);
   }
   return parseJudgeVerdict(r.stdout || '');
+}
+
+/**
+ * Build the JUDGE evidence summary for the NORMAL `--here` path (v0.11.a): the
+ * slice diff against the base. Unlike the sealed path there is NO sealed test
+ * suite, so the lead is HONEST that the evidence is the diff (universal §VI). The
+ * judge grades against the dream/ACs using these changed files as evidence.
+ * Never throws — a git failure degrades to the lead-only string.
+ *
+ * @param {string} targetDir  the slice repo root (cwd for git)
+ * @param {string} baseSha     the slice base commit
+ * @returns {string}
+ */
+function buildDiffArtifactsSummary(targetDir, baseSha) {
+  const lead =
+    'Evidence is the SLICE DIFF (this run had NO sealed test suite — grade against ' +
+    'the dream / acceptance criteria using the changed files below as evidence).';
+  try {
+    const r = spawnSync('git', ['diff', '--name-only', `${baseSha}..HEAD`], {
+      cwd: targetDir,
+      encoding: 'utf8',
+    });
+    if (r.status === 0) {
+      const files = (r.stdout || '').split('\n').map((s) => s.trim()).filter(Boolean);
+      return files.length
+        ? `${lead}\nChanged files (${files.length}): ${files.join(', ')}`
+        : `${lead}\n(no files changed on the slice branch yet)`;
+    }
+  } catch {
+    /* fall through to the honest lead-only evidence */
+  }
+  return lead;
+}
+
+/**
+ * The v0.11.a ALIGNMENT GATE (SPEC_V011A AC-2/AC-3/AC-4) — the Conductor's first
+ * CONTROL brick, "verify the ask, then correct". Runs the EXISTING behavioral
+ * judge (invokeJudge + buildJudgePrompt + the OVERALL-met downgrade guard, reused
+ * verbatim from runSealedPipeline) on the NORMAL run path, and on a gap iterates
+ * (bounded) by re-launching auto-dev with feedback naming the unmet ACs.
+ *
+ * It is a POST-COMPLETION step — it never touches the auto-dev spawn args (the
+ * bootstrap / --monitor byte-for-byte contract; AC-2). The caller decides what to
+ * do with the three outcomes:
+ *   - 'aligned'    → mark done (as today) + record the verdict
+ *   - 'gap'        → a NOT-MET AC survived the bounded iterations → exit 7, NOT done
+ *   - 'unverified' → uncertain / unparseable / gate-absent → the SACRED fallback:
+ *                    no blind iterate, an honest note, never a fabricated pass
+ *
+ * The judge prompt requires a sealedDir (reused verbatim); on the normal path the
+ * sealed dir is empty/absent, so the real evidence rides in `buildArtifacts()`
+ * (recomputed each judge call so a post-iteration diff is graded, not a stale one).
+ *
+ * @param {{
+ *   dream: string,
+ *   slice: string|null,
+ *   sealedDir: string,
+ *   targetDir: string,
+ *   logPath: string,
+ *   buildArtifacts: () => string,
+ *   relaunch: (feedback: string) => Promise<{ code: number|null }>,
+ *   timeoutMs: number,
+ * }} opts
+ * @returns {Promise<{ outcome: 'aligned'|'gap'|'unverified', judge: object, iterations: number }>}
+ */
+async function runAlignmentGate({
+  dream, slice = null, sealedDir, targetDir, logPath, buildArtifacts, relaunch, timeoutMs,
+}) {
+  const judgeLog = logPath.replace(/\.log$/, '.judge.log');
+
+  // One judge call: build the prompt with the FRESH evidence, invoke, then apply
+  // the OVERALL-met downgrade guard verbatim (never trust an over-eager OVERALL:
+  // MET while a per-AC line is not-met/uncertain — universal §VI).
+  const runJudge = () => {
+    const judge = invokeJudge({
+      demoDir: targetDir,
+      prompt: buildJudgePrompt({ dream, slice, sealedDir, artifactsSummary: buildArtifacts() }),
+      logPath: judgeLog,
+      timeoutMs,
+    });
+    if (judge.overall === 'met' && judge.verdicts.some((v) => v.status !== 'met')) {
+      judge.overall = judge.verdicts.some((v) => v.status === 'not-met') ? 'not-met' : 'uncertain';
+      judge.reason =
+        'OVERALL claimed met but a per-AC verdict was not met — downgraded ' +
+        '(never pass a not-met/uncertain AC behind an over-eager OVERALL).';
+    }
+    return judge;
+  };
+
+  const maxIters = parseMaxIters(env.MMD_ALIGN_MAX_ITERS, 1);
+  stdout.write('Alignment gate — grading the implementation against WHAT WAS ASKED (default-on; MMD_SKIP_ALIGN=1 opts out)...\n');
+
+  let judge = runJudge();
+  let agg = aggregateAlignment(judge);
+  let iteration = 0;
+
+  // ITERATE-on-gap (bounded): a NOT-MET AC (gapAcs non-empty) → re-launch auto-dev
+  // with the unmet-AC feedback, up to maxIters, re-judging after each. An
+  // uncertain/empty verdict has gapAcs.length === 0 → never iterates (the sacred
+  // fallback). maxIters === 0 → gate-but-never-iterate (a gap → exit 7 at once).
+  while (!agg.aligned && agg.gapAcs.length > 0 && iteration < maxIters) {
+    iteration += 1;
+    const feedback = buildGapFeedback({ gapAcs: agg.gapAcs, dream });
+    stdout.write(
+      `Alignment gate — gap on ${agg.gapAcs.length} AC(s); re-launching auto-dev ` +
+        `(iteration ${iteration}/${maxIters}) with the unmet-AC feedback...\n`,
+    );
+    let relaunchResult;
+    try {
+      relaunchResult = await relaunch(feedback);
+    } catch (err) {
+      stderr.write(`Alignment gate — re-launch failed: ${err.message}. Stopping iteration (gap reported honestly).\n`);
+      break;
+    }
+    if (!relaunchResult || relaunchResult.code !== 0) {
+      stderr.write(
+        `Alignment gate — re-launch exited with code ${relaunchResult ? relaunchResult.code : 'unknown'}; ` +
+          `stopping iteration (gap reported honestly).\n`,
+      );
+      break;
+    }
+    judge = runJudge();
+    agg = aggregateAlignment(judge);
+  }
+
+  if (agg.aligned) return { outcome: 'aligned', judge, iterations: iteration };
+  if (agg.gapAcs.length > 0) return { outcome: 'gap', judge, iterations: iteration };
+  return { outcome: 'unverified', judge, iterations: iteration };
 }
 
 /**
@@ -1812,6 +2024,90 @@ async function main() {
     stderr.write(`Reality Check: error — ${err.message}\n`);
   }
 
+  // v0.11.a — ALIGNMENT GATE on the greenfield path (SPEC_V011A AC-3/AC-4), AFTER
+  // the reality check and BEFORE marking done. Same gate as --here; evidence is
+  // the produced demoDir files (no sealed suite). Default-on; MMD_SKIP_ALIGN=1 →
+  // today's behavior. The sealed greenfield path returned earlier (it judges).
+  let greenfieldJudge;
+  if (env.MMD_SKIP_ALIGN !== '1') {
+    let greenSlice = null;
+    try {
+      greenSlice = readFileSync(path.join(demoDir, '.mmd', 'shared', 'slice.md'), 'utf8');
+    } catch { /* no slice spec — grade against the dream alone */ }
+    const sealedDir = path.join(demoDir, '.mmd', 'shared', 'sealed-tests');
+    const buildArtifacts = () => {
+      const files = listFilesRelSync(demoDir, { skipDirs: ['.mmd', 'node_modules', '.git'] });
+      return files.length
+        ? `Produced files (${files.length}): ${files.join(', ')}`
+        : '(no application files were enumerated)';
+    };
+    const gate = await runAlignmentGate({
+      dream,
+      slice: greenSlice,
+      sealedDir,
+      targetDir: demoDir,
+      logPath,
+      buildArtifacts,
+      timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+      relaunch: (feedback) =>
+        invokeAutodev({
+          demoDir,
+          dream,
+          slug,
+          promptParts: {
+            dream, slug, demoDir,
+            prompt: `${buildPrompt({ dream, slug, demoDir, engine })}\n\n${feedback}`,
+          },
+          logPath,
+          timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+          engine,
+        }),
+    });
+    greenfieldJudge = gate.judge;
+    if (gate.outcome === 'gap') {
+      const perAc = gate.judge.verdicts.map((v) => `  AC ${v.ac}: ${v.status} — ${v.reason}`);
+      await writeStatus(demoDir, {
+        ...inProgressStatus,
+        state: 'failed',
+        updated_at: nowIso(),
+        reason: `behavioral gap (judge OVERALL: ${gate.judge.overall})`,
+        judge: gate.judge,
+        ...(greenfieldMonitor ? greenfieldMonitor.finalFields() : {}),
+        ...finalEngineRecord,
+      });
+      writeRunOutcomeSync(logPath, { state: 'failed' });
+      stderr.write(
+        `error: ALIGNMENT GAP (P-09) — the build completed but the judge graded it ` +
+          `OVERALL: ${gate.judge.overall} against what was asked, and the gap survived ` +
+          `${gate.iterations} iteration(s).\n` +
+          (perAc.length ? `${perAc.join('\n')}\n` : '') +
+          (gate.judge.reason ? `  reason: ${gate.judge.reason}\n` : '') +
+          `The build is NOT marked done. Exit 7 (behavioral-gap). Inspect ${demoDir}.\n`,
+      );
+      await maybeNotify({
+        event: 'run_failed',
+        slice: slug,
+        state: 'failed',
+        summary: `alignment gap (judge OVERALL: ${gate.judge.overall})`,
+      });
+      const e = new Error(`alignment gap (judge OVERALL: ${gate.judge.overall})`);
+      e.mmdExitCode = 7;
+      throw e;
+    }
+    if (gate.outcome === 'unverified') {
+      stdout.write(
+        `Alignment gate: UNVERIFIED — ${gate.judge.reason || 'the judge could not grade the implementation'}. ` +
+          `The build is at ${demoDir} but its alignment with the ask was NOT confirmed (no fabricated pass).\n`,
+      );
+    } else {
+      stdout.write(
+        `Alignment gate: ALIGNED — the build satisfies what was asked ` +
+          `(${gate.judge.verdicts.length} AC(s) graded` +
+          `${gate.iterations ? `, after ${gate.iterations} iteration(s)` : ''}).\n`,
+      );
+    }
+  }
+
   await writeStatus(demoDir, {
     slice_id: slug,
     dream,
@@ -1820,6 +2116,7 @@ async function main() {
     updated_at: nowIso(),
     tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
     ...(catchProfile ? { profile: catchProfile } : {}),
+    ...(greenfieldJudge ? { judge: greenfieldJudge } : {}),
     ...(greenfieldMonitor ? greenfieldMonitor.finalFields() : {}),
     ...finalEngineRecord,
   });

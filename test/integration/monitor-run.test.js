@@ -96,7 +96,11 @@ function readStatus(tmp) {
 
 function readRunLog(tmp) {
   const runs = path.join(sliceDir(tmp), '.mmd', 'local', 'runs');
-  const logs = readdirSync(runs).filter((f) => f.endsWith('.log'));
+  // v0.11.a: the default-on alignment gate writes a sibling <ts>.judge.log (the
+  // judge's forensic tee, which legitimately carries the judge's raw stdout).
+  // The MONITORED auto-dev tee is the .log WITHOUT the .judge.log suffix — read
+  // that, so the judge artifact doesn't pollute the "readable tee" assertions.
+  const logs = readdirSync(runs).filter((f) => f.endsWith('.log') && !f.endsWith('.judge.log'));
   assert.ok(logs.length >= 1, 'a run log exists');
   return logs.map((f) => readFileSync(path.join(runs, f), 'utf8')).join('\n');
 }

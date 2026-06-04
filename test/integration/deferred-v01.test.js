@@ -70,7 +70,9 @@ test('@integration B4: MMD_QUIET=1 suppresses subprocess output on stdout but pr
     // But the log file should still contain it.
     const slug = 'tiny-app-showing-hello';
     const runsDir = path.join(tmp, 'demo', slug, '.mmd', 'local', 'runs');
-    const runFiles = readdirSync(runsDir).filter((f) => f.endsWith('.log'));
+    // v0.11.a: exclude the default-on alignment gate's <ts>.judge.log; the
+    // auto-dev run log is the one without the .judge.log suffix.
+    const runFiles = readdirSync(runsDir).filter((f) => f.endsWith('.log') && !f.endsWith('.judge.log'));
     assert.equal(runFiles.length, 1);
     const runLog = readFileSync(path.join(runsDir, runFiles[0]), 'utf8');
     assert.match(runLog, /fake-autodev: received prompt/);

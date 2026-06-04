@@ -28,7 +28,6 @@ const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const MMD = path.join(REPO_ROOT, 'bin', 'mmd.js');
 const FAKE_HANDOFF = path.join(REPO_ROOT, 'test', 'fixtures', 'fake-autodev-handoff.sh');
 const FAKE_STREAM = path.join(REPO_ROOT, 'test', 'fixtures', 'fake-claude-streamjson.js');
-const FAKE_PLAIN = path.join(REPO_ROOT, 'test', 'fixtures', 'fake-autodev-here.sh');
 const SKIP_ON_WINDOWS = platform() === 'win32';
 
 // NB: the prefix deliberately avoids the substring "handoff" — MMD prints the

@@ -29,7 +29,7 @@ import { buildJudgePrompt, parseJudgeVerdict, judgeFallback } from '../lib/seale
 import { aggregateAlignment, buildGapFeedback, parseMaxIters } from '../lib/conductor/alignment-gate.js';
 import {
   readCheckpoint, decideResume,
-  writeHandoffRequest, readHandoffRequest, clearHandoffRequest,
+  writeHandoffRequest, readHandoffRequest, clearHandoffRequest, handoffRequestPath,
 } from '../lib/conductor/checkpoint.js';
 import { decideHandoff, parseMaxHandoffs } from '../lib/conductor/handoff.js';
 import { writeRunOutcomeSync } from '../lib/autolearn/run-outcome.js';
@@ -1731,7 +1731,15 @@ async function runHandoffLoop({ runDir, slice, maxHandoffs, firstResult, firstMo
     // (its context accounting restarts low). The cap-final successor's monitor
     // writes NO marker (enableHandoffRequest=false) so it runs through to done.
     if (monitor) await monitor.drain();
-    clearHandoffRequest(runDir);
+    if (!clearHandoffRequest(runDir)) {
+      // Near-impossible (a local rmSync(force) on a gitignored file), and the
+      // loop is bounded by the cap regardless, but surface it honestly rather
+      // than risk a successor re-stopping on a stale marker we failed to clear.
+      stderr.write(
+        `warning: could not clear the handoff-request marker at ${handoffRequestPath(runDir)}; ` +
+          `the successor may re-stop at its first boundary (bounded by the handoff cap).\n`,
+      );
+    }
     monitor = makeMonitor({ enableHandoffRequest: !isCap });
     invokeResult = await relaunch({ monitor, checkpoint });
     if (isCap) break; // the final successor is not eligible for another handoff

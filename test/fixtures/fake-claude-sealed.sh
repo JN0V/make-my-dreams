@@ -28,6 +28,19 @@ set -euo pipefail
 SEALED_DIR="$PWD/.mmd/shared/sealed-tests"
 ALL_ARGS="$*"
 
+# v0.16.a (AC-2): model-per-role argv capture. When MMD_FAKE_SEALED_DUMP_ARGV=1,
+# dump THIS call's argv (one token per line) into a per-role file in the demo dir
+# (cwd), so the integration test can assert MMD passed `--model <policy>` to its
+# OWN judge / tester claude -p call. Additive + guarded — off by default, no
+# behavior change for the existing sealed tests.
+if [ -n "${MMD_FAKE_SEALED_DUMP_ARGV:-}" ]; then
+  DUMP_ROLE=coder
+  printf '%s' "$ALL_ARGS" | grep -q "BEHAVIORAL JUDGE" && DUMP_ROLE=judge
+  printf '%s' "$ALL_ARGS" | grep -q "SEALED ORACLE" && DUMP_ROLE=tester
+  : > "$PWD/argv-$DUMP_ROLE.txt"
+  for a in "$@"; do printf '%s\n' "$a" >> "$PWD/argv-$DUMP_ROLE.txt"; done
+fi
+
 # ── JUDGE (v0.4.d behavioral oracle) ──────────────────────────────────────────
 # The judge prompt carries the "BEHAVIORAL JUDGE" marker (JUDGE_MARKER in
 # lib/sealed-tests/judge.js) and NOT "SEALED ORACLE", so it must be matched

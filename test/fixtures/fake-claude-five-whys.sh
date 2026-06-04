@@ -48,6 +48,16 @@ fi
 PROMPT="${4-}"
 ACTION="${MMD_FAKE_5WHYS_ACTION:-continue-with-hint}"
 
+# v0.16.a (AC-2): model-per-role argv capture. When MMD_FAKE_5WHYS_DUMP_ARGV is a
+# path, dump THIS call's argv (one token per line) there so the test can assert
+# MMD appended `--model <unblock policy>` AFTER the positional prompt (the strict
+# -p / --output-format / text / prompt contract above is preserved). Additive +
+# guarded — off by default.
+if [ -n "${MMD_FAKE_5WHYS_DUMP_ARGV:-}" ]; then
+    : > "${MMD_FAKE_5WHYS_DUMP_ARGV}"
+    for a in "$@"; do printf '%s\n' "$a" >> "${MMD_FAKE_5WHYS_DUMP_ARGV}"; done
+fi
+
 echo "fake-claude-five-whys: received prompt of ${#PROMPT} chars"
 echo "fake-claude-five-whys: PATH=${PATH}"
 

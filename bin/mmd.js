@@ -27,6 +27,7 @@ import { buildManifest, verifyManifest, sealIntact } from '../lib/sealed-tests/m
 import { buildTesterPrompt, buildCoderPrompt } from '../lib/sealed-tests/tester-prompt.js';
 import { buildJudgePrompt, parseJudgeVerdict, judgeFallback } from '../lib/sealed-tests/judge.js';
 import { aggregateAlignment, buildGapFeedback, parseMaxIters } from '../lib/conductor/alignment-gate.js';
+import { modelForRole } from '../lib/conductor/model-policy.js';
 import {
   readCheckpoint, decideResume,
   writeHandoffRequest, readHandoffRequest, clearHandoffRequest, handoffRequestPath,
@@ -1122,6 +1123,12 @@ function invokeSealedTester({ demoDir, prompt, logPath, timeoutMs }) {
   const cmd = process.env.MMD_AUTODEV_CMD || 'claude';
   const mode = resolveAutodevMode(process.env);
   const args = mode === 'cli' ? ['-p', prompt] : [prompt];
+  // v0.16.a (AC-2): model-per-role — pass the tester's policy model to this OWN
+  // claude -p call (MMD owns the spawn → --model is honored). Appended AFTER the
+  // prompt so the positional prompt arg stays in place (the test fakes read it
+  // positionally); omitted entirely when the policy returns null (CLI default).
+  const testerModel = modelForRole('tester', process.env);
+  if (testerModel) args.push('--model', testerModel);
   const childEnv = buildSubprocessEnv(process.env);
 
   const r = spawnSync(cmd, args, {
@@ -1177,6 +1184,11 @@ function invokeJudge({ demoDir, prompt, logPath, timeoutMs }) {
   const cmd = process.env.MMD_AUTODEV_CMD || 'claude';
   const mode = resolveAutodevMode(process.env);
   const args = mode === 'cli' ? ['-p', prompt] : [prompt];
+  // v0.16.a (AC-2): model-per-role — pass the judge's policy model to this OWN
+  // claude -p call (MMD owns the spawn → --model is honored). Appended AFTER the
+  // prompt (positional prompt stays in place); omitted when the policy → null.
+  const judgeModel = modelForRole('judge', process.env);
+  if (judgeModel) args.push('--model', judgeModel);
   const childEnv = buildSubprocessEnv(process.env);
 
   const r = spawnSync(cmd, args, {

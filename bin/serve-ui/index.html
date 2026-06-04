@@ -24,13 +24,10 @@
         required
       ></textarea>
       <button id="submit-btn" type="submit">Vas-y / Go</button>
-      <!-- v0.5.c — opt-in context monitor. Unchecked (default) = today's web run
-           byte-for-byte (no --monitor, no gauge). Checked appends --monitor so the
-           build streams its context usage and the gauge below can show it. -->
-      <label id="monitor-label" class="monitor-toggle">
-        <input id="monitor-toggle" type="checkbox">
-        <span>Suivre le contexte (avancé) / Monitor context (advanced)</span>
-      </label>
+      <!-- v0.15.a — the context monitor is now AUTOMATIC (transparent Conductor):
+           every build streams its context usage and the gauge below shows it with
+           no checkbox to tick. The pre-v0.15 "Monitor context (advanced)" toggle
+           was retired (SPEC_V015A AC-3). -->
     </form>
 
     <!-- Step 2 — the profile (one question) -->

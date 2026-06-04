@@ -289,26 +289,12 @@ progress {
   text-align: center;
 }
 
-/* ── v0.5.c — "Monitor context" toggle + context gauge ──────────────────── */
-
-.monitor-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  color: var(--muted);
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.monitor-toggle input {
-  width: auto;
-  margin: 0;
-}
+/* ── v0.5.c → v0.15.a — context gauge (the "Monitor context" toggle was retired
+   when the Conductor became automatic; the gauge now shows transparently) ──── */
 
 /* The gauge: a labelled bar showing the orchestrator's context fill, polled from
-   /api/status while a monitored run is in flight. CSP-safe — no inline styles;
-   the bar is a native <progress> and the fixed 70% marker is positioned here. */
+   /api/status while a build is in flight. CSP-safe — no inline styles; the bar
+   is a native <progress> and the fixed 70% marker is positioned here. */
 .context-gauge {
   margin: 8px 0 4px;
   padding: 10px 12px;

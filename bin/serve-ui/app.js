@@ -15,7 +15,6 @@
   var form = document.getElementById('dream-form');
   var input = document.getElementById('dream-input');
   var submitBtn = document.getElementById('submit-btn');
-  var monitorToggle = document.getElementById('monitor-toggle'); // v0.5.c opt-in
   var contextGauge = document.getElementById('context-gauge');   // v0.5.c gauge
   var stepProfile = document.getElementById('step-profile');
   var profileButtons = document.querySelectorAll('.profile-btn');
@@ -53,9 +52,6 @@
 
   // Dream Catcher session state (client side).
   var sessionId = null;
-  // v0.5.c — the "Monitor context" choice is made on the dream form but only
-  // takes effect at launch (confirm), so capture it at submit and carry it.
-  var monitorChosen = false;
   // v0.5.c — context-gauge poll handle (best-effort; null when not polling).
   var gaugePollTimer = null;
 
@@ -95,8 +91,6 @@
     e.preventDefault();
     var dream = input.value.trim();
     if (dream.length === 0) return;
-    // Capture the opt-in monitor choice now; it is threaded at confirm (launch).
-    monitorChosen = !!(monitorToggle && monitorToggle.checked);
     startCatch(dream);
   });
 
@@ -271,7 +265,7 @@
     fetch('/api/catch/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: sessionId, monitor: monitorChosen }),
+      body: JSON.stringify({ sessionId: sessionId }),
     })
       .then(readJson)
       .then(function (r) {
@@ -283,9 +277,10 @@
         }
         beginProgress();
         openStream(r.body.streamUrl, r.body.jobId);
-        // v0.5.c — when the user opted into monitoring, poll the context gauge.
+        // v0.15.a — the Conductor is automatic, so ALWAYS poll the context gauge.
+        // It draws whenever status.json.context exists and auto-hides otherwise.
         // Best-effort: a failed poll never breaks the page or the SSE stream.
-        if (monitorChosen && r.body.slug) startGaugePoll(r.body.slug);
+        if (r.body.slug) startGaugePoll(r.body.slug);
       })
       .catch(function (err) {
         scopeGo.disabled = false;

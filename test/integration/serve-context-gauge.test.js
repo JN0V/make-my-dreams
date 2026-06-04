@@ -53,8 +53,10 @@ function postDream(baseUrl, body) {
   });
 }
 
-/** Poll for a file to appear with content, up to timeoutMs. */
-async function waitForFile(file, timeoutMs = 4000) {
+/** Poll for a file to appear with content, up to timeoutMs. The fixture is
+ *  written by a real `node bin/mmd.js` spawn that competes for CPU with the rest
+ *  of the (concurrent) suite, so the deadline is generous to avoid a flake. */
+async function waitForFile(file, timeoutMs = 10000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (existsSync(file)) {
@@ -160,36 +162,31 @@ test('@integration AC-1 malformed (non-object) context passes through without cr
 
 /* ── AC-2: opt-in --monitor arg threading ───────────────────────────────── */
 
-test('@integration AC-2 buildMmdAutodevArgs always passes --fresh (serve tracks by slug) when monitor off', () => {
+test('@integration v0.15.a AC-3 buildMmdAutodevArgs is [entry, --fresh, dream] — no monitor flag threaded', () => {
   const entry = '/abs/bin/mmd.js';
   // serve always rebuilds in demo/<slug>/ (the dir it polls/opens), so --fresh is
-  // always present; monitor off adds nothing more.
-  assert.deepEqual(buildMmdAutodevArgs(entry, 'my dream', false), [entry, '--fresh', 'my dream']);
-  assert.deepEqual(buildMmdAutodevArgs(entry, 'my dream', undefined), [entry, '--fresh', 'my dream']);
-  assert.deepEqual(buildMmdAutodevArgs(entry, 'my dream', 'true'), [entry, '--fresh', 'my dream']); // junk → monitor off
+  // always present. The Conductor is default-on in the child, so NO --monitor is
+  // threaded — the launch body needs no flag for the Conductor (SPEC_V015A AC-3).
+  assert.deepEqual(buildMmdAutodevArgs(entry, 'my dream'), [entry, '--fresh', 'my dream']);
 });
 
-test('@integration AC-2 buildMmdAutodevArgs threads --fresh + --monitor before the dream when on', () => {
-  const entry = '/abs/bin/mmd.js';
-  assert.deepEqual(buildMmdAutodevArgs(entry, 'my dream', true), [entry, '--fresh', '--monitor', 'my dream']);
-});
-
-test('@integration AC-2 monitor:true → spawn args carry --monitor', async (t) => {
+test('@integration v0.15.a AC-3 a legacy payload.monitor is accepted but ignored (no --monitor leaks)', async (t) => {
   const ctx = await bootServer({ MMD_AUTODEV_CMD: FAKE_ARGECHO });
   t.after(async () => {
     await ctx.server.shutdown('test');
     ctx.restoreEnv();
     rmSync(ctx.tmp, { recursive: true, force: true });
   });
-  const res = await postDream(ctx.baseUrl, { dream: 'monitored dream build', monitor: true });
+  // A client still POSTing the retired `monitor` field must not error nor change
+  // the launch — the Conductor is already on by default (back-compat).
+  const res = await postDream(ctx.baseUrl, { dream: 'legacy monitor field dream', monitor: true });
   assert.equal(res.status, 202);
   const argv = await waitForFile(path.join(ctx.tmp, 'captured-argv.txt'));
-  assert.ok(argv, 'captured-argv.txt should exist');
-  const lines = argv.split('\n').filter(Boolean);
-  assert.ok(lines.includes('--monitor'), `expected --monitor in args, got ${JSON.stringify(lines)}`);
+  const lines = (argv || '').split('\n').filter(Boolean);
+  assert.ok(!lines.includes('--monitor'), `legacy monitor field must not thread --monitor, got ${JSON.stringify(lines)}`);
 });
 
-test('@integration AC-2 monitor absent → NO --monitor / --output-format in spawn args', async (t) => {
+test('@integration v0.15.a AC-3 serve launch carries NO --monitor / --output-format (Conductor default-on in the child)', async (t) => {
   const ctx = await bootServer({ MMD_AUTODEV_CMD: FAKE_ARGECHO });
   t.after(async () => {
     await ctx.server.shutdown('test');
@@ -203,20 +200,6 @@ test('@integration AC-2 monitor absent → NO --monitor / --output-format in spa
   const lines = argv.split('\n').filter(Boolean);
   assert.ok(!lines.includes('--monitor'), `expected NO --monitor, got ${JSON.stringify(lines)}`);
   assert.ok(!lines.some((l) => l.includes('--output-format')), 'no --output-format in default args');
-});
-
-test('@integration AC-2 monitor junk value → treated as false (no --monitor)', async (t) => {
-  const ctx = await bootServer({ MMD_AUTODEV_CMD: FAKE_ARGECHO });
-  t.after(async () => {
-    await ctx.server.shutdown('test');
-    ctx.restoreEnv();
-    rmSync(ctx.tmp, { recursive: true, force: true });
-  });
-  const res = await postDream(ctx.baseUrl, { dream: 'junk monitor value dream', monitor: 'yes-please' });
-  assert.equal(res.status, 202);
-  const argv = await waitForFile(path.join(ctx.tmp, 'captured-argv.txt'));
-  const lines = (argv || '').split('\n').filter(Boolean);
-  assert.ok(!lines.includes('--monitor'), `junk monitor must not thread --monitor, got ${JSON.stringify(lines)}`);
 });
 
 test('@integration serve disables the build timeout (MMD_TIMEOUT_MS=0) — L-016, a 30-min default would kill a real build', async (t) => {
@@ -248,7 +231,7 @@ test('@integration AC-4 /gauge.js is served (the pure render helper asset)', asy
   assert.match(body, /renderGauge/);
 });
 
-test('@integration AC-4 index.html has the Monitor toggle + #context-gauge; app.js polls /api/status', async (t) => {
+test('@integration v0.15.a AC-3 index.html has NO monitor checkbox but keeps #context-gauge; app.js polls /api/status', async (t) => {
   const ctx = await bootServer();
   t.after(async () => {
     await ctx.server.shutdown('test');
@@ -256,10 +239,13 @@ test('@integration AC-4 index.html has the Monitor toggle + #context-gauge; app.
     rmSync(ctx.tmp, { recursive: true, force: true });
   });
   const html = await (await fetch(ctx.baseUrl + '/')).text();
-  assert.match(html, /id="monitor-toggle"/, 'monitor checkbox present');
-  assert.match(html, /id="context-gauge"/, 'gauge element present');
+  // The "Monitor context (advanced)" checkbox is RETIRED — the Conductor is
+  // automatic, the gauge shows transparently (SPEC_V015A AC-3).
+  assert.doesNotMatch(html, /id="monitor-toggle"/, 'monitor checkbox must be gone (transparent Conductor)');
+  assert.match(html, /id="context-gauge"/, 'gauge element still present');
   assert.match(html, /gauge\.js/, 'gauge module script referenced');
   const appjs = await (await fetch(ctx.baseUrl + '/app.js')).text();
   assert.match(appjs, /\/api\/status\//, 'app.js polls /api/status');
   assert.match(appjs, /renderGauge|MMDGauge/, 'app.js renders the gauge');
+  assert.doesNotMatch(appjs, /monitor-toggle/, 'app.js no longer references the retired checkbox');
 });

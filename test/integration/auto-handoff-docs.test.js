@@ -20,11 +20,14 @@ test('@integration AC-5: ADR-051 exists and documents cooperative auto-handoff',
   assert.match(adr, /byte-for-byte/i, 'documents the default-unchanged contract');
 });
 
-test('@integration AC-5: the /mmdream operator template documents --auto-handoff for long runs', () => {
+test('@integration v0.15.a AC-5: the /mmdream operator template documents AUTOMATIC auto-handoff + the opt-out', () => {
   const tmpl = readFileSync(path.join(REPO_ROOT, 'assets', 'claude-commands', 'mmdream.md'), 'utf8');
-  assert.match(tmpl, /--auto-handoff/, 'mentions the flag');
-  assert.match(tmpl, /long run|fill .*context|context wall/i, 'frames it for long runs that may fill context');
+  // v0.15.a: auto-handoff is now automatic (transparent Conductor) — the template
+  // says so, documents the MMD_NO_AUTO_HANDOFF opt-out, and still names the cap.
+  assert.match(tmpl, /AUTOMATIC/i, 'frames auto-handoff as automatic (no flag)');
+  assert.match(tmpl, /MMD_NO_AUTO_HANDOFF/, 'documents the single opt-out');
   assert.match(tmpl, /MMD_MAX_HANDOFFS/, 'names the cap env var');
+  assert.match(tmpl, /LONG run/i, 'still frames it for long runs that may fill context');
 });
 
 test('@integration AC-5: the package version is at least 0.13.0 (the v0.13.a bump; patches move it forward)', () => {
@@ -41,4 +44,30 @@ test('@integration AC-5: CLAUDE.md records the v0.13.a auto-handoff slice', () =
   const claude = readFileSync(path.join(REPO_ROOT, 'CLAUDE.md'), 'utf8');
   assert.match(claude, /Cooperative auto-handoff at 70% \(v0\.13\.a\)/);
   assert.match(claude, /ADR-051/);
+});
+
+// ── v0.15.a AC-5: the transparent-Conductor docs land ───────────────────────
+
+test('@integration v0.15.a AC-5: ADR-054 exists and documents the transparent Conductor default-on + opt-out', () => {
+  const adr = readFileSync(path.join(REPO_ROOT, 'docs', 'adr', '054-transparent-conductor-default.md'), 'utf8');
+  assert.match(adr, /ADR-054/);
+  assert.match(adr, /\*\*Status\*\*:\s*accepted/i);
+  assert.match(adr, /transparent Conductor/i);
+  assert.match(adr, /default-on|default/i);
+  assert.match(adr, /MMD_NO_AUTO_HANDOFF/, 'documents the single opt-out');
+  assert.match(adr, /inert/i, 'documents the legacy flags are inert');
+});
+
+test('@integration v0.15.a AC-5: the package version is at least 0.15.0', () => {
+  const pkg = JSON.parse(readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
+  const [major, minor] = pkg.version.split('.').map(Number);
+  assert.equal(major, 0);
+  assert.ok(minor >= 15, `expected version >= 0.15.0, got ${pkg.version}`);
+});
+
+test('@integration v0.15.a AC-5: CLAUDE.md records the v0.15.a transparent-Conductor slice', () => {
+  const claude = readFileSync(path.join(REPO_ROOT, 'CLAUDE.md'), 'utf8');
+  assert.match(claude, /v0\.15\.a/);
+  assert.match(claude, /ADR-054/);
+  assert.match(claude, /MMD_NO_AUTO_HANDOFF/);
 });

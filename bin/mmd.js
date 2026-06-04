@@ -117,18 +117,12 @@ Mode flags (orthogonal to engine):
                                        Works on greenfield AND with --here (v0.4.b) — so an MMD
                                        slice can seal-test its own change.
   --here                               Self / brownfield-in-place: modify cwd, no demo/<slug>/ scaffold (v0.2a)
-  --monitor                            Opt-in live context monitor (v0.5.b): spawn auto-dev in stream-json,
-                                       report the orchestrator's context % to status.json.context, and at
-                                       MMD_HANDOFF_THRESHOLD (default 0.70) emit a READY_FOR_HANDOFF signal +
-                                       a context_70 notification. Default spawn is unchanged when absent.
-  --auto-handoff                       HYBRID auto-handoff at 70% (v0.13.a + v0.14.b, implies --monitor): when
-                                       the orchestrator's context fills it is INCITED to stop cleanly at a phase
-                                       boundary; if it OBEYS, MMD relaunches a FRESH successor that resumes from
-                                       the checkpoint (cooperative). If it IGNORES the incitation — advancing a
-                                       new boundary while still alive over the threshold — MMD waits a grace
-                                       (MMD_HANDOFF_GRACE_MS) then ENFORCES a terminate AT that checkpoint (no
-                                       committed work lost) and relaunches resume. Bounded by MMD_MAX_HANDOFFS
-                                       (default 3), then one final un-enforced run. For long runs that fill context.
+  --monitor                            DEPRECATED no-op (v0.15.a): the live context monitor is now the DEFAULT
+                                       (transparent Conductor). Accepted for back-compat; changes nothing.
+                                       Opt out of the whole Conductor with MMD_NO_AUTO_HANDOFF=1.
+  --auto-handoff                       DEPRECATED no-op (v0.15.a): the HYBRID auto-handoff is now the DEFAULT
+                                       (transparent Conductor). Accepted for back-compat; changes nothing.
+                                       Opt out with MMD_NO_AUTO_HANDOFF=1.
   --label <name>                       Human-readable branch name for --here (e.g. --label wip-salvage); else derived from the dream
   --skip-onboarding                    Bypass the v0.2c Project Onboarder gate (NOT RECOMMENDED)
 
@@ -167,10 +161,14 @@ Environment variables:
                                        Best-effort: a delivery failure never changes the run's
                                        outcome. Unset = no network call (the default).
                                        Example: MMD_NOTIFY_URL=https://ntfy.sh/<your-topic>
-  MMD_HANDOFF_THRESHOLD                Context % that triggers the --monitor READY_FOR_HANDOFF signal +
-                                       context_70 notification (v0.5.b). Default 0.70; honored when in (0,1].
+  MMD_NO_AUTO_HANDOFF=1                The single opt-out for the transparent Conductor (v0.15.a). Restores the
+                                       pre-v0.15 behavior EXACTLY: a plain text spawn, one un-looped auto-dev
+                                       invocation, no monitor, no handoff loop. Unset (the default) → the
+                                       Conductor is ON (monitored spawn + hybrid auto-handoff at the threshold).
+  MMD_HANDOFF_THRESHOLD                Context % that triggers the READY_FOR_HANDOFF signal + context_70
+                                       notification (v0.5.b). Default 0.70; honored when in (0,1].
   MMD_MAX_HANDOFFS                     Max handoffs before one final un-enforced successor
-                                       (v0.13.a/v0.14.b --auto-handoff). Integer >= 1, default 3; junk/0 → default.
+                                       (v0.13.a/v0.14.b). Integer >= 1, default 3; junk/0 → default.
   MMD_HANDOFF_GRACE_MS                 HYBRID enforce grace (v0.14.b): ms MMD waits for the orchestrator to exit
                                        cooperatively after it ignores the incitation, before terminating its
                                        process group AT the checkpoint. Non-negative integer, default 15000; 0 honored.

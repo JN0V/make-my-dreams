@@ -75,7 +75,7 @@ See [ADR-023](./docs/adr/023-dream-catcher-cli-and-profile.md) and [L-022](./doc
 
 **`MMD_PROFILE` — the profile reaches the build — *new in v0.3.b, composer added in v0.3.c*.** The audience profile chosen in the dialogue (`Kid` / `Curious` / `Pro`, default `Curious`) is exported as `MMD_PROFILE` into the auto-dev subprocess on **both** surfaces (CLI greenfield and the web `/api/catch/confirm`). The auto-dev prompt then **states the profile** and injects the **constitution modules bound to it** via the **Layer C composer** (`lib/constitution-compose.js`): `MMD_PROFILE` resolves through `.specify/memory/constitution-bindings.yaml` to `defaults.always ∪ profiles[profile]`, and each `.specify/memory/constitution/<name>.md` is read and concatenated into the prompt under per-module headers. So a **`Kid`** build now carries the full `safe-by-default.md` + `kid.md` text (no network, no third-party services, hardware permission on gesture only, no commerce/social, accessibility, age-appropriate), a **`Curious`** build carries `safe-by-default.md`, and a **`Pro`** build carries `pro.md`. If the bindings file or a module is unreadable the composer returns `null` and `buildPrompt` falls back to v0.3.b's minimal Kid line — graceful, never a crash (universal §VI). An unset `MMD_PROFILE` leaves the prompt unchanged (back-compat). The composer uses a hand-rolled YAML-lite parser (no `yaml` dependency, vanilla stack); it composes by **profile** only for now (engine/context/skill dimensions are a future slice — the resolver is built to extend). The profile is no longer a dead `status.json` field — see [ADR-024](./docs/adr/024-constitution-composer-layer-c.md) and [L-022](./docs/lessons-learned.md).
 
-Env vars: `MMD_AUTODEV_CMD` (override subprocess for testing), `MMD_AUTODEV_MODE` (`cli` | `test` — explicit, replaces the v0.1 path heuristic), `MMD_QUIET=1` (suppress subprocess output on the terminal; log file preserved), `MMD_TIMEOUT_MS` (default 1800000), `MMD_REALITY_CHECK_BACKEND` (`mcp` | `playwright` | `skip`), `MMD_DREAM_MAX_LEN` (default 500), `MMD_PROFILE` (`Kid` | `Curious` | `Pro` — audience profile threaded into the build; usually set by the dialogue, `Kid` → safe-by-default prompt), `MMD_NOTIFY_URL` (opt-in Conductor notification sink — *new in v0.5.a*; when set, MMD POSTs a ✅/❌ payload on run done/failed; unset = no network call), `MMD_HANDOFF_THRESHOLD` (context % that triggers the `--monitor` READY_FOR_HANDOFF signal + `context_70` notification — *new in v0.5.b*; default `0.70`, honored when in `(0,1]`), `MMD_MAX_HANDOFFS` (max handoffs under `--auto-handoff` before one final un-enforced successor — *new in v0.13.a*; integer ≥ 1, default `3`, junk/0 → default), `MMD_HANDOFF_GRACE_MS` (HYBRID enforce grace under `--auto-handoff` — *new in v0.14.b*; ms MMD waits for the orchestrator to exit cooperatively after ignoring the incitation, before terminating its process group at the checkpoint; non-negative integer, default `15000`, `0` honored).
+Env vars: `MMD_AUTODEV_CMD` (override subprocess for testing), `MMD_AUTODEV_MODE` (`cli` | `test` — explicit, replaces the v0.1 path heuristic), `MMD_QUIET=1` (suppress subprocess output on the terminal; log file preserved), `MMD_TIMEOUT_MS` (default 1800000), `MMD_REALITY_CHECK_BACKEND` (`mcp` | `playwright` | `skip`), `MMD_DREAM_MAX_LEN` (default 500), `MMD_PROFILE` (`Kid` | `Curious` | `Pro` — audience profile threaded into the build; usually set by the dialogue, `Kid` → safe-by-default prompt), `MMD_NOTIFY_URL` (opt-in Conductor notification sink — *new in v0.5.a*; when set, MMD POSTs a ✅/❌ payload on run done/failed; unset = no network call), `MMD_HANDOFF_THRESHOLD` (context % that triggers the `--monitor` READY_FOR_HANDOFF signal + `context_70` notification — *new in v0.5.b*; default `0.70`, honored when in `(0,1]`), `MMD_MAX_HANDOFFS` (max handoffs under `--auto-handoff` before one final un-enforced successor — *new in v0.13.a*; integer ≥ 1, default `3`, junk/0 → default), `MMD_HANDOFF_GRACE_MS` (HYBRID enforce grace — *new in v0.14.b*; ms MMD waits for the orchestrator to exit cooperatively after ignoring the incitation, before terminating its process group at the checkpoint; non-negative integer, default `15000`, `0` honored), `MMD_NO_AUTO_HANDOFF=1` (the single opt-out for the transparent Conductor — *new in v0.15.a*; restores the pre-v0.15 plain text spawn — one un-looped auto-dev run, no monitor, no handoff loop; unset = the Conductor is on by default).
 
 ### FAST mode — *new in v0.2*
 
@@ -225,16 +225,29 @@ It is **bounded + honest**: handoffs (cooperative or enforced) are capped by **`
 
 **Honesty (§VI).** The enforce (SIGTERM at a checkpoint) is deterministic + fully tested; the **resume after a forced kill is still LLM-dependent and proven only by an operator/live run** (a resume failure is reported as a wall, never a green-by-fakes "done" — the exact trap that hid the cooperative bug). Deferred: enforce mid-phase (before any checkpoint), sub-phase granularity, adaptive thresholds, the transparent flip (until this is proven live), parallel handoff. See [ADR-053](./docs/adr/053-hybrid-auto-handoff-enforce.md), [ADR-051](./docs/adr/051-cooperative-auto-handoff.md), [ADR-050](./docs/adr/050-stateless-resumable-orchestrator.md), and [L-027](./docs/lessons-learned.md).
 
-### Context gauge in `mmdream serve` (opt-in "Monitor context" toggle) — *new in v0.5.c*
+### The transparent Conductor — auto-handoff is now the DEFAULT — *new in v0.15.a*
 
-The monitor above is great in a terminal, but `mmdream serve` exists for the non-technical user — who never sees a JSON file. v0.5.c makes it **visible**: the dream form gains a **"Monitor context (advanced)"** checkbox, and when it's ticked the progress view shows a live **context gauge** — a bar (% of the model's context window), the humanized token count (`337k / 1.0M`), the model, a 70% threshold marker, and a "⚠️ ready for handoff" badge once the threshold is crossed.
+The hybrid auto-handoff above was **proven live** in v0.14.b, so v0.15.a makes it **transparent**: the monitored spawn **and** the hybrid handoff loop now run **by default** on `mmdream --here`, the greenfield path, and `serve` — **no flag, no checkbox**. The Conductor's job (vision §4.2) is to be **invisible**, and a non-technical `serve`/Dream-Catcher user will never pass `--auto-handoff`; opt-in meant the people who most need an invisible context manager never got one.
+
+```bash
+mmdream --here "a big multi-AC refactor"     # monitored + hybrid handoff, automatically
+mmdream "a large greenfield app"             # same — no flag needed
+MMD_NO_AUTO_HANDOFF=1 mmdream --here "…"      # the single opt-out: pre-v0.15 behavior exactly
+```
+
+This is a **defaults flip + a single opt-out + back-compat** — **no handoff logic is re-implemented** (the entire v0.14.0 machinery is reused unchanged). **`MMD_NO_AUTO_HANDOFF=1`** restores the pre-v0.15 behavior *exactly*: a plain text spawn, one un-looped auto-dev invocation, no monitor, no loop (the bootstrap/cost escape hatch). The legacy **`--auto-handoff` / `--monitor` flags become accepted-but-inert no-ops** (kept so old scripts never hit an "unknown flag" error; they change nothing — the Conductor is already on). The `serve` "Monitor context (advanced)" checkbox is **retired** — the gauge now shows transparently whenever context data exists.
+
+**Why the retired byte-for-byte-default-spawn contract is safe.** `stream-json` changes only the **output format**, not the agent's work (the monitor re-renders human-readable progress), so the reflexive bootstrap self-build runs monitored by default with the suite green and the result unaffected. The v0.13.1 **no-false-handoff** gate is preserved (a run that crosses the threshold but reaches no new boundary is never killed — proven by default-on integration tests covering both the cooperative and enforce paths with no flag), and the opt-out restores today's exact path. The spawn-pin tests are **inverted** (default has stream-json; the opt-out is byte-for-byte historical). **Noted open question** (not blocking): whether the orchestrator genuinely saturates on a real slice is unmeasured — it delegates phases to fresh sub-agents, so it may stay light; default-on is safe regardless (the hybrid only acts at the threshold) and reversible. See [ADR-054](./docs/adr/054-transparent-conductor-default.md).
+
+### Context gauge in `mmdream serve` (now automatic) — *v0.5.c, transparent since v0.15.a*
+
+The monitor above is great in a terminal, but `mmdream serve` exists for the non-technical user — who never sees a JSON file. v0.5.c made it **visible** with a context gauge; **since v0.15.a it is automatic** — the Conductor is on by default, so the progress view shows the live **context gauge** with no checkbox to tick: a bar (% of the model's context window), the humanized token count (`337k / 1.0M`), the model, a 70% threshold marker, and a "⚠️ ready for handoff" badge once the threshold is crossed.
 
 ```
-☐ Monitor context (advanced)      ← tick before "Let's go!"
    ▓▓▓▓▓░░░░░  34%  (337k / 1.0M tokens · claude-opus-4-8[1m])   ┊70%
 ```
 
-Ticking the box appends `--monitor` to the web launch; the page then polls `GET /api/status/<slug>` every ~3 s and re-draws the gauge from the response's `.context`. Polling (not SSE-push) keeps the gauge **decoupled** from the progress feed — a failed/slow poll is swallowed and **never breaks the page or the SSE stream**. **Unticked is the default and byte-for-byte today's web run**: no `--monitor`, no gauge, no extra polling, and the SSE progress is unchanged (even ticked, the monitored run re-renders readable text to stdout, so the SSE contract is untouched). The gauge markup is CSP-safe (a native `<progress>` bar + an external-CSS 70% marker — the page runs under `style-src 'self'`). See [ADR-031](./docs/adr/031-serve-ui-context-gauge.md) and [L-027](./docs/lessons-learned.md).
+The page polls `GET /api/status/<slug>` every ~3 s and re-draws the gauge from the response's `.context`. Polling (not SSE-push) keeps the gauge **decoupled** from the progress feed — a failed/slow poll is swallowed and **never breaks the page or the SSE stream** — and the gauge auto-hides when there is no context to show. The monitored run re-renders readable text to stdout, so the SSE contract is untouched. The gauge markup is CSP-safe (a native `<progress>` bar + an external-CSS 70% marker — the page runs under `style-src 'self'`). The pre-v0.15 "Monitor context (advanced)" checkbox was **retired** when the Conductor became transparent (`MMD_NO_AUTO_HANDOFF=1` opts the whole machine out). See [ADR-031](./docs/adr/031-serve-ui-context-gauge.md), [ADR-054](./docs/adr/054-transparent-conductor-default.md), and [L-027](./docs/lessons-learned.md).
 
 ### Bench mode (`mmdream bench`) — *new in v0.2b*
 
@@ -753,12 +766,12 @@ The folder will be renamed `make-my-dreams/` after v0.1 is validated. The repo i
 ## Status
 
 <!-- mmd:readme:status:start -->
-- **Version**: `0.14.0` (package.json)
+- **Version**: `0.15.0` (package.json)
 - **Latest tag**: `v0.14.0`
-- **ADRs**: 52 (ADR-001..ADR-053)
+- **ADRs**: 53 (ADR-001..ADR-054)
 - **Active lessons**: 21 active
 - **Reflexive slices (release tags)**: 54
-- **Tests**: 2153 passing
+- **Tests**: 2162 passing
 - _Mechanical block — regenerated by `mmdream document-readme`; the prose History and command docs are human-authored._
 <!-- mmd:readme:status:end -->
 

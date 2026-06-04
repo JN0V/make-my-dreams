@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.14.0`
-- **Branch**: `main`
-- **Version**: `0.14.0` (package.json)
+- **Branch**: `slice/here-transparent-conductor-default-flip-1780580656`
+- **Version**: `0.15.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 52 (ADR-001..ADR-053)
-- **Tests**: 2153 passing
+- **ADRs**: 53 (ADR-001..ADR-054)
+- **Tests**: (run `npm test` to refresh — pass `mmdream handover --tests N`)
 - **Recent commits**:
-  - `84c1ac1 fix(conductor): never enforce-kill a COMPLETE pipeline; prove the group-kill (Phase 4 review)`
-  - `0cf8960 docs: HYBRID auto-handoff README section + env var + refresh mechanical blocks (v0.14.b)`
-  - `c20d24a docs(spec): ADR-053 hybrid auto-handoff + CLAUDE.md entry + version 0.14.0 (v0.14.b)`
-  - `6ef5a22 test(conductor): assert the heredoc KEEPS the cooperative incitation (v0.14.b AC-4)`
-  - `30604d8 feat(conductor): wire the HYBRID auto-handoff loop — enforce backstop (v0.14.b AC-3)`
+  - `5794e82 test(conductor): prove v0.13.1/v0.14.0 safety properties hold under default-on (AC-4)`
+  - `226f372 feat(serve): transparent Conductor on serve + greenfield — no flag, no checkbox (AC-3)`
+  - `b1009b8 feat(conductor): transparent Conductor — monitor + hybrid handoff default-on (AC-1/AC-2)`
+  - `95a75b0 docs(spec): freeze SPEC_V015A — transparent Conductor (auto-handoff default-on)`
+  - `14ea2a3 docs: update roadmap §9.0 + HANDOVER intent — Conductor A→B→C shipped + proven (v0.10→v0.14)`
 - **Generated**: 2026-06-04 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

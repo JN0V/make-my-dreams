@@ -748,6 +748,15 @@ So that a kill at any point is recoverable, after EACH phase completes (Phases 1
 
 These files are run state, NOT deliverables — they are gitignored (\`.mmd/local/\`); do NOT commit them. Writing them is additive: it does not change the phase flow, only records progress so \`--resume\` can continue from \`last_completed_phase + 1\`.
 
+### HANDOFF CHECK — cooperative auto-handoff at a phase boundary (SPEC_V013A / ADR-051)
+
+3. **Check the handoff-request marker** at \`.mmd/local/handoff-request\` (run-local, gitignored). This is how MMD's cooperative auto-handoff works: when the orchestrator's context fills past the threshold, MMD's context monitor writes this marker. You — at THIS phase boundary, right AFTER writing the checkpoint above and BEFORE starting the next phase — check whether the marker file exists:
+
+- **The \`.mmd/local/handoff-request\` marker is PRESENT** → a handoff was requested. ANNOUNCE it (e.g. \`⏸ Handoff requested at phase {N} boundary — checkpointing complete, stopping cleanly so a fresh successor can resume with low context.\`) and then **EXIT CLEANLY (stop now) WITHOUT starting the next phase**, leaving the INCOMPLETE checkpoint (\`last_completed_phase = N < 4\`) in place. Do NOT kill anything mid-phase — you have already finished phase {N} and written its checkpoint, so stopping here loses no work. MMD will detect the clean exit + incomplete checkpoint + the request marker and relaunch a fresh successor in RESUME mode (it continues from phase {N + 1} via the Resume Check above).
+- **No \`.mmd/local/handoff-request\` marker (the common case)** → CONTINUE to the next phase exactly as today. A run launched without MMD's \`--auto-handoff\` never sees this marker, so this check is a no-op and the phase flow is byte-for-byte unchanged.
+
+This boundary-stop-on-request is ADDITIVE and COOPERATIVE: it only ever stops at a phase boundary you already reached and checkpointed — never a forced kill, never lost in-phase reasoning.
+
 ---
 
 ## PHASE 1: QUICK-DEV SPEC (STEPS 1-2) WITH 3x PARTY MODE
@@ -842,7 +851,7 @@ Accept the recommendations, apply any improvements to the spec, then select [A] 
 🔄 Lancement Phase 2 — Revue adversariale de la spec...
 \`\`\`
 
-5. **CHECKPOINT (Phase 1 done).** Write \`.mmd/local/handoff/1.md\` (the spec was produced at {spec_file_path}; next: Phase 2 adversarial spec review; key context: the spec path) and overwrite \`.mmd/local/checkpoint.json\` with \`{ "last_completed_phase": 1, "spec_frozen": false, "spec_path": "{spec_file_path}" }\`. See CHECKPOINTING above.
+5. **CHECKPOINT (Phase 1 done).** Write \`.mmd/local/handoff/1.md\` (the spec was produced at {spec_file_path}; next: Phase 2 adversarial spec review; key context: the spec path) and overwrite \`.mmd/local/checkpoint.json\` with \`{ "last_completed_phase": 1, "spec_frozen": false, "spec_path": "{spec_file_path}" }\`. See CHECKPOINTING above. **Then perform the HANDOFF CHECK:** if \`.mmd/local/handoff-request\` is present, announce the handoff and EXIT CLEANLY without starting Phase 2.
 
 ---
 
@@ -921,7 +930,7 @@ From the sub-agent output:
 1. Extract the SUMMARY line
 2. Count Critical and High findings
 3. If **Critical > 0 OR High > 0**: proceed to fix step (2c)
-4. If **Critical == 0 AND High == 0**: exit loop. **CHECKPOINT (Phase 2 done):** the spec is now finalized and FROZEN — write \`.mmd/local/handoff/2.md\` (the spec passed adversarial review and is frozen at {spec_file_path}; next: Phase 3 implementation; key context: spec path + review iterations) and overwrite \`.mmd/local/checkpoint.json\` with \`{ "last_completed_phase": 2, "spec_frozen": true, "spec_path": "{spec_file_path}" }\`. Then proceed to Phase 3.
+4. If **Critical == 0 AND High == 0**: exit loop. **CHECKPOINT (Phase 2 done):** the spec is now finalized and FROZEN — write \`.mmd/local/handoff/2.md\` (the spec passed adversarial review and is frozen at {spec_file_path}; next: Phase 3 implementation; key context: spec path + review iterations) and overwrite \`.mmd/local/checkpoint.json\` with \`{ "last_completed_phase": 2, "spec_frozen": true, "spec_path": "{spec_file_path}" }\`. **Then perform the HANDOFF CHECK:** if \`.mmd/local/handoff-request\` is present, announce the handoff and EXIT CLEANLY without starting Phase 3; otherwise proceed to Phase 3.
 
 #### 2c. Launch Fix Sub-Agent (if needed)
 
@@ -1044,7 +1053,7 @@ Generate the suggested review order, commit, and present results.
 🔄 Lancement Phase 4 — Revue adversariale finale (filet de sécurité)...
 \`\`\`
 
-2. **CHECKPOINT (Phase 3 done).** Write \`.mmd/local/handoff/3.md\` (the implementation + 3-reviewer pass completed; list the files modified/created and the review outcome; next: Phase 4 final adversarial code review; key context: spec path) and overwrite \`.mmd/local/checkpoint.json\` with \`{ "last_completed_phase": 3, "spec_frozen": true, "spec_path": "{spec_file_path}" }\`.
+2. **CHECKPOINT (Phase 3 done).** Write \`.mmd/local/handoff/3.md\` (the implementation + 3-reviewer pass completed; list the files modified/created and the review outcome; next: Phase 4 final adversarial code review; key context: spec path) and overwrite \`.mmd/local/checkpoint.json\` with \`{ "last_completed_phase": 3, "spec_frozen": true, "spec_path": "{spec_file_path}" }\`. **Then perform the HANDOFF CHECK:** if \`.mmd/local/handoff-request\` is present, announce the handoff and EXIT CLEANLY without starting Phase 4; otherwise proceed to Phase 4.
 
 ---
 

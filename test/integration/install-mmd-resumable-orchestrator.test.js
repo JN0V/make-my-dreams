@@ -98,3 +98,39 @@ test('@integration AC-3: materialized workflow is resume-aware on init', () => {
   // No-checkpoint path is explicitly unchanged (additive).
   assert.match(wf, /FRESH run|no-checkpoint path is UNCHANGED|behaves byte-for-byte/i, 'no checkpoint → fresh path unchanged');
 });
+
+// ── v0.13.a AC-3: cooperative auto-handoff boundary-stop-on-request ──────────
+// The orchestrator, at each phase boundary AFTER writing the checkpoint, checks
+// the handoff-request marker and — if present — announces + exits cleanly
+// without starting the next phase (leaving the incomplete checkpoint). This
+// validates the INSTRUCTION is materialized (testability boundary, §VI).
+
+test('@integration AC-3: materialized workflow stops cleanly at a phase boundary on a handoff request', () => {
+  const wf = materializeWorkflow();
+  // The HANDOFF CHECK contract section + the marker path.
+  assert.match(wf, /HANDOFF CHECK/i, 'a handoff-check section is present');
+  assert.match(wf, /\.mmd\/local\/handoff-request/, 'the handoff-request marker path is named');
+  // The core instruction: marker present → announce + exit cleanly without the next phase.
+  assert.match(
+    wf,
+    /handoff-request[\s\S]{0,400}?(PRESENT|present)[\s\S]{0,400}?EXIT CLEANLY/i,
+    'marker present → exit cleanly',
+  );
+  assert.match(wf, /without starting the next phase/i, 'it does not start the next phase');
+  assert.match(wf, /INCOMPLETE checkpoint|incomplete checkpoint/i, 'it leaves the incomplete checkpoint');
+  // No marker → continue as today (additive; a non-auto-handoff run never sees it).
+  assert.match(
+    wf,
+    /No `?\.mmd\/local\/handoff-request`? marker[\s\S]{0,200}?(CONTINUE|continue)/i,
+    'no marker → continue to the next phase',
+  );
+  assert.match(wf, /never sees this marker|byte-for-byte unchanged/i, 'a non-auto-handoff run is unchanged');
+  // It is wired at the non-final phase boundaries (1, 2, 3).
+  for (const next of ['Phase 2', 'Phase 3', 'Phase 4']) {
+    assert.match(
+      wf,
+      new RegExp(`HANDOFF CHECK:\\*\\*[\\s\\S]{0,200}?without starting ${next}`, 'i'),
+      `the HANDOFF CHECK is wired before starting ${next}`,
+    );
+  }
+});

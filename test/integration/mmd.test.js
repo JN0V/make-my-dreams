@@ -172,14 +172,18 @@ test('@integration re-run in non-TTY without flags builds fresh in a NEW slug (n
   }
 });
 
-test('@integration re-run with --resume exits 3 and reports state', () => {
+test('@integration re-run with --resume on a completed run is an honest no-op (v0.12.a)', () => {
   const tmp = makeTmp();
   try {
     let r = runMmd(['a tiny test app that shows hello world'], { cwd: tmp });
     assert.equal(r.status, 0, r.stderr);
+    // The fake auto-dev writes no checkpoint, so there is nothing to resume.
+    // The old stub printed state + exited 3; v0.12.a continues a REAL run, and
+    // when there is no resumable checkpoint it says so honestly and exits 0 —
+    // never a fabricated continuation (§VI).
     r = runMmd(['a tiny test app that shows hello world', '--resume'], { cwd: tmp });
-    assert.equal(r.status, 3);
-    assert.match(r.stdout, /state/i);
+    assert.equal(r.status, 0, `expected honest no-op exit 0; stderr=${r.stderr}`);
+    assert.match(r.stdout, /--resume.*(no resumable run|nothing to resume)/i);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

@@ -27,6 +27,7 @@ import { buildManifest, verifyManifest, sealIntact } from '../lib/sealed-tests/m
 import { buildTesterPrompt, buildCoderPrompt } from '../lib/sealed-tests/tester-prompt.js';
 import { buildJudgePrompt, parseJudgeVerdict, judgeFallback } from '../lib/sealed-tests/judge.js';
 import { aggregateAlignment, buildGapFeedback, parseMaxIters } from '../lib/conductor/alignment-gate.js';
+import { readCheckpoint, decideResume } from '../lib/conductor/checkpoint.js';
 import { writeRunOutcomeSync } from '../lib/autolearn/run-outcome.js';
 import { computeBlastRadius } from '../lib/sealed-tests/blast-radius.js';
 import { realityCheck } from '../lib/reality-check.js';
@@ -119,7 +120,9 @@ Dream Catcher dialogue (greenfield only, mutually exclusive — v0.3.b):
   --no-catch                           Skip the dialogue even on a TTY (launch the verbatim dream)
 
 Idempotent re-run flags (used when a demo dir already exists):
-  --resume                             Print current dream state and exit 3
+  --resume                             Continue an interrupted run from its checkpoint (v0.12.a);
+                                       --here --resume resumes the current repo's slice. Honest
+                                       no-op if the run completed or there is no checkpoint.
   --fresh                              Delete the demo dir and restart
   --cancel                             Abort and exit 1
 
@@ -1529,6 +1532,178 @@ async function runSealedGreenfield({
   });
 }
 
+// ── v0.12.a — REAL `--resume` (continue an interrupted run, SPEC_V012A AC-4) ──
+// The auto-dev orchestrator has 4 phases (Phase 1-4). A resumable checkpoint
+// records lastCompletedPhase ∈ [1,4); a complete run reaches 4.
+const TOTAL_AUTODEV_PHASES = 4;
+
+/**
+ * The resume directive appended to the relaunch prompt. The orchestrator's
+ * own INITIALIZATION "Resume Check" reads the checkpoint regardless, but we
+ * state the resume explicitly + restate the goal at the prompt's end (counters
+ * constraint decay — ai-coding §III). PURE.
+ */
+function buildResumeFeedback(checkpoint) {
+  const n = Number(checkpoint?.lastCompletedPhase) || 0;
+  return [
+    '## RESUME — continue an interrupted auto-dev run',
+    '',
+    'This is a RESUME of a previously interrupted run. An externalized checkpoint',
+    'exists at `.mmd/local/checkpoint.json` with `last_completed_phase`=' + n + '.',
+    'Run your INITIALIZATION "Resume Check": read `.mmd/local/handoff/<1..' + n + '>.md`',
+    'and the slice branch commits to recover state, ANNOUNCE the resume, and CONTINUE',
+    'from phase ' + (n + 1) + '. Do NOT redo the completed phases (1-' + n + ') and do NOT',
+    're-open a frozen spec. Take the time the remaining phases need (no early stop).',
+  ].join('\n');
+}
+
+/**
+ * Decide + (if resumable) relaunch a fresh auto-dev to continue from the
+ * checkpoint. Shared by the --here and greenfield surfaces — only the runDir
+ * and the relaunch-prompt builder differ. A complete run or no checkpoint →
+ * honest message, NO relaunch, exit 0 (never a fabricated continuation, §VI).
+ */
+async function finishResume({ runDir, slug, effectiveDream, status, buildRelaunchPrompt, engine, timeoutMs, label, promptMode }) {
+  const checkpoint = readCheckpoint(runDir);
+  const decision = decideResume({
+    checkpoint,
+    totalPhases: TOTAL_AUTODEV_PHASES,
+    // Best-effort: a manual `--resume` implies the prior orchestrator has ended.
+    // There is no portable pid record of the detached `claude -p`, so we do not
+    // claim to detect a live process — documented limitation (decideResume keeps
+    // the processAlive branch for a future pid-file). statusState is the signal.
+    processAlive: false,
+    statusState: status?.state,
+  });
+
+  if (decision.action !== 'relaunch') {
+    stdout.write(`--resume (${label}): ${decision.reason}. No relaunch.\n`);
+    return 0;
+  }
+
+  stdout.write(`--resume (${label}): ${decision.reason}. Relaunching auto-dev to continue...\n`);
+
+  const timestamp = `${nowIso().replace(/[:.]/g, '-')}-${process.pid}`;
+  const logPath = path.join(runDir, '.mmd', 'local', 'runs', `${timestamp}.log`);
+  const feedback = buildResumeFeedback(checkpoint);
+
+  const inProgress = {
+    slice_id: status?.slice_id || slug,
+    dream: status?.dream || effectiveDream,
+    state: 'in_progress',
+    created_at: status?.created_at || nowIso(),
+    updated_at: nowIso(),
+    tasks: [{ id: 'auto-dev', state: 'in_progress' }],
+  };
+  await writeStatus(runDir, inProgress);
+
+  let invokeResult;
+  try {
+    invokeResult = await invokeAutodev({
+      demoDir: runDir,
+      dream: effectiveDream,
+      slug,
+      promptParts: {
+        dream: effectiveDream,
+        slug,
+        demoDir: runDir,
+        prompt: buildRelaunchPrompt(feedback),
+        ...(promptMode ? { mode: promptMode } : {}),
+      },
+      logPath,
+      timeoutMs, // MMD_TIMEOUT_MS=0 (no timeout) is honored — L-016.
+      engine,
+    });
+  } catch (err) {
+    await writeStatus(runDir, { ...inProgress, state: 'failed', updated_at: nowIso() });
+    writeRunOutcomeSync(logPath, { state: 'failed' });
+    stderr.write(`resume: auto-dev invocation failed: ${err.message}. See ${logPath}\n`);
+    const e = new Error(err.message);
+    e.mmdExitCode = err.mmdExitCode ?? 99;
+    throw e;
+  }
+
+  const { code } = invokeResult;
+  if (code !== 0) {
+    await writeStatus(runDir, { ...inProgress, state: 'failed', updated_at: nowIso() });
+    writeRunOutcomeSync(logPath, { state: 'failed' });
+    stderr.write(`resume: auto-dev exited with code ${code}. See ${logPath}\n`);
+    const e = new Error(`auto-dev subprocess exited ${code}`);
+    e.mmdExitCode = 6;
+    throw e;
+  }
+
+  await writeStatus(runDir, {
+    ...inProgress,
+    state: 'done',
+    updated_at: nowIso(),
+    tasks: [{ id: 'auto-dev', state: 'done', log: logPath }],
+  });
+  writeRunOutcomeSync(logPath, { state: 'done' });
+  await maybeNotify({ event: 'run_done', slice: inProgress.slice_id, state: 'done', summary: `resumed ${label} run completed` });
+  stdout.write(`[OK] Resumed run completed (${label}). Inspect ${runDir}.\n`);
+  return 0;
+}
+
+/**
+ * Entry point for `--resume` on both surfaces. `--here --resume` recovers the
+ * run from cwd's status.json (no dream arg needed); greenfield `<dream> --resume`
+ * resolves demo/<slug> from the dream (and preserves the E7 symlink defense).
+ */
+async function runResume({ flags, dream, engine }) {
+  const timeoutMs = env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000;
+
+  if (flags.here) {
+    const runDir = path.resolve(cwd());
+    const status = await readStatus(runDir).catch(() => null);
+    const effectiveDream = (status && status.dream) || dream || '(resumed --here run)';
+    const slug = (status && status.slice_id) || 'resumed';
+    // Recover the branch the interrupted run was on (auto-dev commits there).
+    let sliceBranch = 'HEAD';
+    try {
+      const r = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: runDir, encoding: 'utf8' });
+      if (r.status === 0 && r.stdout.trim()) sliceBranch = r.stdout.trim();
+    } catch { /* best-effort — the prompt still carries the resume directive */ }
+    const buildRelaunchPrompt = (feedback) =>
+      `${buildHerePrompt({ dream: effectiveDream, sliceBranch, targetDir: runDir, engine })}\n\n${feedback}`;
+    return finishResume({
+      runDir, slug, effectiveDream, status, buildRelaunchPrompt, engine, timeoutMs,
+      label: '--here', promptMode: 'here',
+    });
+  }
+
+  // Greenfield: the dream identifies demo/<slug>.
+  if (dream === undefined || dream.trim() === '') {
+    stderr.write('error: a dream string is required for greenfield --resume (it identifies demo/<slug>)\n');
+    return 2;
+  }
+  let gSlug;
+  try {
+    gSlug = slugify(dream);
+  } catch (err) {
+    stderr.write(`error: ${err.message}\n`);
+    return 2;
+  }
+  const demoDir = path.join(cwd(), 'demo', gSlug);
+  // E7 — refuse --resume from a symlinked demoDir BEFORE reading any state
+  // (defends against a planted symlink pointing outside ./demo/).
+  const absDemoDir = path.resolve(demoDir);
+  const lst = await lstat(absDemoDir).catch(() => null);
+  if (lst && lst.isSymbolicLink()) {
+    stderr.write(`refusing to --resume from a symlinked demoDir: ${absDemoDir}\n`);
+    const e = new Error('symlinked demoDir');
+    e.mmdExitCode = 5;
+    throw e;
+  }
+  const status = await readStatus(demoDir).catch(() => null);
+  const buildRelaunchPrompt = (feedback) =>
+    `${buildPrompt({ dream, slug: gSlug, demoDir, engine })}\n\n${feedback}`;
+  return finishResume({
+    runDir: demoDir, slug: gSlug, effectiveDream: dream, status, buildRelaunchPrompt, engine, timeoutMs,
+    label: 'greenfield', promptMode: undefined,
+  });
+}
+
 async function main() {
   const rawArgs = argv.slice(2);
   // Subcommand dispatch happens FIRST so that `mmdream bench --help` routes to
@@ -1677,6 +1852,16 @@ async function main() {
   // `dream` is mutable: the v0.3.b Dream Catcher dialogue (greenfield, on a TTY)
   // may replace it with a refined scope before launch (AC-3).
   let dream = positional[0];
+
+  // v0.12.a — REAL `--resume` (SPEC_V012A AC-4): continue an interrupted run by
+  // relaunching a fresh auto-dev from the externalized checkpoint, instead of
+  // the old print-state-and-exit-3 stub. Intercepted BEFORE the dream-required
+  // check because `--here --resume` carries no dream — it recovers the run from
+  // cwd's status.json. Greenfield `<dream> --resume` still needs the dream (it
+  // identifies demo/<slug>). A complete run or no checkpoint → honest no-op.
+  if (flags.resume) {
+    return runResume({ flags, dream, engine });
+  }
 
   if (dream === undefined) {
     stderr.write('error: dream string required\n' + USAGE);
@@ -1864,8 +2049,21 @@ async function main() {
         e.mmdExitCode = 5;
         throw e;
       }
-      stdout.write(`Existing dream state: ${existing.state}\n`);
-      return 3;
+      // v0.12.a — interactive 'R' (same-dream re-run) is now a REAL resume too:
+      // relaunch auto-dev to continue from the checkpoint (or an honest no-op if
+      // there is nothing to resume), instead of the old print-state-and-exit-3.
+      return finishResume({
+        runDir: demoDir,
+        slug,
+        effectiveDream: dream,
+        status: existing,
+        buildRelaunchPrompt: (feedback) =>
+          `${buildPrompt({ dream, slug, demoDir, engine })}\n\n${feedback}`,
+        engine,
+        timeoutMs: env.MMD_TIMEOUT_MS ? Number(env.MMD_TIMEOUT_MS) : 1_800_000,
+        label: 'greenfield',
+        promptMode: undefined,
+      });
     }
     if (choice === 'fresh') {
       // F2 — path-traversal defense: refuse to rm anything outside ./demo/.

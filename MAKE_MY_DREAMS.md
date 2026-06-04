@@ -1388,6 +1388,35 @@ The digest is not just informational: it proposes **PRs on the Make My Dreams re
 
 Each version delivers something usable. No "foundation phase" lasting 3 weeks before the first deliverable.
 
+### 9.0 — Reality reconciliation & forward plan *(updated 2026-06-04 — read this first)*
+
+> **Honest note (§VI/§VII).** The version-numbered plan in §9.1+ below is the ORIGINAL design intent. Execution **diverged** from it — the numbers were reused for what was actually buildable at the time, not for what each version originally described. This block reconciles plan vs reality for the **orchestration / Conductor** theme (the project's spine) and states the authoritative **forward sequence**. The §9.1+ entries are kept verbatim for historical traceability; where one diverged, an inline **`ACTUALLY:`** line points here.
+
+**The core divergence.** The vision (§4.2) is a **3-level stateless control architecture** — Conductor (L3) spawns/monitors/hands-off Orchestrators (L2), which delegate to Workers (L1, the devs). What got built under the `v0.4`/`v0.5` labels was the **observability + oracle** halves, not the **control loop**:
+
+| Vision piece (§4.2) | Planned at | What actually shipped | Real state |
+|---|---|---|---|
+| **L1 Workers** — devs + Party Mode for decisions | v0.1 | BMAD `/bmad-adv-auto-dev` (Party Mode P1, 3 reviewers P3, adversarial P4), run as ONE `claude -p` call | ✅ built (inside one opaque call) |
+| **L2 Orchestrator** — delegates, never devs, externalized `decisions.log`/`handoff/`, **auto-handoff@70%** | v0.4 | only **Bundle B** shipped under v0.4.x (sealed-test oracle + behavioral judge). The Orchestrator loop + handoff state were **not** built — "the Orchestrator" is still the single monolithic auto-dev call | 🔴 not built |
+| **L3 Conductor** — automatic spawn/monitor/**handoff**, then parallelize | v0.5 / v0.9 | only **observability** shipped under v0.5.x: notify (`MMD_NOTIFY_URL`), live context-% monitor (`--monitor`, writes a `READY_FOR_HANDOFF` marker but **does not act on it**), serve gauge; plus the **manual** stall-detector + 5-Whys `unblock`. No control loop, no automatic handoff, no parallelism | 🟡 observability only |
+| **Alignment verification** — does the result fulfil the ask? | inside the pipeline / v0.6 polymorphic Reality Check | the **behavioral judge exists** (v0.4.d) but is locked behind `--sealed`; a normal `mmdream --here` run **never** verifies alignment (its Reality Check is SKIPPED). Polymorphic Reality Check (invoke `/qa`,`/design-review`,`/cso` by type) is **unbuilt** | 🔴 not on the normal path |
+
+So today **`/mmdream` fires one auto-dev call and watches** — it does not steer, hand off, parallelize, or verify the ask. The "Conductor/Orchestrator" labels were attached to monitoring bricks; the control architecture itself was never built.
+
+**What genuinely landed (other themes, for context):** the full **Documentalist** (`document-review`/`document-compact`/coherence-graph, v0.7.x), the **Test Curator** (`test-health`, v0.7.6/7), the **polyglot §VIII** reckoning (adapters for test-curator/import-graph/doc-refs, v0.8.x), the **autolearning loop close** (validated-reuse counter + LLM promotion gate, v0.9.0), **Bundle A Security** bricks 1–2 (`secret-scan`, `deps-gate`, v0.9.1/2), and **technology-agnostic greenfield generation** (v0.10.0). These were real and are not in question — the gap is specifically the orchestration spine.
+
+**Authoritative forward sequence (the orchestration spine — supersedes the §9.1 `v0.4`/`v0.5`/`v0.6`/`v0.9` entries for this theme).** Ordered by dependency, not by old version number. The pivot insight: *while auto-dev is one opaque call, the Conductor can only watch — breaking that monolith (B) is what unlocks handoff (C) and parallelism (D); but alignment verification (A) is independent of it and the brick already exists.*
+
+| Step | Capability | Why here | Status |
+|---|---|---|---|
+| **A** | **Alignment gate on the normal path** — run the existing v0.4.d judge on `mmdream --here` + greenfield (default-on), grade the impl against the ask, **iterate** (bounded) on a gap; honest exit 7 if the gap survives, never a fabricated pass | highest value/cost ratio; the brick exists; independent of the monolith | **🔜 in progress (v0.11.0, SPEC_V011A)** |
+| **B** | **Externalized `decisions.log`/`handoff/` + the Orchestrator delegation loop** — break the monolithic `/bmad-adv-auto-dev` call into MMD-orchestrated steps | the pivot: makes A persistent AND unlocks C + D | planned |
+| **C** | **Auto-handoff@70%** — the Conductor *acts* on the `READY_FOR_HANDOFF` marker the v0.5.b monitor already writes (spawn a fresh successor that resumes from externalized state) | the monitor already sees 70%; only the action is missing | planned (needs B) |
+| **D** | **Parallel Conductor + worktrees + safety hooks** (the old v0.9) — multiple Orchestrators on independent slices, independence pre-flight, semantic-conflict merger | the scalability payoff | planned (needs B + worktree-safe `unblock` tests) |
+| **E** | **Bundle C observability/HITL** — OpenTelemetry GenAI semconv, per-action risk-scoring, Worker output schema `{result, confidence, alternatives}` | layers in independently | planned (any time) |
+
+Everything below is the original plan, preserved for traceability.
+
 ### v0.0 — gStack install + audit  *(1 day)*
 - Install gStack in a test project per https://github.com/garrytan/gstack
 - Test the 41 skills on a real case to validate the scope
@@ -1498,6 +1527,7 @@ Each version delivers something usable. No "foundation phase" lasting 3 weeks be
 - Multi-layer constitution activated.
 
 ### v0.4 — Stateless Orchestrator + auto-handoff + Bundle B  *(4–5 days)*
+> **`ACTUALLY:`** only **Bundle B** shipped under v0.4.x (sealed-test oracle + behavioral judge, ADR-026..028). The Orchestrator loop + externalized `decisions.log`/`handoff/` + auto-handoff@70% were **not** built — they are steps **B/C** of the §9.0 forward plan.
 - Formalize the Orchestrator pattern (never devs, delegates everything via `Agent`).
 - Set up externalized state: `status.json`, `decisions.log`, `handoff/`.
 - Token-count monitoring and auto-handoff at 70%.
@@ -1506,6 +1536,7 @@ Each version delivers something usable. No "foundation phase" lasting 3 weeks be
 - **Test**: launch a long project, verify that successive handoffs preserve continuity AND that sealed tests detect a Worker that would try to rewrite a test to make defective code pass.
 
 ### v0.5 — Conductor + Bundle C Observability/HITL  *(3–4 days)*
+> **`ACTUALLY:`** only **observability** shipped under v0.5.x (notify `MMD_NOTIFY_URL` ADR-029, live context monitor `--monitor` ADR-030 — which writes a `READY_FOR_HANDOFF` marker but does **not** act on it, serve gauge ADR-031) + the **manual** stall-detector/5-Whys `unblock`. The **automatic spawn/monitor/handoff** control loop and **Bundle C** (OTel, risk-scoring, worker schema) were **not** built — steps **C/E** of the §9.0 forward plan.
 - Level-3 Conductor, reads only `status.json` + latest `handoff/N.md`.
 - Automatic spawn / monitor / handoff.
 - No parallelism yet — one slice at a time.
@@ -1521,6 +1552,7 @@ Each version delivers something usable. No "foundation phase" lasting 3 weeks be
 - **Test**: 3 slices → coherent Diataxis docs; Worker crash → clean resume via Context.
 
 ### v0.6 — Polymorphic Reality Check + Mockup (integrates gStack)  *(4-5 days)*
+> **`ACTUALLY:`** **not built.** Reality Check is still the shallow greenfield render check and is SKIPPED in `--here`. The **semantic** alignment face (the behavioral judge on the normal path) is step **A** (v0.11.0, in progress); this **deterministic/tool** face (orchestrate `/qa`,`/design-review`,`/cso` by deliverable type) remains deferred and complementary.
 - **Reality Check**: MMD orchestrator that **invokes gStack skills** based on deliverable type (cf §3.3) — `/qa`, `/design-review`, `/devex-review`, `/cso`, `/canary`. No reimplementation: MMD aggregates.
 - Tech Architect produces `reality-check.config.md` listing the activated modes.
 - **Mockup Generator** invokes `/design-consultation` (DESIGN.md) and `/design-shotgun` (N variants), with graduated adaptation by profile (the MMD value = the adaptation, not the mockup).
@@ -1536,6 +1568,7 @@ Each version delivers something usable. No "foundation phase" lasting 3 weeks be
 - Local scope (project, commit) + global (`~/.mmd/`, personal).
 
 ### v0.9 — Parallel Conductor + worktrees + Bundle E + Safety Hooks  *(2 weeks)*
+> **`ACTUALLY:`** **not built** (the `v0.9.x` tags shipped Bundle A Security + the autolearning-loop close, unrelated). This is step **D** of the §9.0 forward plan — and it needs step **B** first plus the worktree-safe-`unblock`-tests prerequisite (fixtures under gitignored `.mmd/` don't check out in a fresh worktree).
 - Conductor able to spawn multiple Orchestrators on independent slices.
 - **`git worktree` implementation**: one worktree per slice, ephemeral branches.
 - **Independence pre-flight check**: refuses `--parallel` if slices touch the same files/modules/contracts.

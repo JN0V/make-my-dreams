@@ -12,9 +12,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir, platform } from 'node:os';
 import path from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 import { invokeAutodev } from '../../lib/invoke-autodev.js';
 
@@ -81,6 +82,42 @@ test('@integration AC-1: a STILL-ALIVE agent over threshold is force-terminated 
     } finally {
       delete process.env.MMD_AUTODEV_CMD;
       delete process.env.MMD_FAKE_ALIVE;
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+// ── AC-1: the PROCESS GROUP is killed — a nested child is NOT orphaned ───────
+// The whole point of the detached spawn + process.kill(-pid): auto-dev's nested
+// `claude -p` children must die with the orchestrator. We fork a grandchild in
+// the fake's process group and assert it is gone after the enforced abort.
+
+test('@integration AC-1: an enforced abort kills the whole process group (nested child not orphaned)',
+  { skip: SKIP_ON_WINDOWS }, async () => {
+    const tmp = makeTmp();
+    const pidFile = path.join(tmp, 'grandchild.pid');
+    process.env.MMD_AUTODEV_CMD = FAKE_ALIVE;
+    process.env.MMD_FAKE_ALIVE = '1';
+    process.env.MMD_FAKE_GRANDCHILD_PIDFILE = pidFile;
+    try {
+      const r = await invokeAutodev({
+        ...baseArgs(tmp),
+        graceMs: 100,
+        abortPredicate: (ctx) => ctx && ctx.pct >= 0.70,
+      });
+      assert.equal(r.aborted, 'handoff');
+      assert.ok(existsSync(pidFile), 'the grandchild recorded its PID (it was spawned)');
+      const gpid = Number(readFileSync(pidFile, 'utf8').trim());
+      assert.ok(Number.isInteger(gpid) && gpid > 0, 'a real grandchild PID was recorded');
+      // Give the group SIGTERM/SIGKILL a moment to propagate, then prove the
+      // grandchild is gone (kill(pid, 0) throws ESRCH for a dead process).
+      await sleep(500);
+      let alive = true;
+      try { process.kill(gpid, 0); } catch (e) { if (e.code === 'ESRCH') alive = false; }
+      assert.equal(alive, false, 'the nested grandchild was killed with the group (no orphan)');
+    } finally {
+      delete process.env.MMD_AUTODEV_CMD;
+      delete process.env.MMD_FAKE_ALIVE;
+      delete process.env.MMD_FAKE_GRANDCHILD_PIDFILE;
       rmSync(tmp, { recursive: true, force: true });
     }
   });

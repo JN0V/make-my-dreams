@@ -27,6 +27,12 @@
 //                                     checkpoint; sleep briefly then exit 0. MMD
 //                                     must NOT enforce (no new boundary) — the
 //                                     v0.13.1 no-false-kill guard under enforce.
+//   complete-over-threshold         — write the COMPLETE checkpoint (phase 4),
+//                                     cross the threshold, then stay alive a beat
+//                                     (post-pipeline wrap-up) before exiting 0. MMD
+//                                     must NOT enforce a finished run (the F1
+//                                     completeness guard) — it would otherwise be
+//                                     mis-reported as a failure.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import path from 'node:path';
@@ -103,6 +109,14 @@ function cooperativeStop() {
   writeFileSync(MARKER, '{ "requested_at": "fake-cap-cooperative-stop" }\n');
   process.exit(0);
 }
+function completeOverThreshold() {
+  // The pipeline FINISHED (checkpoint phase 4) and is now over the threshold,
+  // still alive doing post-pipeline wrap-up. MMD must NOT enforce a kill here.
+  emitSystem();
+  writeCheckpoint(4);
+  emitCrossing();
+  setTimeout(() => process.exit(0), 600); // wrap-up, then exit on its own
+}
 function crossNoAdvance() {
   // Cross the threshold but DO NOT advance the checkpoint → no new boundary →
   // MMD must not enforce. Sleep briefly (if MMD wrongly enforced with a small
@@ -114,6 +128,8 @@ function crossNoAdvance() {
 
 if (mode === 'cross-no-advance') {
   crossNoAdvance();
+} else if (mode === 'complete-over-threshold') {
+  completeOverThreshold();
 } else if (mode === 'enforce-to-cap') {
   if (N <= maxHandoffs) enforceAlive();
   else if (N === maxHandoffs + 1) cooperativeStop();

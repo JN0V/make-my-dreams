@@ -13,6 +13,13 @@
 //                     (until SIGTERM/SIGKILL from MMD's enforce). Default: emit
 //                     a final result event and exit 0 (the agent finished first).
 //   MMD_FAKE_EXIT     exit code when NOT staying alive (default 0)
+//   MMD_FAKE_GRANDCHILD_PIDFILE  when set, fork a child (in THIS process group,
+//                     mimicking auto-dev's nested `claude -p`) that writes its PID
+//                     here and sleeps. Lets a test prove MMD kills the whole GROUP
+//                     (no orphan), not just the leader.
+
+import { spawn } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
 
 const model = process.env.MMD_FAKE_MODEL || 'claude-opus-4-8[1m]';
 const tokens = (process.env.MMD_FAKE_TOKENS || '100000,750000,800000')
@@ -45,6 +52,18 @@ tokens.forEach((t, i) => {
 });
 
 if (stayAlive) {
+  // Optionally fork a nested child IN THIS PROCESS GROUP (no `detached`), the way
+  // auto-dev's orchestrator spawns its own `claude -p` sub-agents. A group
+  // SIGTERM from MMD must reach it too — that is the "no orphan" guarantee.
+  const pidFile = process.env.MMD_FAKE_GRANDCHILD_PIDFILE;
+  if (pidFile) {
+    const grandchild = spawn(
+      process.execPath,
+      ['-e', `require('fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setInterval(()=>{}, 1000);`],
+      { stdio: 'ignore' },
+    );
+    grandchild.unref();
+  }
   // Keep the event loop alive so MMD's enforce path can terminate us. NO SIGTERM
   // handler → the default action (terminate) still applies, so a group SIGTERM
   // from MMD kills us cleanly.

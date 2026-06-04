@@ -160,6 +160,31 @@ test('@integration AC-3: crosses threshold but advances NO checkpoint → never 
     }
   });
 
+// ── Phase-4 review F1: a COMPLETE pipeline that is over-threshold at the final
+// boundary must NOT be enforce-killed (and thus mis-reported as a failure) ────
+
+test('@integration F1: a complete (phase-4) run over the threshold is NOT enforced — it finishes successfully',
+  { skip: SKIP_ON_WINDOWS }, async () => {
+    const tmp = makeTmp();
+    try {
+      initCleanRepo(tmp);
+      // The fake writes checkpoint 4 (complete), crosses 70%, then stays alive a
+      // beat (post-pipeline wrap-up) before exiting on its own. Without the
+      // completeness guard MMD would SIGTERM it during that beat and report exit 6.
+      const r = await runMmdAsync(['--here', '--auto-handoff', 'a run that finishes while context is full'], {
+        cwd: tmp,
+        env: { MMD_FAKE_ENFORCE_MODE: 'complete-over-threshold' },
+      });
+      assert.equal(r.status, 0, `a complete run must succeed, not be force-failed; stderr=${r.stderr}\nstdout=${r.stdout}`);
+      assert.equal(callCount(tmp), 1, 'a complete run is not handed off → exactly one spawn');
+      assert.ok(!/ENFORCED a terminate/i.test(r.stdout), 'a finished pipeline is never enforce-killed');
+      assert.ok(!/Auto-handoff \d/.test(r.stdout), 'no handoff on a complete run');
+      assert.match(r.stdout, /Changes applied on slice\//);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
 // ── AC-3 default-unchanged: WITHOUT --auto-handoff, a still-alive marker-crossing
 // agent is never enforced (the abort seam is inert) ──────────────────────────
 

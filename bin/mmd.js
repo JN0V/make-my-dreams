@@ -1703,10 +1703,20 @@ function makeForceHandoffPredicate({ enabled, runDir, threshold, phaseAtSpawn, h
   if (!enabled) return undefined;
   return (ctx) => {
     const cp = readCheckpoint(runDir);
+    const lastCompletedPhase = cp ? cp.lastCompletedPhase : 0;
+    // COMPLETENESS GUARD (Phase-4 review F1): never enforce on an ALREADY-COMPLETE
+    // pipeline. The orchestrator writes `last_completed_phase: 4` as its final
+    // step, then does post-pipeline wrap-up (success banner, etc.) while still
+    // alive — a tick there could otherwise satisfy `4 > phaseAtSpawn` + over
+    // threshold and fire a kill on a run that actually FINISHED, which the loop
+    // would then mis-report as a failure (exit 6). The pure shouldForceHandoff
+    // keeps the frozen AC-2 signature (no totalPhases), so the completeness gate
+    // lives here in the wiring (which knows TOTAL_AUTODEV_PHASES).
+    if (Number.isFinite(lastCompletedPhase) && lastCompletedPhase >= TOTAL_AUTODEV_PHASES) return false;
     return shouldForceHandoff({
       pct: ctx ? ctx.pct : NaN,
       threshold,
-      lastCompletedPhase: cp ? cp.lastCompletedPhase : 0,
+      lastCompletedPhase,
       phaseAtSpawn,
       handoffsSoFar,
       maxHandoffs,
@@ -1780,7 +1790,21 @@ async function runHandoffLoop({ runDir, slice, maxHandoffs, firstResult, firstMo
       maxHandoffs,
       totalPhases: TOTAL_AUTODEV_PHASES,
     });
-    if (decision.action === 'finish') break;
+    if (decision.action === 'finish') {
+      // Phase-4 review F1 (residual grace race): if the checkpoint advanced to
+      // COMPLETE during the enforce grace, the spawn resolves aborted (code:null)
+      // yet decideHandoff says finish-because-complete — the pipeline actually
+      // FINISHED (all phases checkpointed + committed); only post-pipeline wrap-up
+      // was cut. Normalize the aborted code:null to 0 so the caller's completion
+      // path runs the alignment gate + marks done, never a fabricated failure
+      // (§VI). A finish-on-aborted is ALWAYS the complete case: an aborted result
+      // implies the marker is present (the monitor wrote it before the kill) and a
+      // real boundary was reached, so the only finish reason left is completeness.
+      if (wasAborted && invokeResult && invokeResult.code == null) {
+        invokeResult = { ...invokeResult, code: 0 };
+      }
+      break;
+    }
 
     const isCap = decision.action === 'cap-final';
     const rawPhase = checkpoint ? Number(checkpoint.lastCompletedPhase) : NaN;

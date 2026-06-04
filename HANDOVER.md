@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.13.0`
+- **Latest tag**: `v0.13.1`
 - **Branch**: `main`
-- **Version**: `0.13.0` (package.json)
+- **Version**: `0.13.1` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 51 (ADR-001..ADR-051)
-- **Tests**: 2126 passing
+- **Tests**: 2128 passing
 - **Recent commits**:
+  - `75464d7 fix(conductor): handoff requires a resumable checkpoint — kill the false-handoff (v0.13.1)`
+  - `346f41b docs: refresh mechanical blocks (v0.13.0 tag + counts)`
   - `b39b97f fix(conductor): Phase-4 review F1 — honest warning if the marker clear fails`
   - `ea07e48 docs(conductor): AC-5 ADR-051 + /mmdream note + README/CLAUDE + version 0.13.0`
   - `8d29841 feat(conductor): AC-4 cooperative auto-handoff loop + --auto-handoff flag`
-  - `428d2f6 feat(install): AC-3 auto-dev stops cleanly at a phase boundary on handoff request`
-  - `41fdb42 feat(conductor): AC-2 cooperative handoff-request marker + monitor wiring`
 - **Generated**: 2026-06-04 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

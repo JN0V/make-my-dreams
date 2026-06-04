@@ -27,7 +27,7 @@ import { buildManifest, verifyManifest, sealIntact } from '../lib/sealed-tests/m
 import { buildTesterPrompt, buildCoderPrompt } from '../lib/sealed-tests/tester-prompt.js';
 import { buildJudgePrompt, parseJudgeVerdict, judgeFallback } from '../lib/sealed-tests/judge.js';
 import { aggregateAlignment, buildGapFeedback, parseMaxIters } from '../lib/conductor/alignment-gate.js';
-import { writeExpectation } from '../lib/conductor/expectation.js';
+import { writeExpectation, resolveAlignmentAnchor } from '../lib/conductor/expectation.js';
 import { modelForRole } from '../lib/conductor/model-policy.js';
 import {
   readCheckpoint, decideResume,
@@ -957,8 +957,9 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
     const sealedDir = path.join(absTargetDir, '.mmd', 'shared', 'sealed-tests');
     const gate = await runAlignmentGate({
       dream,
-      slice: null, // --here has no slice.md ACs — grade against the dream + diff
+      slice: null, // --here has no slice.md ACs — grade against the frozen oracle + diff
       sealedDir,
+      expectationDir: path.join(absTargetDir, '.mmd', 'shared'), // AC-2: frozen oracle anchor
       targetDir: absTargetDir,
       logPath,
       buildArtifacts: () => buildDiffArtifactsSummary(absTargetDir, baseSha),
@@ -1270,6 +1271,24 @@ function buildDiffArtifactsSummary(targetDir, baseSha) {
 }
 
 /**
+ * v0.17.a (SPEC_V017A AC-2) — resolve the semantic judge's anchor (the "dream"
+ * text it grades against) from the FROZEN expectation oracle instead of the
+ * mutable slice.md / in-memory dream. Reads `<expectationDir>/expectation.md`;
+ * a present, non-empty oracle is the anchor (the build cannot move the goalposts).
+ * Absent / empty / unreadable → fall back to the in-memory dream (never throws,
+ * never fabricates — the gate is still anchored to SOMETHING honest).
+ *
+ * @param {string} expectationDir  the run's `.mmd/shared/` directory
+ * @param {string} dream           the in-memory dream (fallback anchor)
+ * @returns {string} the oracle text used as the judge's `dream`
+ */
+function resolveAlignmentOracle(expectationDir, dream) {
+  return resolveAlignmentAnchor(expectationDir, dream, {
+    readExpectation: (target) => readFileSync(target, 'utf8'),
+  });
+}
+
+/**
  * The v0.11.a ALIGNMENT GATE (SPEC_V011A AC-2/AC-3/AC-4) — the Conductor's first
  * CONTROL brick, "verify the ask, then correct". Runs the EXISTING behavioral
  * judge (invokeJudge + buildJudgePrompt + the OVERALL-met downgrade guard, reused
@@ -1302,7 +1321,15 @@ function buildDiffArtifactsSummary(targetDir, baseSha) {
  */
 async function runAlignmentGate({
   dream, slice = null, sealedDir, targetDir, logPath, buildArtifacts, relaunch, timeoutMs,
+  expectationDir = null,
 }) {
+  // v0.17.a (SPEC_V017A AC-2) — the judge grades against the FROZEN expectation
+  // oracle (expectation.md), not the mutable slice.md / in-memory dream, so the
+  // build's own spec-polishing cannot redefine its own success (anti-drift). When
+  // the oracle is absent (e.g. MMD_SKIP_ALIGN skipped the write, or an early
+  // error), fall back HONESTLY to the in-memory dream — never throws, never fakes.
+  const oracle = resolveAlignmentOracle(expectationDir, dream);
+
   // One judge call (per attempt): build the prompt with FRESH evidence, invoke,
   // then apply the OVERALL-met downgrade guard verbatim (never trust an over-eager
   // OVERALL: MET while a per-AC line is not-met/uncertain — universal §VI). The
@@ -1316,7 +1343,7 @@ async function runAlignmentGate({
     try {
       judge = invokeJudge({
         demoDir: targetDir,
-        prompt: buildJudgePrompt({ dream, slice, sealedDir, artifactsSummary: buildArtifacts() }),
+        prompt: buildJudgePrompt({ dream: oracle, slice, sealedDir, artifactsSummary: buildArtifacts() }),
         logPath: judgeLog,
         timeoutMs,
       });
@@ -2710,6 +2737,7 @@ async function main() {
       dream,
       slice: greenSlice,
       sealedDir,
+      expectationDir: path.join(demoDir, '.mmd', 'shared'), // AC-2: frozen oracle anchor
       targetDir: demoDir,
       logPath,
       buildArtifacts,

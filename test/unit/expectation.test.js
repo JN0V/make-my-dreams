@@ -12,7 +12,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
-import { buildExpectationContent, writeExpectation } from '../../lib/conductor/expectation.js';
+import {
+  buildExpectationContent,
+  writeExpectation,
+  resolveAlignmentAnchor,
+} from '../../lib/conductor/expectation.js';
 
 // ── buildExpectationContent (PURE) ───────────────────────────────────────────
 
@@ -104,4 +108,49 @@ test('@unit AC-1: writeExpectation never throws + degrades honestly without a us
   const res = writeExpectation('/shared', 'd', undefined, throwingDeps);
   assert.equal(res.written, false);
   assert.match(res.reason, /write failed/);
+});
+
+// ── resolveAlignmentAnchor (AC-2: judge anchored to the FROZEN oracle) ────────
+
+test('@unit AC-2: resolveAlignmentAnchor returns the frozen expectation.md content when present', () => {
+  const oracle = '# Original expectation\n\n## Original dream\nthe ORIGINAL ask\n';
+  const anchor = resolveAlignmentAnchor('/shared', 'the MUTABLE in-memory dream', {
+    readExpectation: () => oracle,
+  });
+  assert.equal(anchor, oracle);
+  // It is the frozen oracle, NOT the (possibly drifted) in-memory dream.
+  assert.doesNotMatch(anchor, /MUTABLE in-memory dream/);
+});
+
+test('@unit AC-2: resolveAlignmentAnchor reads from expectation.md (not slice.md)', () => {
+  let readPath = null;
+  resolveAlignmentAnchor('/shared', 'dream', {
+    readExpectation: (p) => { readPath = p; return 'oracle'; },
+  });
+  assert.match(readPath, /expectation\.md$/);
+  assert.doesNotMatch(readPath, /slice\.md/);
+});
+
+test('@unit AC-2: resolveAlignmentAnchor falls back to the dream when expectation.md is absent/empty/unreadable', () => {
+  // Absent (reader throws) → dream.
+  assert.equal(
+    resolveAlignmentAnchor('/shared', 'fallback dream', {
+      readExpectation: () => { throw new Error('ENOENT'); },
+    }),
+    'fallback dream',
+  );
+  // Empty oracle → dream.
+  assert.equal(
+    resolveAlignmentAnchor('/shared', 'fallback dream', { readExpectation: () => '   ' }),
+    'fallback dream',
+  );
+  // No reader / no dir → dream.
+  assert.equal(resolveAlignmentAnchor('/shared', 'fallback dream', {}), 'fallback dream');
+  assert.equal(resolveAlignmentAnchor('', 'fallback dream', { readExpectation: () => 'x' }), 'fallback dream');
+});
+
+test('@unit AC-2: resolveAlignmentAnchor never throws and returns a string', () => {
+  assert.doesNotThrow(() => resolveAlignmentAnchor());
+  assert.equal(typeof resolveAlignmentAnchor(), 'string');
+  assert.equal(resolveAlignmentAnchor(null, null, null), '');
 });

@@ -6,7 +6,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { decideHandoff, parseMaxHandoffs } from '../../lib/conductor/handoff.js';
+import {
+  decideHandoff,
+  parseMaxHandoffs,
+  shouldForceHandoff,
+  parseHandoffGraceMs,
+} from '../../lib/conductor/handoff.js';
 
 const TOTAL = 4; // the auto-dev pipeline has 4 phases
 
@@ -199,4 +204,99 @@ test('@unit AC-1: parseMaxHandoffs never throws', () => {
   assert.doesNotThrow(() => parseMaxHandoffs(Symbol('x')));
   assert.doesNotThrow(() => parseMaxHandoffs({}));
   assert.doesNotThrow(() => parseMaxHandoffs([]));
+});
+
+// ── v0.14.b: shouldForceHandoff — the PURE enforce gate (SPEC_V014B AC-2) ─────
+
+const FORCE_BASE = {
+  pct: 0.75,
+  threshold: 0.70,
+  lastCompletedPhase: 2,
+  phaseAtSpawn: 1,
+  handoffsSoFar: 0,
+  maxHandoffs: 3,
+};
+
+test('@unit AC-2: all three gates met → true (over threshold + new boundary + under cap)', () => {
+  assert.equal(shouldForceHandoff(FORCE_BASE), true);
+});
+
+test('@unit AC-2: pct exactly at threshold → true (>= is inclusive)', () => {
+  assert.equal(shouldForceHandoff({ ...FORCE_BASE, pct: 0.70, threshold: 0.70 }), true);
+});
+
+test('@unit AC-2: under the threshold → false', () => {
+  assert.equal(shouldForceHandoff({ ...FORCE_BASE, pct: 0.69 }), false);
+});
+
+test('@unit AC-2: no NEW boundary since spawn (lastCompletedPhase === phaseAtSpawn) → false', () => {
+  // The inherited checkpoint: the successor must NOT enforce until IT completes
+  // a new phase, else it re-kills instantly on the resume it just started.
+  assert.equal(shouldForceHandoff({ ...FORCE_BASE, lastCompletedPhase: 1, phaseAtSpawn: 1 }), false);
+});
+
+test('@unit AC-2: checkpoint went BACKWARD (last < spawn) → false', () => {
+  assert.equal(shouldForceHandoff({ ...FORCE_BASE, lastCompletedPhase: 0, phaseAtSpawn: 1 }), false);
+});
+
+test('@unit AC-2: at the cap (handoffsSoFar === maxHandoffs) → false (final un-enforced run)', () => {
+  assert.equal(shouldForceHandoff({ ...FORCE_BASE, handoffsSoFar: 3, maxHandoffs: 3 }), false);
+});
+
+test('@unit AC-2: one below the cap → true; one above → false', () => {
+  assert.equal(shouldForceHandoff({ ...FORCE_BASE, handoffsSoFar: 2, maxHandoffs: 3 }), true);
+  assert.equal(shouldForceHandoff({ ...FORCE_BASE, handoffsSoFar: 5, maxHandoffs: 3 }), false);
+});
+
+test('@unit AC-2: a fresh first spawn (phaseAtSpawn 0) enforces once a real boundary lands', () => {
+  assert.equal(shouldForceHandoff({ ...FORCE_BASE, lastCompletedPhase: 1, phaseAtSpawn: 0 }), true);
+  // …but NOT while still at phase 0 (no boundary reached yet).
+  assert.equal(shouldForceHandoff({ ...FORCE_BASE, lastCompletedPhase: 0, phaseAtSpawn: 0 }), false);
+});
+
+test('@unit AC-2: shouldForceHandoff never throws on null/undefined/odd input → false', () => {
+  assert.doesNotThrow(() => shouldForceHandoff());
+  assert.doesNotThrow(() => shouldForceHandoff(null));
+  assert.doesNotThrow(() => shouldForceHandoff({}));
+  assert.equal(shouldForceHandoff(), false);
+  assert.equal(shouldForceHandoff(null), false);
+  assert.equal(shouldForceHandoff({}), false);
+  // Hostile field types collapse to a safe false (never a kill on junk).
+  assert.equal(
+    shouldForceHandoff({
+      pct: Symbol('x'), threshold: 'junk', lastCompletedPhase: {}, phaseAtSpawn: [],
+      handoffsSoFar: NaN, maxHandoffs: null,
+    }),
+    false,
+  );
+  // A valid decision with a missing handoffsSoFar treats it as 0 → still true.
+  assert.equal(
+    shouldForceHandoff({ pct: 0.8, threshold: 0.7, lastCompletedPhase: 2, phaseAtSpawn: 1, maxHandoffs: 3 }),
+    true,
+  );
+});
+
+// ── v0.14.b: parseHandoffGraceMs ────────────────────────────────────────────
+
+test('@unit AC-3: parseHandoffGraceMs honors a valid non-negative integer (incl. 0)', () => {
+  assert.equal(parseHandoffGraceMs('5000'), 5000);
+  assert.equal(parseHandoffGraceMs(0), 0);     // 0 honored: terminate immediately on fire
+  assert.equal(parseHandoffGraceMs('0'), 0);
+});
+
+test('@unit AC-3: parseHandoffGraceMs falls back to 15000 on junk/empty/negative/float', () => {
+  assert.equal(parseHandoffGraceMs(undefined), 15000);
+  assert.equal(parseHandoffGraceMs(null), 15000);
+  assert.equal(parseHandoffGraceMs(''), 15000);
+  assert.equal(parseHandoffGraceMs('   '), 15000);
+  assert.equal(parseHandoffGraceMs('abc'), 15000);
+  assert.equal(parseHandoffGraceMs('-1'), 15000);
+  assert.equal(parseHandoffGraceMs('1.5'), 15000);
+});
+
+test('@unit AC-3: parseHandoffGraceMs honors a custom (sane) fallback; never throws', () => {
+  assert.equal(parseHandoffGraceMs(undefined, 3000), 3000);
+  assert.equal(parseHandoffGraceMs(undefined, -5), 15000); // junk fallback degrades
+  assert.doesNotThrow(() => parseHandoffGraceMs(Symbol('x')));
+  assert.doesNotThrow(() => parseHandoffGraceMs({}));
 });

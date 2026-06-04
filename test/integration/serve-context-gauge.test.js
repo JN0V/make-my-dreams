@@ -55,8 +55,13 @@ function postDream(baseUrl, body) {
 
 /** Poll for a file to appear with content, up to timeoutMs. The fixture is
  *  written by a real `node bin/mmd.js` spawn that competes for CPU with the rest
- *  of the (concurrent) suite, so the deadline is generous to avoid a flake. */
-async function waitForFile(file, timeoutMs = 10000) {
+ *  of the (concurrent) suite, so the deadline is generous to avoid a flake. The
+ *  10s default flaked ~1/3 of runs under full-suite load (the real spawn's
+ *  startup + flow occasionally exceeded it) — bumped to 45s (huge margin; only
+ *  the rare worst-case path ever waits that long). On timeout we THROW a
+ *  diagnostic instead of returning null: a residual flake then fails with a
+ *  clear "not written within Nms" message, not a cryptic downstream assertion. */
+async function waitForFile(file, timeoutMs = 45000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (existsSync(file)) {
@@ -65,7 +70,12 @@ async function waitForFile(file, timeoutMs = 10000) {
     }
     await new Promise((r) => setTimeout(r, 25));
   }
-  return existsSync(file) ? readFileSync(file, 'utf8') : null;
+  const present = existsSync(file);
+  throw new Error(
+    `waitForFile: '${file}' was not written with content within ${timeoutMs}ms ` +
+    `(file ${present ? 'exists but is empty' : 'does not exist'}). This is a real-spawn ` +
+    `timing flake under concurrent suite load, not a logic bug — re-run in isolation to confirm.`,
+  );
 }
 
 function writeStatusFixture(tmp, slug, fixturePath) {

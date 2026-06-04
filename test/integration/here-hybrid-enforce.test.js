@@ -185,24 +185,74 @@ test('@integration F1: a complete (phase-4) run over the threshold is NOT enforc
     }
   });
 
-// ── AC-3 default-unchanged: WITHOUT --auto-handoff, a still-alive marker-crossing
-// agent is never enforced (the abort seam is inert) ──────────────────────────
+// ── v0.15.a AC-4: the ENFORCE backstop fires by DEFAULT (no flag) ─────────────
+// Proves the v0.14.0 enforce behavior is reachable transparently — a still-alive
+// over-threshold agent that ignores the incitation is terminated at a checkpoint
+// and a fresh successor resumes, with NO --auto-handoff flag passed.
 
-test('@integration AC-3: without --auto-handoff the abort seam is inert (no enforce; default spawn)',
+test('@integration v0.15.a AC-4: enforce backstop fires by DEFAULT (no flag) — terminate then resume to completion',
   { skip: SKIP_ON_WINDOWS }, async () => {
     const tmp = makeTmp();
     try {
       initCleanRepo(tmp);
-      // cross-no-advance exits on its own quickly; without --auto-handoff there is
-      // no monitor and no abort predicate at all → a single, unmonitored spawn.
-      const r = await runMmdAsync(['--here', 'a plain change'], {
+      const r = await runMmdAsync(['--here', 'a context-filling change that ignores the incitation'], {
+        cwd: tmp,
+        env: { MMD_FAKE_ENFORCE_MODE: 'enforce-then-complete', MMD_FAKE_COMPLETE_AT: '2', MMD_MAX_HANDOFFS: '3' },
+      });
+      assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}\nstdout=${r.stdout}`);
+      assert.equal(callCount(tmp), 2, 'one enforce → exactly 2 auto-dev spawns (default-on)');
+      assert.match(r.stdout, /Auto-handoff 1\/\d+/i, 'announces handoff with no flag');
+      assert.match(r.stdout, /ENFORCED a terminate/i, 'the enforce backstop is reachable by default');
+      assert.match(r.stdout, /resume mode/i, 'relaunches in resume mode');
+      assert.match(r.stdout, /Changes applied on slice\//);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+// ── v0.15.a AC-4: v0.13.1 no-false-handoff PRESERVED under default-on ─────────
+// A run that crosses the threshold but advances NO checkpoint (no new boundary)
+// is NEVER enforced — even though the Conductor is now on by default.
+
+test('@integration v0.15.a AC-4: default-on, crosses threshold but NO new boundary → never enforced (v0.13.1 preserved)',
+  { skip: SKIP_ON_WINDOWS }, async () => {
+    const tmp = makeTmp();
+    try {
+      initCleanRepo(tmp);
+      const r = await runMmdAsync(['--here', 'fills context but reaches no phase boundary'], {
         cwd: tmp,
         env: { MMD_FAKE_ENFORCE_MODE: 'cross-no-advance' },
       });
+      assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}\nstdout=${r.stdout}`);
+      // Default-on → the monitor runs and crosses 70%, but with no new boundary the
+      // enforce predicate never fires → exactly one spawn, no handoff/enforce.
+      assert.match(r.stdout, /READY_FOR_HANDOFF/);
+      assert.equal(callCount(tmp), 1, 'no new checkpoint → no enforce → exactly one spawn');
+      assert.ok(!/Auto-handoff \d/.test(r.stdout), 'no false handoff without a new boundary (v0.13.1)');
+      assert.ok(!/ENFORCED a terminate/i.test(r.stdout), 'no enforced terminate without a new boundary');
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+// ── v0.15.a AC-1: the opt-out genuinely makes the abort seam inert ────────────
+// MMD_NO_AUTO_HANDOFF=1 → no monitor + no abort predicate at all (today's EXACT
+// single unmonitored spawn), even with a fixture that crosses the threshold.
+
+test('@integration v0.15.a AC-1: MMD_NO_AUTO_HANDOFF=1 → abort seam inert (no monitor, single spawn)',
+  { skip: SKIP_ON_WINDOWS }, async () => {
+    const tmp = makeTmp();
+    try {
+      initCleanRepo(tmp);
+      const r = await runMmdAsync(['--here', 'a plain change'], {
+        cwd: tmp,
+        env: { MMD_FAKE_ENFORCE_MODE: 'cross-no-advance', MMD_NO_AUTO_HANDOFF: '1' },
+      });
       assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}`);
-      assert.equal(callCount(tmp), 1, 'no --auto-handoff → exactly one auto-dev spawn');
-      assert.ok(!/Auto-handoff \d/.test(r.stdout), 'no handoff log without the flag');
-      assert.ok(!/ENFORCED a terminate/i.test(r.stdout), 'no enforce without the flag');
+      assert.equal(callCount(tmp), 1, 'opt-out → exactly one auto-dev spawn');
+      assert.doesNotMatch(r.stdout, /READY_FOR_HANDOFF/, 'opt-out runs no monitor');
+      assert.ok(!/Auto-handoff \d/.test(r.stdout), 'no handoff log under the opt-out');
+      assert.ok(!/ENFORCED a terminate/i.test(r.stdout), 'no enforce under the opt-out');
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }

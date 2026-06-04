@@ -159,6 +159,29 @@ test('@integration AC-4: --here --auto-handoff hands off then resumes a fresh su
   }
 });
 
+// ── v0.15.a AC-4: cooperative handoff + resume happen by DEFAULT (no flag) ───
+// The transparent Conductor: with NO --auto-handoff flag, a cooperative stop is
+// still relaunched as a resumed successor that completes (the v0.14.0 cooperative
+// path is reachable transparently).
+
+test('@integration v0.15.a AC-4: cooperative handoff + resume happen by DEFAULT (no flag)', { skip: SKIP_ON_WINDOWS }, () => {
+  const tmp = makeTmp();
+  try {
+    initCleanRepo(tmp);
+    const r = runMmd(['--here', 'add a cooperative handoff widget'], {
+      cwd: tmp,
+      env: { MMD_FAKE_HANDOFF_MODE: 'complete-on-2', MMD_FAKE_COMPLETE_AT: '2' },
+    });
+    assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}\nstdout=${r.stdout}`);
+    assert.equal(callCount(tmp), 2, 'one handoff → exactly 2 auto-dev spawns (default-on, no flag)');
+    assert.match(r.stdout, /Auto-handoff 1\/\d+/i, 'announces handoff with no flag');
+    assert.match(r.stdout, /resume mode/i, 'relaunches in resume mode by default');
+    assert.match(r.stdout, /Changes applied on slice\//);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 // ── AC-4: the cap → one final un-handoffed successor + honest cap log ───────
 
 test('@integration AC-4: at MMD_MAX_HANDOFFS the loop launches one final un-handoffed successor', { skip: SKIP_ON_WINDOWS }, () => {

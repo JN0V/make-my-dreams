@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.16.1`
+- **Latest tag**: `v0.16.2`
 - **Branch**: `main`
-- **Version**: `0.16.1` (package.json)
+- **Version**: `0.16.2` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 54 (ADR-001..ADR-055)
 - **Tests**: 2190 passing
 - **Recent commits**:
+  - `60ded61 fix(test): de-flake serve-context-gauge waitForFile (generous deadline + diagnostic throw)`
+  - `6b082a2 docs: refresh mechanical blocks (v0.16.1 — monitor context-% fix)`
   - `f56b7ca fix(monitor): only count per-message assistant usage as context size (kill the 1546% bug)`
   - `53cf06b docs: refresh mechanical blocks (v0.16.0 — model-per-task)`
   - `334d955 docs(model-per-role): ADR-055 + README + CLAUDE.md + /mmdream template + version 0.16.0 (AC-5)`
-  - `25acf52 feat(install): L2 named sub-agents + workflow routing for model-per-role (AC-3)`
-  - `2696d67 feat(conductor): L1 model-per-role wiring on MMD's own claude -p calls (AC-2)`
 - **Generated**: 2026-06-04 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

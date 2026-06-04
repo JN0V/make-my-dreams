@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.17.0`
-- **Branch**: `main`
-- **Version**: `0.17.0` (package.json)
+- **Branch**: `slice/here-documentalist-close-5-blind-spots-1780599161`
+- **Version**: `0.18.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 55 (ADR-001..ADR-056)
-- **Tests**: 2234 passing
+- **ADRs**: 56 (ADR-001..ADR-057)
+- **Tests**: 2266 passing
 - **Recent commits**:
-  - `e6116d2 fix(alignment-gate): anchor iterate feedback to the frozen oracle, not the raw dream (Phase-4 F1)`
-  - `540927f docs(v0.17.0): ADR-056, README, CLAUDE.md, mmdream — frozen oracle + dual-face gate (AC-5)`
-  - `0bff51f feat(alignment-gate): dual-face gate — both semantic+deterministic must pass; iterate on gap; exit 7 on unresolved (AC-4)`
-  - `0c51f9f feat(reality-check): un-skip Reality Check on --here — run tests + run.json check (AC-3)`
-  - `1511d73 feat(alignment): re-anchor semantic judge to frozen expectation.md instead of mutable slice.md (AC-2)`
+  - `f758c82 feat(documentalist): --check flag exits 1 on any conformance drift (AC-5)`
+  - `d7fc926 feat(documentalist): broaden conformance scan to install-mmd.sh printf + CLI --help/USAGE text (AC-2)`
+  - `95cc657 feat(documentalist): deterministic deprecated-surface + version-pinned-promise checks (AC-3, AC-4)`
+  - `d065c26 fix(roadmap-reconcile): stop false-partial on tag-number/weak-token match — unknown when no name match (AC-1)`
+  - `4fff7f7 docs(spec): freeze SPEC_V018A — close the Documentalist's 5 blind-spots`
 - **Generated**: 2026-06-04 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

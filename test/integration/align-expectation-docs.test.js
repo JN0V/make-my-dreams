@@ -47,7 +47,10 @@ test('@integration AC-5: the /mmdream template notes the frozen-expectation orac
   assert.match(tmpl, /MMD_SKIP_ALIGN/, 'template documents the opt-out');
 });
 
-test('@integration AC-5: the package version is 0.17.0', () => {
+test('@integration AC-5: the package version is at or past 0.17.0 (the slice that bumped it)', () => {
+  // A later slice legitimately bumps the version; assert >= rather than an exact
+  // pin that every future bump would break.
   const pkg = JSON.parse(read('package.json'));
-  assert.equal(pkg.version, '0.17.0', `expected version 0.17.0, got ${pkg.version}`);
+  const [maj, min] = pkg.version.split('.').map(Number);
+  assert.ok(maj > 0 || (maj === 0 && min >= 17), `expected >= 0.17.0, got ${pkg.version}`);
 });

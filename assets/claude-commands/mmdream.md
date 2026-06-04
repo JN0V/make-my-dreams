@@ -198,6 +198,18 @@ mmdream <subcommand> [args]
 Report the result plainly. These are fast and mostly read-only (e.g. `document-review`
 writes only its dashboard; `discover` writes only its report) — no detached watcher needed.
 
+**`mmdream document-review` (the Documentalist coherence review, v0.18.0):** it now
+scans a WIDER surface than markdown — `install-mmd.sh` `printf`/`echo` output and the
+CLI `--help`/USAGE text — and runs two new deterministic checks beyond dangling refs /
+stale facts: a **deprecated-surface** check (a known-stale token recommended as the
+current entry, e.g. `/bmad-adv-auto-dev` instead of `mmdream`) and a **version-pinned-
+promise** check (a "to be added in vX" promise that came due). The roadmap table no
+longer cries a false 🟡 *partial* on a tag-number / weak-token match — it reads ❓ *unknown*
+when there is no real capability-NAME match. Add **`mmdream document-review --check`** to
+GATE on drift: it exits **1** if any conformance drift is found (dangling refs / stale facts
+/ stale promises / deprecated-surface), **0** when clean — same contract as `secret-scan` /
+`deps-gate`, suitable for pre-push / CI. The plain `document-review` stays report-only.
+
 ---
 
 ## If unsure which route

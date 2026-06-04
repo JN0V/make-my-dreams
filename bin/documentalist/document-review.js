@@ -345,15 +345,20 @@ function scanDrift(root, inventory) {
   const factDocs = truthDocs.filter((d) => CURRENT_STATE_DOCS.has(d.doc));
   const staleFacts = checkFactConformance({ docs: factDocs, inventory });
 
-  // Deprecated-surface (AC-3) + version-pinned promises (AC-4) — over the markdown
-  // truth docs AND the UX-text surface (AC-2). The markdown docs carry a {doc,text}
-  // shape; the new checks consume {path,text} — adapt the truth docs to that shape.
-  const wideSurface = [
-    ...truthDocs.map((d) => ({ path: d.doc, text: d.text })),
+  // Deprecated-surface (AC-3) + version-pinned promises (AC-4) — over the LIVING
+  // current-state docs (README/CLAUDE/HANDOVER) AND the UX-text surface (scripts +
+  // --help). NOT over the historical ADRs / lessons-learned: those are point-in-time
+  // records, so a `mmd <command>` they wrote BEFORE the v0.9.2 rename, or a promise
+  // pinned to a version that was future WHEN WRITTEN, was correct as of writing — not
+  // current drift (the exact CURRENT_STATE_DOCS precision rule that already scopes
+  // checkFactConformance; flagging a historical ADR's old command would cry wolf).
+  // The UX-text surface IS current (the installer + --help run TODAY), so it stays.
+  const currencySurface = [
+    ...truthDocs.filter((d) => CURRENT_STATE_DOCS.has(d.doc)).map((d) => ({ path: d.doc, text: d.text })),
     ...uxSurface,
   ];
-  const deprecated = checkDeprecatedSurface(wideSurface);
-  const stalePromises = checkVersionPinnedPromises(wideSurface, { currentVersion: VERSION });
+  const deprecated = checkDeprecatedSurface(currencySurface);
+  const stalePromises = checkVersionPinnedPromises(currencySurface, { currentVersion: VERSION });
 
   return {
     dangling, staleFacts, deprecated, stalePromises,

@@ -3,7 +3,7 @@
 
 > Generated on demand by `mmdream document-review` — the Documentalist's **detection** face: a designed-vs-built reconciliation of the roadmap against MMD's real surface, plus doc-health flags. It is a **dashboard, not a hand-maintained doc** — regenerate it after any material change (new subcommand, ADR, tag, or `MAKE_MY_DREAMS.md` edit) with `mmdream document-review`. The designed-vs-built table is a **heuristic** (name-matching), not an authoritative audit; run `mmdream document-review --with-claude` to layer LLM judgment on top.
 
-_MMD 0.16.2._
+_MMD 0.18.0._
 
 ## Designed vs built (roadmap §9 reconciliation — heuristic)
 
@@ -11,56 +11,56 @@ _heuristic — matched roadmap capability names against the built inventory (sub
 
 | Capability (roadmap) | Version | Signal | Status |
 |---|---|---|---|
-| gStack install + audit | v0.0 | related: install, related: audit | 🟡 partial |
-| Walking skeleton | v0.1 | related: walking | 🟡 partial |
+| gStack install + audit | v0.0 | related: install, related: audit | ❓ unknown |
+| Walking skeleton | v0.1 | related: walking | ❓ unknown |
 | FAST engine + v0.1 CLI polish backlog | v0.2 | lib engine | 🟡 partial |
 | Brownfield onboarding + shared/local structure | v0.2c | lib onboarding | 🟡 partial |
 | Dream-bench v0 + Bundle A Security + v0.1 deferred-A1 | v0.2b | subcmd bench, lib security | 🟡 partial |
 | `mmd serve` minimal web UI for non-tech users | v0.2.5 | subcmd serve | ✅ built |
 | 3 engines (Fast/Standard/Deep) + Ralph upfront spec | v0.2d | lib engine, related: ralph | 🟡 partial |
 | Dream Expander (real BMAD/CIS brainstorming) | v0.3a | (none) | ❌ unbuilt |
-| Plan-Review Worker | v0.3b | related: review | 🟡 partial |
+| Plan-Review Worker | v0.3b | related: review | ❓ unknown |
 | Dream Catcher conversational CLI | v0.3 | lib dream-catcher | ✅ built |
-| Stateless Orchestrator + auto-handoff + Bundle B | v0.4 | related: stateles, related: handoff | 🟡 partial |
+| Stateless Orchestrator + auto-handoff + Bundle B | v0.4 | related: stateles, related: handoff | ❓ unknown |
 | Conductor + Bundle C Observability/HITL | v0.5 | lib conductor | 🟡 partial |
 | Documentalist (integrates gStack) + Context Worker | v0.5b | lib documentalist, related: context | 🟡 partial |
 | Polymorphic Reality Check + Mockup (integrates gStack) | v0.6 | lib reality-check | 🟡 partial |
-| Dream Delivery + Retro & Trend (integrates gStack) | v0.7 | tag v0.7.x shipped | 🟡 partial |
-| Automated watch + Autolearning | v0.8 | related: autolearning | 🟡 partial |
+| Dream Delivery + Retro & Trend (integrates gStack) | v0.7 | tag v0.7.x shipped (no capability-name match — unverified) | ❓ unknown |
+| Automated watch + Autolearning | v0.8 | related: autolearning | ❓ unknown |
 | Parallel Conductor + worktrees + Bundle E + Safety Hooks | v0.9 | lib conductor | 🟡 partial |
-| Optional gbrain RAG (large brownfield) | v0.9b | related: brownfield | 🟡 partial |
+| Optional gbrain RAG (large brownfield) | v0.9b | related: brownfield | ❓ unknown |
 | Full Dream Catcher Web UI | v0.10 | lib dream-catcher | ✅ built |
-| Voice mode | v0.11 | tag v0.11.x shipped | 🟡 partial |
-| Video-game target | v0.12 | tag v0.12.x shipped | 🟡 partial |
-| Explicit brownfield-friendly | v1.0 | related: brownfield | 🟡 partial |
+| Voice mode | v0.11 | tag v0.11.x shipped (no capability-name match — unverified) | ❓ unknown |
+| Video-game target | v0.12 | tag v0.12.x shipped (no capability-name match — unverified) | ❓ unknown |
+| Explicit brownfield-friendly | v1.0 | related: brownfield | ❓ unknown |
 
 Legend: ✅ built · 🟡 partial · ❌ unbuilt · ❓ unknown.
 
 ## Doc health
 
 - ⚠️ MAKE_MY_DREAMS.md: 1757 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ README.md: 879 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ HANDOVER.md: 339 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
+- ⚠️ README.md: 896 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
+- ⚠️ HANDOVER.md: 342 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ PROBLEMS.md: 241 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ BOOTSTRAP.md: 393 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ docs/lessons-learned.md: 516 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 
-## Inventory  (17 subcommands · 54 ADRs · 21 lessons · tags v0.1.0..v0.16.2)
+## Inventory  (17 subcommands · 56 ADRs · 21 lessons · tags v0.1.0..v0.17.0)
 
 - **Subcommands** (17): serve, bench, ship, discover, qa, cso, document-release, unblock, document-lessons, handover, document-readme, document-review, document-compact, test-health, secret-scan, deps-gate, lessons
 - **lib/ modules** (30): argv-parser, autolearn, bench, code-graph, composer, conductor, constitution-compose, discover, documentalist, dream-catcher, engine, greenfield, handover, here-mode, here-mode, invoke-autodev, onboarding, parse-dream, rate-limit, readme-sync, reality-check, sealed-tests, security, security-headers, server, skills, spec-derive, sse, state, test-curator
-- **ADRs** (54): latest ADR-055 — Model-per-task: the Conductor allocates a model to each role
+- **ADRs** (56): latest ADR-057 — Documentalist: closing the 5 blind-spots — wider surface, honest reconciliation, deprecated/promise checks, and a `--check` gate
 - **Active lessons**: 21
-- **Root SPEC files**: 0
-- **Tags**: 58 (v0.1.0..v0.16.2)
+- **Root SPEC files**: 2
+- **Tags**: 59 (v0.1.0..v0.17.0)
 
 ## Drift / conformance  (does the doc still match reality?)
 
-_Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edit your docs (detect-before-correct). Scanned 58 truth docs._
+_Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edit your docs (detect-before-correct). Scanned 60 truth docs + 3 UX-text surfaces (scripts + --help)._
 
 ### Dangling references (a doc claims an artifact that does not exist)
 
-- ⚠️ README.md:814 → `lib/a.js` — file not found (renamed/removed?)
+- ⚠️ README.md:831 → `lib/a.js` — file not found (renamed/removed?)
 - ⚠️ docs/lessons-learned.md:240 → `bin/ship.js` — file not found (renamed/removed?)
 - ⚠️ docs/adr/032-transparent-first-run-setup.md:60 → `mmd init` — 'init' is not a known subcommand (renamed/removed/planned?)
 - ⚠️ docs/adr/039-mmd-operator-slash-command.md:45 → `assets/claude-commands/mmd.md` — file not found (renamed/removed?)
@@ -69,3 +69,11 @@ _Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edi
 ### Stale facts (a prose claim disagrees with the live inventory)
 
 - ✅ No stale facts — bounded counts / current-version claims match the inventory.
+
+### Deprecated surface (a stale token recommended as the current entry)
+
+- ✅ No deprecated-surface recommendations — no known-stale token is presented as primary.
+
+### Stale promises (a version-pinned promise that came due)
+
+- ✅ No stale promises — no "to be added in vX" / "coming in vX" is past due.

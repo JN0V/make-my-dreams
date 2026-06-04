@@ -715,6 +715,39 @@ Chaque phase s'exécute dans un sous-agent avec un contexte frais (Agent tool).
 C'est parti !
 \`\`\`
 
+### 5. Resume Check — stateless, resumable orchestrator (SPEC_V012A / ADR-050)
+
+You are a STATELESS, RESUMABLE orchestrator. A previous run of YOU may have been killed mid-pipeline (crash, Ctrl-C, or a 70%-context handoff). Before starting Phase 1, check for an externalized checkpoint and resume from it instead of redoing completed work.
+
+**Read the checkpoint** at \`.mmd/local/checkpoint.json\` (run-local, gitignored). Its shape:
+\`\`\`
+{ "last_completed_phase": <0-4>, "spec_frozen": <true|false>, "spec_path": "<path or null>" }
+\`\`\`
+
+- **No checkpoint file, OR \`last_completed_phase\` is 0/absent** → this is a FRESH run. Proceed to Phase 1 exactly as today (the default no-checkpoint path is UNCHANGED).
+- **A checkpoint with \`1 ≤ last_completed_phase < 4\`** → this is a RESUME. Do ALL of the following:
+  1. **Announce the resume** to the user, e.g. \`▶ Resuming from Phase {last_completed_phase + 1} (Phases 1-{last_completed_phase} already complete; spec frozen at {spec_path}).\`
+  2. **Recover state** from the externalized files, NOT from memory: read every \`.mmd/local/handoff/<N>.md\` note (what each completed phase produced + what's next + key context) for N = 1..last_completed_phase, and read the slice branch's commits (\`git log <branch> --oneline\`) to see the work already on disk.
+  3. **Start at \`last_completed_phase + 1\`** — SKIP the already-completed phases entirely. Do NOT re-run Phase 1 (spec), Phase 2 (spec review), etc. if the checkpoint says they are done.
+  4. **Never re-open a frozen spec.** If \`spec_frozen\` is true, treat \`spec_path\` as AUTHORITATIVE and FROZEN: set \`{spec_file_path}\` = \`spec_path\` and go straight to the resumed phase — do NOT regenerate or edit the spec.
+- **A checkpoint with \`last_completed_phase\` ≥ 4** → the previous run already completed all phases; report that and stop (nothing to resume).
+
+This resume awareness is ADDITIVE: a run with no checkpoint behaves byte-for-byte as the fresh path below.
+
+---
+
+## CHECKPOINTING — write after EVERY phase transition (SPEC_V012A / ADR-050)
+
+So that a kill at any point is recoverable, after EACH phase completes (Phases 1, 2, 3, 4) and BEFORE you launch the next phase, write TWO externalized files under the run-local, gitignored \`.mmd/local/\` area:
+
+1. **A numbered handoff note** \`.mmd/local/handoff/<N>.md\` where \`<N>\` is the phase that just finished. Write it for a fresh successor with NO memory of this run — it MUST state: what the phase produced (artifacts + paths), what is next, and the key context to continue (e.g. the spec file path, review outcomes, deferred items).
+2. **The checkpoint** \`.mmd/local/checkpoint.json\`, OVERWRITTEN each transition with:
+   \`\`\`
+   { "last_completed_phase": <N>, "spec_frozen": <true after the spec is finalized in Phase 2, else false>, "spec_path": "<the {spec_file_path}, or null>" }
+   \`\`\`
+
+These files are run state, NOT deliverables — they are gitignored (\`.mmd/local/\`); do NOT commit them. Writing them is additive: it does not change the phase flow, only records progress so \`--resume\` can continue from \`last_completed_phase + 1\`.
+
 ---
 
 ## PHASE 1: QUICK-DEV SPEC (STEPS 1-2) WITH 3x PARTY MODE
@@ -809,6 +842,8 @@ Accept the recommendations, apply any improvements to the spec, then select [A] 
 🔄 Lancement Phase 2 — Revue adversariale de la spec...
 \`\`\`
 
+5. **CHECKPOINT (Phase 1 done).** Write \`.mmd/local/handoff/1.md\` (the spec was produced at {spec_file_path}; next: Phase 2 adversarial spec review; key context: the spec path) and overwrite \`.mmd/local/checkpoint.json\` with \`{ "last_completed_phase": 1, "spec_frozen": false, "spec_path": "{spec_file_path}" }\`. See CHECKPOINTING above.
+
 ---
 
 ## PHASE 2: ADVERSARIAL SPEC REVIEW LOOP
@@ -886,7 +921,7 @@ From the sub-agent output:
 1. Extract the SUMMARY line
 2. Count Critical and High findings
 3. If **Critical > 0 OR High > 0**: proceed to fix step (2c)
-4. If **Critical == 0 AND High == 0**: exit loop, proceed to Phase 3
+4. If **Critical == 0 AND High == 0**: exit loop. **CHECKPOINT (Phase 2 done):** the spec is now finalized and FROZEN — write \`.mmd/local/handoff/2.md\` (the spec passed adversarial review and is frozen at {spec_file_path}; next: Phase 3 implementation; key context: spec path + review iterations) and overwrite \`.mmd/local/checkpoint.json\` with \`{ "last_completed_phase": 2, "spec_frozen": true, "spec_path": "{spec_file_path}" }\`. Then proceed to Phase 3.
 
 #### 2c. Launch Fix Sub-Agent (if needed)
 
@@ -1009,6 +1044,8 @@ Generate the suggested review order, commit, and present results.
 🔄 Lancement Phase 4 — Revue adversariale finale (filet de sécurité)...
 \`\`\`
 
+2. **CHECKPOINT (Phase 3 done).** Write \`.mmd/local/handoff/3.md\` (the implementation + 3-reviewer pass completed; list the files modified/created and the review outcome; next: Phase 4 final adversarial code review; key context: spec path) and overwrite \`.mmd/local/checkpoint.json\` with \`{ "last_completed_phase": 3, "spec_frozen": true, "spec_path": "{spec_file_path}" }\`.
+
 ---
 
 ## PHASE 4: FINAL ADVERSARIAL CODE REVIEW — SAFETY NET
@@ -1079,7 +1116,7 @@ End with: SUMMARY: X critical, Y high, Z medium, W low
 Same logic as Phase 2:
 1. Extract SUMMARY line
 2. If **Critical > 0 OR High > 0**: proceed to fix (4c)
-3. If **Critical == 0 AND High == 0**: exit loop, pipeline complete
+3. If **Critical == 0 AND High == 0**: exit loop, pipeline complete. **CHECKPOINT (Phase 4 done):** write \`.mmd/local/handoff/4.md\` (the final adversarial code review passed with zero Critical/High; the pipeline is complete) and overwrite \`.mmd/local/checkpoint.json\` with \`{ "last_completed_phase": 4, "spec_frozen": true, "spec_path": "{spec_file_path}" }\`. A subsequent \`--resume\` will see all phases complete and report "nothing to resume".
 
 #### 4c. Launch Fix Sub-Agent (if needed)
 

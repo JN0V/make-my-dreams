@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.12.0`
-- **Branch**: `slice/here-cooperative-auto-handoff-70-1780561653`
+- **Latest tag**: `v0.13.0`
+- **Branch**: `main`
 - **Version**: `0.13.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 51 (ADR-001..ADR-051)
 - **Tests**: 2126 passing
 - **Recent commits**:
+  - `b39b97f fix(conductor): Phase-4 review F1 — honest warning if the marker clear fails`
+  - `ea07e48 docs(conductor): AC-5 ADR-051 + /mmdream note + README/CLAUDE + version 0.13.0`
   - `8d29841 feat(conductor): AC-4 cooperative auto-handoff loop + --auto-handoff flag`
   - `428d2f6 feat(install): AC-3 auto-dev stops cleanly at a phase boundary on handoff request`
   - `41fdb42 feat(conductor): AC-2 cooperative handoff-request marker + monitor wiring`
-  - `7755704 feat(conductor): AC-1 pure handoff-decision logic (decideHandoff + parseMaxHandoffs)`
-  - `263ade5 docs(spec): freeze SPEC_V013A — cooperative auto-handoff at 70% (Conductor step C)`
 - **Generated**: 2026-06-04 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

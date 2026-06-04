@@ -131,6 +131,24 @@ test('@unit AC-1: write/read/handoff never throw when the injected fs throws', (
   });
 });
 
+test('@unit AC-1: isResumable/decideResume never throw on hostile inputs (Symbol, null)', () => {
+  assert.doesNotThrow(() => {
+    // Number(Symbol()) throws raw — the safeNumber guard must neutralize it.
+    assert.equal(isResumable({ lastCompletedPhase: Symbol('x') }, { totalPhases: 4 }), false);
+    assert.equal(isResumable({ lastCompletedPhase: 2 }, { totalPhases: Symbol('y') }), false);
+    // decideResume tolerates a null arg (the `= {}` default only catches undefined).
+    assert.deepEqual(decideResume(null).action, 'none');
+    assert.deepEqual(decideResume(undefined).action, 'none');
+    assert.equal(decideResume({ checkpoint: { lastCompletedPhase: Symbol('z') }, totalPhases: 4 }).action, 'complete');
+  });
+});
+
+test('@unit AC-4: decideResume — a phase-0 checkpoint says "no phase completed yet" (accurate wording)', () => {
+  const d = decideResume({ checkpoint: { lastCompletedPhase: 0 }, totalPhases: 4 });
+  assert.equal(d.action, 'complete');
+  assert.match(d.reason, /no phase completed yet/i);
+});
+
 // ── AC-4: decideResume — the pure resume decision ───────────────────────────
 
 test('@unit AC-4: decideResume — resumable + dead process + not done → relaunch', () => {

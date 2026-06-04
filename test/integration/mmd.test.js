@@ -219,6 +219,36 @@ test('@integration re-run with --fresh deletes existing demo dir and restarts', 
   }
 });
 
+test('@integration v0.12.a: --cancel still wins over a co-passed --resume (precedence preserved)', () => {
+  const tmp = makeTmp();
+  try {
+    let r = runMmd(['a tiny test app that shows hello world'], { cwd: tmp });
+    assert.equal(r.status, 0, r.stderr);
+    // --resume must NOT silently override --cancel (an abort action). The
+    // pre-slice precedence is cancel > fresh > resume.
+    r = runMmd(['a tiny test app that shows hello world', '--resume', '--cancel'], { cwd: tmp });
+    assert.equal(r.status, 1, `--cancel must win over --resume; stderr=${r.stderr}`);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('@integration v0.12.a: --fresh still wins over a co-passed --resume (restarts, not resumes)', () => {
+  const tmp = makeTmp();
+  try {
+    let r = runMmd(['a tiny test app that shows hello world'], { cwd: tmp });
+    assert.equal(r.status, 0, r.stderr);
+    const demoDir = path.join(tmp, 'demo', 'tiny-test-app-shows-hello-world');
+    writeFileSync(path.join(demoDir, 'marker.txt'), 'before-fresh');
+    r = runMmd(['a tiny test app that shows hello world', '--resume', '--fresh'], { cwd: tmp });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(existsSync(path.join(demoDir, 'marker.txt')), false,
+      '--fresh must win over --resume and delete the marker');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('@integration autodev failure: status.json is written with state=failed and all five fields', () => {
   const tmp = makeTmp();
   try {

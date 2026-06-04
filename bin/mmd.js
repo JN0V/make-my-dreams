@@ -1587,7 +1587,12 @@ async function finishResume({ runDir, slug, effectiveDream, status, buildRelaunc
   const logPath = path.join(runDir, '.mmd', 'local', 'runs', `${timestamp}.log`);
   const feedback = buildResumeFeedback(checkpoint);
 
+  // Preserve the interrupted run's provenance (mode/target_dir/slice_branch/
+  // base_*/engine/profile/…) — externalized state is this slice's source of
+  // truth, so a resume must not blank it. `{...null}` is `{}`, so a greenfield
+  // run with no prior status stays safe. We override only what the resume owns.
   const inProgress = {
+    ...(status || {}),
     slice_id: status?.slice_id || slug,
     dream: status?.dream || effectiveDream,
     state: 'in_progress',
@@ -1859,7 +1864,10 @@ async function main() {
   // check because `--here --resume` carries no dream — it recovers the run from
   // cwd's status.json. Greenfield `<dream> --resume` still needs the dream (it
   // identifies demo/<slug>). A complete run or no checkpoint → honest no-op.
-  if (flags.resume) {
+  // `--fresh`/`--cancel` still win over `--resume` (the pre-slice precedence in
+  // resolveExistingChoice: cancel > fresh > resume) — a co-passed abort/restart
+  // must not be silently overridden by resume.
+  if (flags.resume && !flags.fresh && !flags.cancel) {
     return runResume({ flags, dream, engine });
   }
 

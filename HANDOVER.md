@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.16.2`
-- **Branch**: `slice/here-align-original-expectation-oracle-1780591573`
+- **Latest tag**: `v0.17.0`
+- **Branch**: `main`
 - **Version**: `0.17.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 55 (ADR-001..ADR-056)
 - **Tests**: 2234 passing
 - **Recent commits**:
+  - `e6116d2 fix(alignment-gate): anchor iterate feedback to the frozen oracle, not the raw dream (Phase-4 F1)`
+  - `540927f docs(v0.17.0): ADR-056, README, CLAUDE.md, mmdream — frozen oracle + dual-face gate (AC-5)`
   - `0bff51f feat(alignment-gate): dual-face gate — both semantic+deterministic must pass; iterate on gap; exit 7 on unresolved (AC-4)`
   - `0c51f9f feat(reality-check): un-skip Reality Check on --here — run tests + run.json check (AC-3)`
   - `1511d73 feat(alignment): re-anchor semantic judge to frozen expectation.md instead of mutable slice.md (AC-2)`
-  - `2798e01 feat(expectation): freeze original expectation at run start — write once, never overwrite (AC-1)`
-  - `d7f8d23 docs(spec): freeze SPEC_V017A — align the result to the ORIGINAL expectation (frozen oracle + dual-face verify)`
 - **Generated**: 2026-06-04 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

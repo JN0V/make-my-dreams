@@ -27,6 +27,33 @@ test('@unit buildAutodevArgs: monitor CLI args append stream-json + --verbose on
   ]);
 });
 
+test('@unit buildAutodevArgs: model override appends --model only when set (default still byte-for-byte)', () => {
+  // No model → byte-for-byte the historical shape (bootstrap-safe).
+  assert.deepEqual(
+    buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd' }),
+    ['-p', '/bmad-adv-auto-dev BODY'],
+  );
+  // Empty / whitespace model → still no --model (treated as unset).
+  assert.deepEqual(
+    buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd', model: '  ' }),
+    ['-p', '/bmad-adv-auto-dev BODY'],
+  );
+  // A model → appended as `--model <model>`, before any monitor flags.
+  assert.deepEqual(
+    buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd', model: 'haiku' }),
+    ['-p', '/bmad-adv-auto-dev BODY', '--model', 'haiku'],
+  );
+  assert.deepEqual(
+    buildAutodevArgs({ isClaudeCli: true, prompt: 'BODY', dream: 'd', monitor: true, model: 'haiku' }),
+    ['-p', '/bmad-adv-auto-dev BODY', '--model', 'haiku', '--output-format', 'stream-json', '--verbose'],
+  );
+  // Test-fixture mode ignores the model (args stay [dream]).
+  assert.deepEqual(
+    buildAutodevArgs({ isClaudeCli: false, prompt: 'BODY', dream: 'd', model: 'haiku' }),
+    ['d'],
+  );
+});
+
 test('@unit buildAutodevArgs: test-fixture mode is [dream] in BOTH default and monitor', () => {
   assert.deepEqual(buildAutodevArgs({ isClaudeCli: false, prompt: 'BODY', dream: 'd' }), ['d']);
   assert.deepEqual(

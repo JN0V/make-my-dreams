@@ -141,6 +141,7 @@ POSIX:
 Environment variables:
   MMD_AUTODEV_CMD                      Override the auto-dev subprocess (testing only)
   MMD_AUTODEV_MODE                     'cli' | 'test' — explicit mode (replaces v0.1 heuristic)
+  MMD_AUTODEV_MODEL                    Model for the auto-dev claude -p (e.g. 'haiku'); default model when unset
   MMD_COMPOSER_DISABLED=1              Bypass v0.2e lessons composer (escape hatch)
   MMD_QUIET=1                          Suppress terminal tee of subprocess output (log file preserved)
   MMD_FAST_MAX_MINUTES                 Soft FAST budget (default 12; warning only — no kill)

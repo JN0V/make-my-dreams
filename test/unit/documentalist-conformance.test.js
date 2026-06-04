@@ -17,6 +17,8 @@ import assert from 'node:assert/strict';
 import {
   checkArtifactConformance,
   checkFactConformance,
+  checkDeprecatedSurface,
+  checkVersionPinnedPromises,
 } from '../../lib/documentalist/conformance.js';
 
 const INVENTORY = {
@@ -229,4 +231,120 @@ test('@unit conformance(fact): PURE + never throws on empty/odd input', () => {
   assert.deepEqual(checkFactConformance(null), []);
   assert.deepEqual(checkFactConformance({ docs: null, inventory: null }), []);
   assert.doesNotThrow(() => checkFactConformance({ docs: [{ doc: 'x', text: null }], inventory: INVENTORY }));
+});
+
+// --- checkDeprecatedSurface (AC-3) -----------------------------------------
+
+test('@unit conformance(deprecated): /bmad-adv-auto-dev recommended as the entry → flagged', () => {
+  const texts = [
+    { path: 'install-mmd.sh', text: 'echo "To get started, try /bmad-adv-auto-dev in your session"' },
+  ];
+  const out = checkDeprecatedSurface(texts);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].doc, 'install-mmd.sh');
+  assert.equal(out[0].line, 1);
+  assert.equal(out[0].token, '/bmad-adv-auto-dev');
+  assert.match(out[0].replacement, /mmdream/);
+});
+
+test('@unit conformance(deprecated): a bare `mmd <command>` recommendation → flagged; mmdream/MMD_/.mmd/mmd.js are NOT', () => {
+  const texts = [
+    { path: 'README.md', text: 'Just run mmd serve to start the web UI.' }, // flag: bare mmd command, recommended
+  ];
+  const out = checkDeprecatedSurface(texts);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].token, 'mmd <command>');
+
+  // None of the deliberately-kept `mmd` surfaces are flagged (currency precision).
+  const safe = [
+    { path: 'a', text: 'Use mmdream serve to start.' },          // mmdream, not bare mmd
+    { path: 'b', text: 'Set the MMD_TIMEOUT_MS env var to run.' }, // MMD_ env var
+    { path: 'c', text: 'Run the state in .mmd/local during a run.' }, // .mmd path
+    { path: 'd', text: 'The entry point is bin/mmd.js — use it.' }, // mmd.js file
+  ];
+  assert.deepEqual(checkDeprecatedSurface(safe), [], 'deliberately-kept mmd surfaces must not be flagged');
+});
+
+test('@unit conformance(deprecated): a "legacy"/"deprecated"/"instead of" framing is NOT flagged (not-a-claim guard)', () => {
+  const texts = [
+    { path: 'a', text: 'The legacy /bmad-adv-auto-dev skill is invoked internally; try mmdream.' },
+    { path: 'b', text: 'Deprecated: run /bmad-adv-auto-dev (use mmdream now).' },
+    { path: 'c', text: 'Use mmdream instead of the old mmd serve command.' },
+    { path: 'd', text: 'Historically you would run mmd discover to onboard.' },
+  ];
+  assert.deepEqual(checkDeprecatedSurface(texts), [], 'legacy/deprecated/historical/instead-of framings suppressed');
+});
+
+test('@unit conformance(deprecated): a NEUTRAL mention with no recommend cue is NOT flagged (precision)', () => {
+  const texts = [
+    { path: 'a', text: 'The /bmad-adv-auto-dev skill orchestrates four phases.' }, // describes, not recommends
+    { path: 'b', text: 'A run writes status.json (the mmd state file).' }, // no command invocation
+  ];
+  assert.deepEqual(checkDeprecatedSurface(texts), [], 'a neutral mention without a primary/recommend cue is not flagged');
+});
+
+test('@unit conformance(deprecated): config override is honored; empty/odd input → none, never throws', () => {
+  const texts = [{ path: 'x', text: 'Try the foo-cmd to begin.' }];
+  const out = checkDeprecatedSurface(texts, {
+    config: [{ token: 'foo-cmd', replacement: 'bar', match: /\bfoo-cmd\b/, requiresPrimaryCue: true, reason: 'r' }],
+  });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].token, 'foo-cmd');
+
+  assert.deepEqual(checkDeprecatedSurface(null), []);
+  assert.deepEqual(checkDeprecatedSurface(undefined), []);
+  assert.deepEqual(checkDeprecatedSurface([{ path: 'x', text: null }]), []);
+  assert.doesNotThrow(() => checkDeprecatedSurface([{}, 42, null]));
+});
+
+// --- checkVersionPinnedPromises (AC-4) -------------------------------------
+
+test('@unit conformance(promise): "to be added in v0.1" with current v0.18.0 → flagged (came due)', () => {
+  const texts = [
+    { path: 'README.md', text: 'License\n\nMIT — to be added in v0.1.' },
+  ];
+  const out = checkVersionPinnedPromises(texts, { currentVersion: '0.18.0' });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].doc, 'README.md');
+  assert.equal(out[0].line, 3);
+  assert.equal(out[0].pinnedVersion, 'v0.1');
+  assert.match(out[0].promise, /to be added in v0\.1/i);
+});
+
+test('@unit conformance(promise): "Coming in vX" / "TODO by vX" / "will be added in vX" that came due → flagged', () => {
+  const texts = [
+    { path: 'a', text: 'Coming in v0.5: the parallel conductor.' },
+    { path: 'b', text: 'TODO by v0.10 — wire the egress sandbox.' },
+    { path: 'c', text: 'This will be added in v0.12 once stable.' },
+  ];
+  const out = checkVersionPinnedPromises(texts, { currentVersion: '0.18.0' });
+  assert.equal(out.length, 3);
+  const pinned = out.map((f) => f.pinnedVersion).sort();
+  assert.deepEqual(pinned, ['v0.10', 'v0.12', 'v0.5']);
+});
+
+test('@unit conformance(promise): a FUTURE promise (current < pinned) is NOT flagged', () => {
+  const texts = [
+    { path: 'a', text: 'Worktree parallelization is coming in v0.20.' },
+    { path: 'b', text: 'To be added in v1.0: the cross-machine resume.' },
+  ];
+  assert.deepEqual(checkVersionPinnedPromises(texts, { currentVersion: '0.18.0' }), [], 'still-future promises are not stale');
+});
+
+test('@unit conformance(promise): a historical / fulfilled "as of vX" / "added in vX" is NOT flagged', () => {
+  const texts = [
+    { path: 'a', text: 'As of v0.1 the License is MIT.' },
+    { path: 'b', text: 'The gate was added in v0.11.' },
+    { path: 'c', text: 'Shipped in v0.2.x with the first checks.' },
+  ];
+  assert.deepEqual(checkVersionPinnedPromises(texts, { currentVersion: '0.18.0' }), [], 'historical narrative is not a live promise');
+});
+
+test('@unit conformance(promise): no/odd current version → none; empty/odd input → none, never throws', () => {
+  const texts = [{ path: 'a', text: 'To be added in v0.1.' }];
+  assert.deepEqual(checkVersionPinnedPromises(texts, {}), [], 'no current version → cannot judge');
+  assert.deepEqual(checkVersionPinnedPromises(texts, { currentVersion: 'nope' }), []);
+  assert.deepEqual(checkVersionPinnedPromises(null, { currentVersion: '0.18.0' }), []);
+  assert.deepEqual(checkVersionPinnedPromises([{ path: 'x', text: null }], { currentVersion: '0.18.0' }), []);
+  assert.doesNotThrow(() => checkVersionPinnedPromises([{}, 42, null], { currentVersion: '0.18.0' }));
 });

@@ -131,6 +131,16 @@ or `state == failed`): report the exit code and what it means, point at `status.
 proceed. Do NOT retry blindly — if it stalled, suggest `mmdream unblock <slice>` (the
 5-Whys session, ai-coding.md §VI).
 
+**Continue an interrupted run (`--resume`, v0.12.a).** If a run was killed mid-pipeline
+(crash, reboot, Ctrl-C) and left a checkpoint, **`mmdream --here --resume`** (run from the
+repo root, on the slice branch) relaunches a fresh auto-dev that reads `.mmd/local/checkpoint.json`
++ the `.mmd/local/handoff/<N>.md` notes and **continues from the last completed phase** — it
+does NOT redo the spec or the completed phases. It is an **honest no-op** ("nothing to resume" /
+"no resumable run found", exit 0) when the run already completed or there is no checkpoint —
+never a fabricated continuation. Keep `MMD_TIMEOUT_MS=0` for the resumed run (the remaining
+phases still need real time — L-016). Prefer `--resume` over relaunching from scratch: it skips
+the work already on the branch. (Greenfield runs resume the same way: `mmdream "<dream>" --resume`.)
+
 ### Route (b) — a greenfield dream (a brand-new app)
 
 Triggers when the intent is "build me a NEW app / PWA / project from scratch" — there is

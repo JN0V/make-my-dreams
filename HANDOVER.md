@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.11.0`
-- **Branch**: `main`
-- **Version**: `0.11.0` (package.json)
+- **Branch**: `slice/here-stateless-resumable-orchestrator-1780558320`
+- **Version**: `0.12.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 49 (ADR-001..ADR-049)
-- **Tests**: 2066 passing
+- **ADRs**: 50 (ADR-001..ADR-050)
+- **Tests**: 2083 passing
 - **Recent commits**:
-  - `e46b5af fix(conductor): adversarial-review hardening of the alignment gate (Phase 4)`
-  - `8134113 docs(v0.11.0): ADR-049 + /mmdream gate docs + README/CLAUDE/HANDOVER + version bump (AC-5)`
-  - `b2b8e74 feat(conductor): wire the alignment gate onto the normal --here + greenfield paths (AC-2/3/4)`
-  - `eb9a557 feat(conductor): pure alignment-gate helpers — aggregate verdict + gap feedback (AC-1)`
-  - `ed024a2 docs(roadmap): reconcile plan vs reality + the A→E orchestration forward plan`
+  - `2aff1db feat(cli): real --resume that continues an interrupted run from the checkpoint (AC-4)`
+  - `ab72ca1 feat(auto-dev): checkpoint each phase + resume-aware init in the workflow heredoc (AC-2/AC-3)`
+  - `661f0c2 feat(conductor): checkpoint + handoff primitives for a resumable orchestrator (AC-1)`
+  - `0ec63da docs(spec): freeze SPEC_V012A — the stateless, resumable orchestrator (Conductor step B.1)`
+  - `edfcdcf docs: refresh mechanical blocks (v0.11.0 tag + counts)`
 - **Generated**: 2026-06-04 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

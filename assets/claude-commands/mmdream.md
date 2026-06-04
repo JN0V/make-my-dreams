@@ -87,6 +87,16 @@ Operational rules baked into that command — every one is mandatory:
   accepted-but-inert no-ops kept only for back-compat. **To opt the whole Conductor OUT**
   (restore the pre-v0.15 plain text spawn, one un-looped run, no monitor — e.g. a wary
   bootstrap or to save the stream-json parse cost), set **`MMD_NO_AUTO_HANDOFF=1`**.
+- **Model-per-task is AUTOMATIC — the Conductor allocates a model to each role (v0.16.a). No flag needed.**
+  Each role runs on a cost-aware default: the **orchestrator** on `sonnet` (it coordinates +
+  delegates + hands off at 70%), the **workers** on `opus` (`spec`/`impl` — the real
+  reasoning), and `review`/`judge`/`tester`/`unblock` on `sonnet`. Per-subagent models are
+  honored because MMD launches DETACHED (a Claude Code host forces Haiku when *attached* —
+  #47488; this is why `/mmdream` launches via `setsid`). Override any role with
+  **`MMD_MODEL_<ROLE>`** (`ORCHESTRATOR`/`SPEC`/`IMPL`/`REVIEW`/`JUDGE`/`TESTER`/`UNBLOCK`),
+  e.g. export `MMD_MODEL_IMPL=sonnet` before launch to run the implementation light, or
+  `MMD_MODEL_ORCHESTRATOR=opus` for a heavier orchestrator. `MMD_AUTODEV_MODEL` still
+  globally overrides the orchestrator. Unset = the cost-aware defaults.
 - **The `<DREAM>` MUST instruct incremental commits per AC.** Always append:
   `CRITICAL: commit incrementally per AC (L-019 prevention).`
   An auto-dev run killed mid-flight with no intermediate commits loses everything.

@@ -3,7 +3,7 @@
 
 > Generated on demand by `mmdream document-review` — the Documentalist's **detection** face: a designed-vs-built reconciliation of the roadmap against MMD's real surface, plus doc-health flags. It is a **dashboard, not a hand-maintained doc** — regenerate it after any material change (new subcommand, ADR, tag, or `MAKE_MY_DREAMS.md` edit) with `mmdream document-review`. The designed-vs-built table is a **heuristic** (name-matching), not an authoritative audit; run `mmdream document-review --with-claude` to layer LLM judgment on top.
 
-_MMD 0.9.2._
+_MMD 0.10.0._
 
 ## Designed vs built (roadmap §9 reconciliation — heuristic)
 
@@ -39,28 +39,29 @@ Legend: ✅ built · 🟡 partial · ❌ unbuilt · ❓ unknown.
 ## Doc health
 
 - ⚠️ MAKE_MY_DREAMS.md: 1722 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ README.md: 823 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ HANDOVER.md: 303 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
+- ⚠️ README.md: 826 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
+- ⚠️ HANDOVER.md: 314 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ PROBLEMS.md: 241 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ BOOTSTRAP.md: 393 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ docs/lessons-learned.md: 516 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 
-## Inventory  (17 subcommands · 47 ADRs · 21 lessons · tags v0.1.0..v0.9.2)
+## Inventory  (17 subcommands · 48 ADRs · 21 lessons · tags v0.1.0..v0.10.0)
 
 - **Subcommands** (17): serve, bench, ship, discover, qa, cso, document-release, unblock, document-lessons, handover, document-readme, document-review, document-compact, test-health, secret-scan, deps-gate, lessons
-- **lib/ modules** (29): argv-parser, autolearn, bench, code-graph, composer, conductor, constitution-compose, discover, documentalist, dream-catcher, engine, handover, here-mode, here-mode, invoke-autodev, onboarding, parse-dream, rate-limit, readme-sync, reality-check, sealed-tests, security, security-headers, server, skills, spec-derive, sse, state, test-curator
-- **ADRs** (47): latest ADR-047 — `mmd deps-gate`: the second Bundle A Security brick — a polyglot, adapter-based, vanilla supply-chain gate
+- **lib/ modules** (30): argv-parser, autolearn, bench, code-graph, composer, conductor, constitution-compose, discover, documentalist, dream-catcher, engine, greenfield, handover, here-mode, here-mode, invoke-autodev, onboarding, parse-dream, rate-limit, readme-sync, reality-check, sealed-tests, security, security-headers, server, skills, spec-derive, sse, state, test-curator
+- **ADRs** (48): latest ADR-048 — Technology-agnostic greenfield generation + honest preview degradation
 - **Active lessons**: 21
-- **Root SPEC files**: 8
-- **Tags**: 47 (v0.1.0..v0.9.2)
+- **Root SPEC files**: 9
+- **Tags**: 48 (v0.1.0..v0.10.0)
 
 ## Drift / conformance  (does the doc still match reality?)
 
-_Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edit your docs (detect-before-correct). Scanned 51 truth docs._
+_Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edit your docs (detect-before-correct). Scanned 52 truth docs._
 
 ### Dangling references (a doc claims an artifact that does not exist)
 
-- ⚠️ README.md:758 → `lib/a.js` — file not found (renamed/removed?)
+- ⚠️ README.md:725 → `docs/specs/SPEC_V010A.md` — file not found (renamed/removed?)
+- ⚠️ README.md:761 → `lib/a.js` — file not found (renamed/removed?)
 - ⚠️ docs/lessons-learned.md:240 → `bin/ship.js` — file not found (renamed/removed?)
 - ⚠️ docs/adr/032-transparent-first-run-setup.md:60 → `mmd init` — 'init' is not a known subcommand (renamed/removed/planned?)
 - ⚠️ docs/adr/039-mmd-operator-slash-command.md:45 → `assets/claude-commands/mmd.md` — file not found (renamed/removed?)

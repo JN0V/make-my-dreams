@@ -1419,11 +1419,14 @@ async function runAlignmentGate({
   const hasGap = () => det.failed || (!agg.aligned && agg.gapAcs.length > 0);
   while (hasGap() && iteration < maxIters) {
     iteration += 1;
+    // F1 (Phase-4 review): the iterate feedback restates the FROZEN oracle, not the
+    // raw in-memory `dream` — same anchor the judge grades against, so the
+    // correction can't drift from the original expectation (the anti-drift point).
     const semanticFeedback = (!agg.aligned && agg.gapAcs.length > 0)
-      ? buildGapFeedback({ gapAcs: agg.gapAcs, dream })
+      ? buildGapFeedback({ gapAcs: agg.gapAcs, dream: oracle })
       : null;
     const deterministicFeedback = det.failed
-      ? buildDeterministicFeedback({ reason: det.reason, dream })
+      ? buildDeterministicFeedback({ reason: det.reason, dream: oracle })
       : null;
     const feedback = combineFaceFeedback({ deterministic: deterministicFeedback, semantic: semanticFeedback });
     const failingFaces = [det.failed ? 'deterministic' : null, semanticFeedback ? 'semantic' : null]

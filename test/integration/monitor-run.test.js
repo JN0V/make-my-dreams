@@ -238,17 +238,19 @@ test('@integration AC-3/AC-4: --here --monitor writes status.json.context and fi
   }
 });
 
-// AC-3 — WITHOUT --monitor, the default path is unchanged: no context field, and
-// the tee shows raw subprocess output (the monitor never engaged). Using the
-// same stream-json fake proves the difference is the flag, not the backend.
-test('@integration AC-3: default path (no --monitor) is unchanged — no status.json.context, no context_70', { skip: SKIP_ON_WINDOWS }, async () => {
+// v0.15.a — the OPT-OUT path (MMD_NO_AUTO_HANDOFF=1) is the unchanged historical
+// path: no monitor engages at all, so no context field and no context_70. (Under
+// the v0.15.a default-on Conductor the monitor DOES engage on every run; it just
+// finds no usage from a plain-text fixture — so to assert a truly unchanged path
+// we pin the opt-out, where there is genuinely no monitor.)
+test('@integration v0.15.a: the opt-out path is unchanged — no status.json.context, no context_70', { skip: SKIP_ON_WINDOWS }, async () => {
   const srv = await startCaptureServer();
   const tmp = makeTmp();
   try {
     const r = await runMmd([DREAM], {
       cwd: tmp,
       autodevCmd: FIXTURE_PLAIN,
-      env: { MMD_NOTIFY_URL: srv.url },
+      env: { MMD_NOTIFY_URL: srv.url, MMD_NO_AUTO_HANDOFF: '1' },
     });
     assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}`);
     const status = readStatus(tmp);

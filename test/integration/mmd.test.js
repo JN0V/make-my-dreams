@@ -114,8 +114,9 @@ test('@integration happy path end-to-end with autodev stub creates demo dir + st
     // fixture marker reaches the run log). The transparent Conductor's default
     // monitored spawn re-renders stdout from stream-json and would swallow the
     // fixture's plain text, so opt out to the historical text spawn — the run/
-    // state mechanics (demo dir, decisions.log) are identical on both paths. A
-    // dedicated AC-3 test (conductor-transparent-default) covers the monitored default.
+    // state mechanics (demo dir, decisions.log) are identical on both paths. The
+    // monitored DEFAULT (greenfield + --here, no flag) is covered by the default-on
+    // handoff tests in here-auto-handoff.test.js / here-hybrid-enforce.test.js.
     const r = runMmd(['a tiny test app that shows hello world'], {
       cwd: tmp, env: { MMD_NO_AUTO_HANDOFF: '1' },
     });

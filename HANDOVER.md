@@ -15,18 +15,18 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.10.0`
-- **Branch**: `main`
-- **Version**: `0.10.0` (package.json)
+- **Branch**: `slice/here-alignment-gate-normal-path-1780555163`
+- **Version**: `0.11.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 48 (ADR-001..ADR-048)
-- **Tests**: 2044 passing
+- **ADRs**: 49 (ADR-001..ADR-049)
+- **Tests**: 2065 passing
 - **Recent commits**:
-  - `52c4c85 docs(serve): clarify kind/runInstruction are the machine-readable done-event fields`
-  - `282c94c docs(v0.10.0): ADR-048 + README/CLAUDE/HANDOVER + version bump 0.9.2→0.10.0 (AC-5 docs)`
-  - `c329eb6 fix(greenfield): make the slice.md scope template technology-agnostic too (AC-1)`
-  - `b00dc11 feat(serve): honest non-web build result instead of phantom index.html link (AC-5)`
-  - `b23e46a feat(reality-check): honest degradation for non-web builds (AC-4)`
-- **Generated**: 2026-06-03 by `mmdream handover` (mechanical block — intent sections are human-authored)
+  - `b2b8e74 feat(conductor): wire the alignment gate onto the normal --here + greenfield paths (AC-2/3/4)`
+  - `eb9a557 feat(conductor): pure alignment-gate helpers — aggregate verdict + gap feedback (AC-1)`
+  - `ed024a2 docs(roadmap): reconcile plan vs reality + the A→E orchestration forward plan`
+  - `0a81dc6 docs(spec): freeze SPEC_V011A — alignment gate on the normal path + iterate-on-gap (task A)`
+  - `ef326a9 docs: refresh mechanical blocks (v0.10.0 tag + counts)`
+- **Generated**: 2026-06-04 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
 ## ▶ RIGHT NOW — handoff orientation (read this if you're picking up mid-session)

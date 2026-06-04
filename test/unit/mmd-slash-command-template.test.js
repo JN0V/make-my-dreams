@@ -80,6 +80,15 @@ test('@unit /mmdream template: on green offers ff-only merge + annotated tag', (
   assert.match(md, /tag -a/, 'tag must be annotated');
 });
 
+test('@unit /mmdream template: documents the default-on alignment gate + its opt-out/iters knobs (v0.11.a)', () => {
+  const md = readFileSync(TEMPLATE_ABS, 'utf8');
+  assert.match(md, /alignment gate runs by DEFAULT/i, 'must state the gate is default-on');
+  assert.match(md, /MMD_SKIP_ALIGN=1/, 'must document the opt-out');
+  assert.match(md, /MMD_ALIGN_MAX_ITERS/, 'must document the iterations cap');
+  assert.match(md, /status\.json\.judge/, 'monitoring must read status.json.judge');
+  assert.match(md, /exit 7/i, 'a surviving gap exits 7 (behavioral-gap)');
+});
+
 test('@unit /mmdream template: documents all three routes (code change / greenfield / bare subcommand)', () => {
   const md = readFileSync(TEMPLATE_ABS, 'utf8');
   assert.match(md, /Route \(a\)/);

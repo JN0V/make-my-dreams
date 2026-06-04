@@ -35,6 +35,17 @@ These are non-negotiable, drawn from MMD's constitution and lessons-learned:
   context:
   `export PATH="$HOME/.bun/bin:$HOME/.nvm/versions/node/v20.19.5/bin:$PATH"`
   (adjust the node path to the installed v20.x; HANDOVER.md documents the canonical one).
+- **The alignment gate runs by DEFAULT (v0.11.a).** On every normal `mmdream --here` and
+  greenfield run, after auto-dev completes and BEFORE the run is marked done, a behavioral
+  judge grades the produced change against WHAT WAS ASKED (the dream/ACs). On a gap it
+  re-launches auto-dev once (bounded) with feedback naming the unmet ACs, then re-judges.
+  The verdict is written to **`status.json.judge`** — read it when monitoring. Outcomes:
+  every AC met → done; a gap that survives the bounded re-tries → **exit 7** (behavioral-gap),
+  NOT done; an uncertain/unverifiable verdict → an honest "alignment unverified" note (the
+  sacred fallback — never a fabricated pass). Opt out with **`MMD_SKIP_ALIGN=1`** (restores
+  pre-v0.11 behavior exactly); cap the re-tries with **`MMD_ALIGN_MAX_ITERS`** (integer ≥ 0,
+  default `1`; `0` = gate-but-never-iterate). The gate is a post-completion step — it never
+  changes how auto-dev is spawned.
 
 ---
 
@@ -113,10 +124,12 @@ git branch -d slice/<slug>-...
 Merge is **fast-forward only** (`--ff-only`) and the tag is **annotated** (`-a`). Present
 this as an offer with the exact commands; let the user confirm before touching `main`.
 
-If the run **fails** (exit 6 tamper/seal, exit 7 behavioral-gap, exit 8 setup, non-zero,
-or `state == failed`): report the exit code and what it means, point at `status.json` and
-the log, and ask how to proceed. Do NOT retry blindly — if it stalled, suggest
-`mmdream unblock <slice>` (the 5-Whys session, ai-coding.md §VI).
+If the run **fails** (exit 6 tamper/seal, exit 7 behavioral-gap — now also fired by the
+default-on alignment gate when an acceptance criterion stays unmet, exit 8 setup, non-zero,
+or `state == failed`): report the exit code and what it means, point at `status.json`
+(`.judge` carries the per-AC verdict on an exit-7 alignment gap) and the log, and ask how to
+proceed. Do NOT retry blindly — if it stalled, suggest `mmdream unblock <slice>` (the
+5-Whys session, ai-coding.md §VI).
 
 ### Route (b) — a greenfield dream (a brand-new app)
 

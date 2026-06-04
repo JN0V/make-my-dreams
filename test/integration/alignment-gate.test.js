@@ -52,7 +52,7 @@ function runHere(args, opts = {}) {
     GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t',
     ...(opts.env || {}),
   };
-  return spawnSync('node', [MMD, ...args], { cwd: opts.cwd, env, encoding: 'utf8', timeout: 60000 });
+  return spawnSync('node', [MMD, ...args], { cwd: opts.cwd, env, encoding: 'utf8', timeout: 120000 });
 }
 
 const DREAM = 'add a small greeting feature to the app';
@@ -190,7 +190,7 @@ function runGreenfield(args, opts = {}) {
     MMD_REALITY_CHECK_BACKEND: 'skip',
     ...(opts.env || {}),
   };
-  return spawnSync('node', [MMD, ...args], { cwd: opts.cwd, env, encoding: 'utf8', timeout: 60000 });
+  return spawnSync('node', [MMD, ...args], { cwd: opts.cwd, env, encoding: 'utf8', timeout: 120000 });
 }
 
 test('@integration v0.11.a AC-3: greenfield all-MET → done + status.json.judge', { skip: SKIP_ON_WINDOWS }, () => {

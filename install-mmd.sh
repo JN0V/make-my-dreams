@@ -585,7 +585,7 @@ constitution: '{project-root}/.specify/memory/constitution.md'
 
 # Auto-Dev Workflow — Fully Automated Development Pipeline
 
-**Goal:** Automate the entire spec→review→dev→review pipeline with minimal user intervention. Each phase runs in a fresh sub-agent context via the **Agent tool** (\`subagent_type: "general-purpose"\`). The orchestrator (you) monitors progress and keeps the user informed.
+**Goal:** Automate the entire spec→review→dev→review pipeline with minimal user intervention. Each phase runs in a fresh sub-agent context via the **Agent tool**, routed to the NAMED sub-agent whose pinned model fits the role (model-per-task, ADR-055): the spec phases use \`mmd-spec\`, implementation uses \`mmd-impl\`, the adversarial reviewers use \`mmd-review\`. The orchestrator (you) monitors progress and keeps the user informed.
 
 ---
 
@@ -621,7 +621,7 @@ Quick mode does NOT alter the constitution injection, the sub-agent fresh-contex
 
 You are the **macro orchestrator**. You do NOT execute the workflows yourself. Instead, you:
 
-1. **Launch sub-agents** using the **Agent tool** with \`subagent_type: "general-purpose"\` for each phase — this guarantees a **fresh context** for every sub-agent
+1. **Launch sub-agents** using the **Agent tool** with the per-phase NAMED \`subagent_type\` (\`mmd-spec\` for the spec phases, \`mmd-impl\` for implementation, \`mmd-review\` for the adversarial reviewers) — each named agent runs in a **fresh context** and carries its role-fit pinned model (model-per-task, ADR-055)
 2. **Craft detailed prompts** so each sub-agent has all the context it needs
 3. **Parse sub-agent results** to determine next steps
 4. **Report progress** to the user at every phase transition
@@ -767,7 +767,7 @@ Generate a complete, implementation-ready tech-spec from the user's request usin
 ### How to Launch
 
 Use the **Agent tool** with:
-- \`subagent_type\`: \`"general-purpose"\`
+- \`subagent_type\`: \`"mmd-spec"\`
 - \`description\`: \`"Phase 1: Quick-Dev Spec with 3x Party Mode"\`
 - \`prompt\`: (see below)
 
@@ -888,7 +888,7 @@ Set \`{review_iteration}\` = 1
 #### 2a. Launch Review Sub-Agent
 
 Use the **Agent tool** with:
-- \`subagent_type\`: \`"general-purpose"\`
+- \`subagent_type\`: \`"mmd-review"\`
 - \`description\`: \`"Phase 2: Adversarial spec review #{review_iteration}"\`
 
 Prompt:
@@ -935,7 +935,7 @@ From the sub-agent output:
 #### 2c. Launch Fix Sub-Agent (if needed)
 
 Use the **Agent tool** with:
-- \`subagent_type\`: \`"general-purpose"\`
+- \`subagent_type\`: \`"mmd-spec"\`
 - \`description\`: \`"Phase 2: Fix spec findings #{review_iteration}"\`
 
 Prompt:
@@ -982,7 +982,7 @@ Implement the spec using quick-dev's full implementation pipeline: implement, th
 ### How to Launch
 
 Use the **Agent tool** with:
-- \`subagent_type\`: \`"general-purpose"\`
+- \`subagent_type\`: \`"mmd-impl"\`
 - \`description\`: \`"Phase 3: Quick-Dev implementation with 3-reviewer review"\`
 
 ### Sub-Agent Prompt
@@ -1071,7 +1071,7 @@ Set \`{code_review_iteration}\` = 1
 #### 4a. Launch Review Sub-Agent
 
 Use the **Agent tool** with:
-- \`subagent_type\`: \`"general-purpose"\`
+- \`subagent_type\`: \`"mmd-review"\`
 - \`description\`: \`"Phase 4: Adversarial code review #{code_review_iteration}"\`
 
 Prompt:
@@ -1130,7 +1130,7 @@ Same logic as Phase 2:
 #### 4c. Launch Fix Sub-Agent (if needed)
 
 Use the **Agent tool** with:
-- \`subagent_type\`: \`"general-purpose"\`
+- \`subagent_type\`: \`"mmd-impl"\`
 - \`description\`: \`"Phase 4: Fix code findings #{code_review_iteration}"\`
 
 Prompt:
@@ -1197,6 +1197,83 @@ When all 4 phases are done, report:
 WORKFLOW_EOF
 
 ok "Generated: _bmad/${ADV_CODE}/workflows/auto-dev/workflow.md"
+
+# --- 3b2. Named sub-agents for model-per-role (v0.16.a, ADR-055) -------------
+# L2 of model-per-task: the auto-dev phases are routed (above) to NAMED sub-agents
+# whose model is PINNED in frontmatter (selected by subagent_type), instead of the
+# generic general-purpose agent running on one global model. Per-subagent models
+# are HONORED when claude -p runs DETACHED (MMD's setsid launch path); the host
+# forces Haiku only when ATTACHED (#47488), so AC-4 verifies the per-role models
+# live. The `model:` values MIRROR lib/conductor/model-policy.js DEFAULTS
+# (mmd-spec → opus, mmd-impl → opus, mmd-review → sonnet) — that JS module is the
+# canonical source (it drives L1); this is the L2 materialization. Each agent is a
+# FAITHFUL general-purpose agent PLUS the mandatory constitution-injection contract
+# and fresh-context discipline (SPEC_V016A §4 — no contract is lost).
+AGENTS_DIR="$TARGET/.claude/agents"
+mkdir -p "$AGENTS_DIR"
+
+# The behavior every named agent shares (literal quoted heredoc — backticks and $
+# stay verbatim). Differs per agent only by the one-line role emphasis + the
+# frontmatter (name / description / model).
+MMD_AGENT_SHARED_BODY=$(cat <<'AGENT_BODY_EOF'
+## Capability — a faithful general-purpose engineering sub-agent
+
+You have FULL tool access and operate exactly like the general-purpose agent: you
+research, search the codebase, read and write files, run commands, and execute
+multi-step engineering tasks autonomously to completion. The auto-dev orchestrator
+routed you here for ONE phase of the pipeline — do that phase end to end and return
+a concise, HONEST result (universal §VI — report walls explicitly, never fabricate
+success).
+
+## Fresh, isolated context (NON-NEGOTIABLE)
+
+You run in a FRESH context with NO memory of prior phases. Everything you need is in
+the prompt you were given and in the externalized run files — the slice scope at
+`.mmd/shared/slice.md`, the spec, `status.json`, and the per-phase handoff notes at
+`.mmd/local/handoff/<N>.md`. Do NOT assume any state from earlier phases; READ the
+files. State that must survive a phase boundary lives in those files, never in agent
+memory (ai-coding §IV). This fresh-context discipline is what keeps the pipeline
+resumable and free of context rot (P-01).
+
+## Constitution injection (MANDATORY)
+
+The prompt you receive begins with the project Constitution block — a
+"## Project Constitution (NON-NEGOTIABLE)" section wrapping the full constitution in
+`<constitution>` tags. It SUPERSEDES all other practices. Read it carefully and
+comply with EVERY principle; any violation is a defect. If a prompt ever arrives
+WITHOUT that block, treat it as an error and request the constitution rather than
+proceeding ungoverned.
+AGENT_BODY_EOF
+)
+
+# write_mmd_agent <name> <model> <description> <role-emphasis>
+write_mmd_agent() {
+  local name="$1" model="$2" desc="$3" emphasis="$4"
+  {
+    printf -- '---\n'
+    printf 'name: %s\n' "$name"
+    printf 'description: %s\n' "$desc"
+    printf 'model: %s\n' "$model"
+    printf -- '---\n\n'
+    printf '# %s — MMD auto-dev named sub-agent (model-per-role, ADR-055)\n\n' "$name"
+    printf '%s\n\n' "$emphasis"
+    printf '%s\n' "$MMD_AGENT_SHARED_BODY"
+  } > "$AGENTS_DIR/$name.md"
+}
+
+write_mmd_agent "mmd-spec" "opus" \
+  "MMD auto-dev SPEC sub-agent — clarify scope + produce/refine the testable spec (model-per-role: opus)." \
+  "Your role is the SPEC phase: clarify scope, investigate, and produce or refine a precise, testable specification (and in the fix pass, address adversarial spec-review findings). You run on a STRONG model (opus) because design and scoping demand high reasoning."
+
+write_mmd_agent "mmd-impl" "opus" \
+  "MMD auto-dev IMPLEMENTATION sub-agent — write the code for the frozen spec, commit per AC (model-per-role: opus)." \
+  "Your role is IMPLEMENTATION: write the real code for the frozen spec (and in the fix pass, address adversarial code-review findings), committing incrementally per acceptance criterion (commit-git §III, L-019). You run on a STRONG model (opus) because the real coding is the highest-reasoning work."
+
+write_mmd_agent "mmd-review" "sonnet" \
+  "MMD auto-dev ADVERSARIAL REVIEW sub-agent — cynically review spec/code for Critical/High findings (model-per-role: sonnet)." \
+  "Your role is ADVERSARIAL REVIEW: critique the spec or the implementation cynically, hunting Critical/High findings (correctness, edge cases, acceptance gaps) and reporting them honestly. You run on a LIGHT model (sonnet) — critique is well-suited to a lighter, cheaper model."
+
+ok "Generated: .claude/agents/mmd-spec.md, mmd-impl.md, mmd-review.md (model-per-role named sub-agents)"
 
 # --- 3c. Generate command file ----------------------------------------------
 # Bug 2: the newer BMAD manages skills under .claude/skills/. If it already

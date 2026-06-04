@@ -27,9 +27,14 @@ test('@integration AC-5: the /mmdream operator template documents --auto-handoff
   assert.match(tmpl, /MMD_MAX_HANDOFFS/, 'names the cap env var');
 });
 
-test('@integration AC-5: the package version is bumped to 0.13.0', () => {
+test('@integration AC-5: the package version is at least 0.13.0 (the v0.13.a bump; patches move it forward)', () => {
   const pkg = JSON.parse(readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '0.13.0');
+  // The v0.13.a deliverable bumped to 0.13.0; later patches (v0.13.1 …) move it
+  // forward, so assert minor >= 13 rather than pinning an exact value that every
+  // bump would break (the same fragility that turned main red on the v0.13.1 patch).
+  const [major, minor] = pkg.version.split('.').map(Number);
+  assert.equal(major, 0);
+  assert.ok(minor >= 13, `expected version >= 0.13.0, got ${pkg.version}`);
 });
 
 test('@integration AC-5: CLAUDE.md records the v0.13.a auto-handoff slice', () => {

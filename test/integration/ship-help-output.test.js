@@ -70,9 +70,16 @@ test('@integration F2 — mmdream ship --help is byte-identical to the snapshot'
     return; // Re-blessed.
   }
   const expected = readFileSync(SNAPSHOT_PATH, 'utf8');
+  // Normalize the version footer before comparing: the EXACT version is asserted
+  // separately (the dynamic footer test above, read from package.json). Pinning it
+  // here too made this byte-identical test break on every version bump and forced a
+  // re-bless each time — a fragile coupling that a bump can silently turn red (it
+  // did, on the v0.13.1 patch). Normalizing the `mmdream <semver>` line keeps the
+  // real value of this test (catch help-TEXT drift) without the version churn.
+  const normalize = (s) => s.replace(/mmdream \d+\.\d+\.\d+/g, 'mmdream <version>');
   assert.strictEqual(
-    r.stdout,
-    expected,
+    normalize(r.stdout),
+    normalize(expected),
     `ship --help drifted from snapshot. ` +
     `Run UPDATE_SNAPSHOTS=1 node --test test/integration/ship-help-output.test.js ` +
     `to re-bless if intentional.`,

@@ -119,6 +119,30 @@ test('@unit makeMonitorConsumer: onContext fires only on a new running MAX, with
   assert.equal(seen[1].model, 'claude-opus-4-8[1m]');
 });
 
+// v0.16.1 (monitor-accuracy fix): a `result` event carries the CUMULATIVE
+// run-total usage (cache_creation summed across every iteration). Counting it as
+// a context-size reading produced absurd context % (e.g. 1546% / 15M tokens on a
+// 1M window) and falsely crossed the handoff threshold. Only per-message
+// `assistant` usage is a real context snapshot.
+function resultEvent(cumulativeInput) {
+  return JSON.stringify({
+    type: 'result',
+    subtype: 'success',
+    usage: { input_tokens: cumulativeInput, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+  });
+}
+
+test('@unit v0.16.1: the result event cumulative usage is NOT counted as context (no false 1546%)', () => {
+  const seen = [];
+  const c = makeMonitorConsumer(fakeLog(), true, (ctx) => seen.push(ctx));
+  c.onData(`${SYSTEM}\n`);
+  c.onData(`${assistant('work', 250000)}\n`);   // real per-message context → counted
+  c.onData(`${resultEvent(15_459_891)}\n`);     // cumulative run-total → MUST be ignored
+  c.flush();
+  assert.equal(seen.length, 1, 'the result event usage must not produce a context reading');
+  assert.equal(seen[0].tokens, 250000, 'peak stays the per-message max, not the cumulative result total');
+});
+
 test('@unit makeMonitorConsumer: unknown/absent model → 200K window flagged estimated', () => {
   const seen = [];
   const c = makeMonitorConsumer(fakeLog(), true, (ctx) => seen.push(ctx));

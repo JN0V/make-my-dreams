@@ -35,15 +35,21 @@ These are non-negotiable, drawn from MMD's constitution and lessons-learned:
   context:
   `export PATH="$HOME/.bun/bin:$HOME/.nvm/versions/node/v20.19.5/bin:$PATH"`
   (adjust the node path to the installed v20.x; HANDOVER.md documents the canonical one).
-- **The alignment gate runs by DEFAULT (v0.11.a).** On every normal `mmdream --here` and
-  greenfield run, after auto-dev completes and BEFORE the run is marked done, a behavioral
-  judge grades the produced change against WHAT WAS ASKED (the dream/ACs). On a gap it
-  re-launches auto-dev once (bounded) with feedback naming the unmet ACs, then re-judges.
-  The verdict is written to **`status.json.judge`** — read it when monitoring. Outcomes:
-  every AC met → done; a gap that survives the bounded re-tries → **exit 7** (behavioral-gap),
-  NOT done; an uncertain/unverifiable verdict → an honest "alignment unverified" note (the
-  sacred fallback — never a fabricated pass). Opt out with **`MMD_SKIP_ALIGN=1`** (restores
-  pre-v0.11 behavior exactly); cap the re-tries with **`MMD_ALIGN_MAX_ITERS`** (integer ≥ 0,
+- **The alignment gate runs by DEFAULT, and is DUAL-FACE + anchored to the ORIGINAL ask
+  (v0.11.a + v0.17.0).** At run start the original expectation is **frozen** into
+  `.mmd/shared/expectation.md` (the dream + any Dream-Catcher scope) — written ONCE, never
+  overwritten on a resume, so the build cannot quietly redefine its own success. After
+  auto-dev completes and BEFORE the run is marked done, the gate verifies the result against
+  that frozen oracle on **BOTH faces**: the **semantic** judge (grades the change against
+  WHAT WAS ASKED, written to **`status.json.judge`**) AND the **deterministic** Reality Check
+  (now un-skipped on `--here`: it runs the project's tests + a `run.json`-kind "does it run"
+  check). A gap on EITHER face re-launches auto-dev (bounded) with feedback naming the failing
+  face, then re-verifies. Outcomes: both faces pass → done; a gap that survives the bounded
+  re-tries → **exit 7** (NOT done), with **`status.json.judge.face`** ∈ `semantic` /
+  `deterministic` / `both` recording what failed; an uncertain/unverifiable semantic verdict
+  (no deterministic fail) → an honest "alignment unverified" note (the sacred fallback — never
+  a fabricated pass). Opt out with **`MMD_SKIP_ALIGN=1`** (restores pre-v0.11 behavior
+  exactly, both faces off); cap the re-tries with **`MMD_ALIGN_MAX_ITERS`** (integer ≥ 0,
   default `1`; `0` = gate-but-never-iterate). The gate is a post-completion step — it never
   changes how auto-dev is spawned.
 

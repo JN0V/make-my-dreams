@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.16.2`
-- **Branch**: `main`
-- **Version**: `0.16.2` (package.json)
+- **Branch**: `slice/here-align-original-expectation-oracle-1780591573`
+- **Version**: `0.17.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 54 (ADR-001..ADR-055)
-- **Tests**: 2190 passing
+- **ADRs**: 55 (ADR-001..ADR-056)
+- **Tests**: 2234 passing
 - **Recent commits**:
-  - `60ded61 fix(test): de-flake serve-context-gauge waitForFile (generous deadline + diagnostic throw)`
-  - `6b082a2 docs: refresh mechanical blocks (v0.16.1 — monitor context-% fix)`
-  - `f56b7ca fix(monitor): only count per-message assistant usage as context size (kill the 1546% bug)`
-  - `53cf06b docs: refresh mechanical blocks (v0.16.0 — model-per-task)`
-  - `334d955 docs(model-per-role): ADR-055 + README + CLAUDE.md + /mmdream template + version 0.16.0 (AC-5)`
+  - `0bff51f feat(alignment-gate): dual-face gate — both semantic+deterministic must pass; iterate on gap; exit 7 on unresolved (AC-4)`
+  - `0c51f9f feat(reality-check): un-skip Reality Check on --here — run tests + run.json check (AC-3)`
+  - `1511d73 feat(alignment): re-anchor semantic judge to frozen expectation.md instead of mutable slice.md (AC-2)`
+  - `2798e01 feat(expectation): freeze original expectation at run start — write once, never overwrite (AC-1)`
+  - `d7f8d23 docs(spec): freeze SPEC_V017A — align the result to the ORIGINAL expectation (frozen oracle + dual-face verify)`
 - **Generated**: 2026-06-04 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

@@ -39,20 +39,20 @@ Legend: ✅ built · 🟡 partial · ❌ unbuilt · ❓ unknown.
 ## Doc health
 
 - ⚠️ MAKE_MY_DREAMS.md: 1757 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ README.md: 896 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
+- ⚠️ README.md: 897 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ HANDOVER.md: 342 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ PROBLEMS.md: 241 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ BOOTSTRAP.md: 393 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ docs/lessons-learned.md: 516 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 
-## Inventory  (17 subcommands · 56 ADRs · 21 lessons · tags v0.1.0..v0.17.0)
+## Inventory  (17 subcommands · 56 ADRs · 21 lessons · tags v0.1.0..v0.18.0)
 
 - **Subcommands** (17): serve, bench, ship, discover, qa, cso, document-release, unblock, document-lessons, handover, document-readme, document-review, document-compact, test-health, secret-scan, deps-gate, lessons
 - **lib/ modules** (30): argv-parser, autolearn, bench, code-graph, composer, conductor, constitution-compose, discover, documentalist, dream-catcher, engine, greenfield, handover, here-mode, here-mode, invoke-autodev, onboarding, parse-dream, rate-limit, readme-sync, reality-check, sealed-tests, security, security-headers, server, skills, spec-derive, sse, state, test-curator
 - **ADRs** (56): latest ADR-057 — Documentalist: closing the 5 blind-spots — wider surface, honest reconciliation, deprecated/promise checks, and a `--check` gate
 - **Active lessons**: 21
 - **Root SPEC files**: 2
-- **Tags**: 59 (v0.1.0..v0.17.0)
+- **Tags**: 60 (v0.1.0..v0.18.0)
 
 ## Drift / conformance  (does the doc still match reality?)
 
@@ -60,7 +60,7 @@ _Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edi
 
 ### Dangling references (a doc claims an artifact that does not exist)
 
-- ⚠️ README.md:831 → `lib/a.js` — file not found (renamed/removed?)
+- ⚠️ README.md:832 → `lib/a.js` — file not found (renamed/removed?)
 - ⚠️ docs/lessons-learned.md:240 → `bin/ship.js` — file not found (renamed/removed?)
 - ⚠️ docs/adr/032-transparent-first-run-setup.md:60 → `mmd init` — 'init' is not a known subcommand (renamed/removed/planned?)
 - ⚠️ docs/adr/039-mmd-operator-slash-command.md:45 → `assets/claude-commands/mmd.md` — file not found (renamed/removed?)

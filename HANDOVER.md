@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.18.0`
-- **Branch**: `main`
-- **Version**: `0.18.0` (package.json)
+- **Branch**: `slice/here-document-orchestrator-1780660895`
+- **Version**: `0.19.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 56 (ADR-001..ADR-057)
-- **Tests**: 2271 passing
+- **ADRs**: 57 (ADR-001..ADR-058)
+- **Tests**: 2283 passing
 - **Recent commits**:
-  - `7891722 docs(handover): mark Documentalist blind-spots 4/5 closed + 5th substantial (v0.18.0)`
-  - `926a27f docs: refresh mechanical blocks (v0.18.0 — Documentalist blind-spots closed)`
-  - `1b73165 docs(v0.18.0): ADR-057, README + CLAUDE.md + mmdream.md, version bump + live capture (AC-6)`
-  - `f758c82 feat(documentalist): --check flag exits 1 on any conformance drift (AC-5)`
-  - `d7fc926 feat(documentalist): broaden conformance scan to install-mmd.sh printf + CLI --help/USAGE text (AC-2)`
+  - `54905b6 test(document): integration + unit tests for AC-1 through AC-5`
+  - `8183629 feat(document): deprecate the 4 maintenance commands as back-compat aliases (AC-4)`
+  - `ffb96f1 feat(document): fix auto-commit of git-mv'd SPECs; verify --dry-run / --no-commit modes (AC-2)`
+  - `2a8cd1d feat(document): implement mmdream document orchestrator — four-step Documentalist pass with unified report (AC-1)`
+  - `b6ac19b docs(spec): v0.19.a — mmdream document, the autonomous Documentalist orchestrator`
 - **Generated**: 2026-06-05 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

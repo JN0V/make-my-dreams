@@ -57,7 +57,11 @@ test('@integration AC-6: the /mmdream template notes --check + the wider surface
   assert.match(tmpl, /--help|install-mmd\.sh|wider/i, 'template mentions the wider surface');
 });
 
-test('@integration AC-6: the package version is 0.18.0', () => {
+test('@integration AC-6: the package version is at or past 0.18.0 (this slice shipped then)', () => {
+  // The blind-spots slice shipped at 0.18.0. Asserting >= (not exact equality)
+  // so a later version bump (v0.19.0 added the `mmdream document` orchestrator)
+  // does not break this slice's doc test — the feature never regressed.
   const pkg = JSON.parse(read('package.json'));
-  assert.equal(pkg.version, '0.18.0', `expected version 0.18.0, got ${pkg.version}`);
+  const [maj, min] = pkg.version.split('.').map(Number);
+  assert.ok(maj > 0 || (maj === 0 && min >= 18), `expected version >= 0.18.0, got ${pkg.version}`);
 });

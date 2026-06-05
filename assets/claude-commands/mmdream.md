@@ -187,8 +187,9 @@ and ask the user for the real dream; do not generate anything against a blank.
 ### Route (c) — a bare MMD subcommand
 
 Triggers when the intent names a read-only / utility subcommand directly, e.g.
-`discover`, `serve`, `document-review`, `handover`, `document-readme`, `document-compact`,
-`unblock`. Just run it (it is not a long detached slice), with bun + node 20 on PATH:
+`discover`, `serve`, `document`, `document-review`, `handover`, `document-readme`,
+`document-compact`, `unblock`. Just run it (it is not a long detached slice), with
+bun + node 20 on PATH:
 
 ```bash
 export PATH="$HOME/.bun/bin:$HOME/.nvm/versions/node/v20.19.5/bin:$PATH"
@@ -197,6 +198,21 @@ mmdream <subcommand> [args]
 
 Report the result plainly. These are fast and mostly read-only (e.g. `document-review`
 writes only its dashboard; `discover` writes only its report) — no detached watcher needed.
+
+**`mmdream document` (the autonomous Documentalist orchestrator, v0.19.0):** PREFER this
+over the four separate maintenance commands — it is the one agent that runs them all in
+one pass. When the user asks to "update the docs", "tidy the docs", "refresh the doc
+meta", or "run the documentalist", run **`mmdream document`**: it refreshes HANDOVER +
+README mechanical blocks, writes the `docs/coherence-review.md` drift dashboard, archives
+shipped root `SPEC_V*.md` into `docs/specs/`, reports the doc↔code↔ADR coupling, and
+**auto-commits the lossless/mechanical work** in two atomic commits (no prose is cut). It
+runs git operations + commits, so it is NOT purely read-only — run it on a clean-ish tree
+and review the two commits it makes. Three modes: **`--dry-run`** previews and leaves a
+CLEAN tree (use this first if unsure); **`--no-commit`** writes but does not commit;
+**`--check`** is the CI/pre-push GATE (exits **1** on any conformance drift, **0** clean,
+read-only — no auto-commit). The four maintenance commands (`handover`, `document-readme`,
+`document-review`, `document-compact`) still work but now print a `[DEPRECATED]` notice
+pointing here — route doc-maintenance intents to `mmdream document` going forward.
 
 **`mmdream document-review` (the Documentalist coherence review, v0.18.0):** it now
 scans a WIDER surface than markdown — `install-mmd.sh` `printf`/`echo` output and the

@@ -3,7 +3,7 @@
 
 > Generated on demand by `mmdream document-review` — the Documentalist's **detection** face: a designed-vs-built reconciliation of the roadmap against MMD's real surface, plus doc-health flags. It is a **dashboard, not a hand-maintained doc** — regenerate it after any material change (new subcommand, ADR, tag, or `MAKE_MY_DREAMS.md` edit) with `mmdream document-review`. The designed-vs-built table is a **heuristic** (name-matching), not an authoritative audit; run `mmdream document-review --with-claude` to layer LLM judgment on top.
 
-_MMD 0.19.0._
+_MMD 0.20.0._
 
 ## Designed vs built (roadmap §9 reconciliation — heuristic)
 
@@ -45,18 +45,18 @@ Legend: ✅ built · 🟡 partial · ❌ unbuilt · ❓ unknown.
 - ⚠️ BOOTSTRAP.md: 393 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ docs/lessons-learned.md: 516 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 
-## Inventory  (18 subcommands · 57 ADRs · 21 lessons · tags v0.1.0..v0.19.0)
+## Inventory  (18 subcommands · 58 ADRs · 21 lessons · tags v0.1.0..v0.19.0)
 
 - **Subcommands** (18): serve, bench, ship, discover, qa, cso, document-release, unblock, document-lessons, document, handover, document-readme, document-review, document-compact, test-health, secret-scan, deps-gate, lessons
 - **lib/ modules** (30): argv-parser, autolearn, bench, code-graph, composer, conductor, constitution-compose, discover, documentalist, dream-catcher, engine, greenfield, handover, here-mode, here-mode, invoke-autodev, onboarding, parse-dream, rate-limit, readme-sync, reality-check, sealed-tests, security, security-headers, server, skills, spec-derive, sse, state, test-curator
-- **ADRs** (57): latest ADR-058 — `mmdream document`: the autonomous Documentalist orchestrator (one agent, not six commands)
+- **ADRs** (58): latest ADR-059 — Per-dream alignment oracle: fix the write-once-forever expectation leak
 - **Active lessons**: 21
-- **Root SPEC files**: 0
+- **Root SPEC files**: 1
 - **Tags**: 61 (v0.1.0..v0.19.0)
 
 ## Drift / conformance  (does the doc still match reality?)
 
-_Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edit your docs (detect-before-correct). Scanned 61 truth docs + 3 UX-text surfaces (scripts + --help)._
+_Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edit your docs (detect-before-correct). Scanned 62 truth docs + 3 UX-text surfaces (scripts + --help)._
 
 ### Dangling references (a doc claims an artifact that does not exist)
 

@@ -516,7 +516,8 @@ test('@integration document AC-6: ADR-058 exists, docs mention `mmdream document
     assert.match(text, bareDoc, `${rel} must mention the \`mmdream document\` orchestrator`);
   }
 
-  // Version bumped to 0.19.0.
+  // Version is at or past the v0.19 baseline (bumped to 0.20.0 in v0.20.a — this
+  // assertion tracks the live package.json version, not a frozen number).
   const pkg = JSON.parse(await read('package.json'));
-  assert.equal(pkg.version, '0.19.0', 'package.json version must be 0.19.0');
+  assert.equal(pkg.version, '0.20.0', 'package.json version must be 0.20.0');
 });

@@ -14,6 +14,7 @@ import { tmpdir, platform } from 'node:os';
 import path from 'node:path';
 
 import { buildSubprocessEnv } from '../../lib/invoke-autodev.js';
+import { buildExpectationContent } from '../../lib/conductor/expectation.js';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const MMD = path.join(REPO_ROOT, 'bin', 'mmd.js');
@@ -51,18 +52,21 @@ test('@integration v0.17.a AC-2: the judge prompt is built from the FROZEN expec
   const tmp = makeTmp();
   try {
     initCleanRepo(tmp);
-    // Pre-seed a frozen oracle carrying a sentinel that is NOT in the dream.
+    // The mutable in-memory dream is slice.md/spec material the build can polish.
+    // The frozen oracle carries a sentinel that does NOT appear in that dream.
+    const DREAM = 'a mutable ask the build could polish into something else';
+    const SENTINEL = 'FROZEN-ORACLE-SENTINEL-9f3a';
+    // Pre-seed a frozen oracle for THIS dream (v0.20.a: the oracle is stamped with
+    // the dream-id, so a same-dream run PRESERVES it; the seeded sentinel survives
+    // and reaches the judge). The sentinel proves the judge graded against the
+    // FROZEN oracle, not the in-memory dream.
     const expPath = path.join(tmp, '.mmd', 'shared', 'expectation.md');
     mkdirSync(path.dirname(expPath), { recursive: true });
-    const SENTINEL = 'FROZEN-ORACLE-SENTINEL-9f3a';
-    writeFileSync(
-      expPath,
-      `# Original expectation (frozen oracle — do NOT edit)\n\n## Original dream\n${SENTINEL}\n`,
-      'utf8',
-    );
+    const seeded = buildExpectationContent(DREAM, undefined)
+      .replace(DREAM, `${DREAM}\n\n${SENTINEL}`);
+    writeFileSync(expPath, seeded, 'utf8');
 
-    // The dream passed on the CLI is DIFFERENT from the frozen oracle text.
-    const r = runHere(['--here', 'a totally different mutable ask'], { cwd: tmp });
+    const r = runHere(['--here', DREAM], { cwd: tmp });
     assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}\nstdout=${r.stdout}`);
 
     const promptPath = path.join(tmp, '.mmd', 'local', 'runs', 'judge-prompt.txt');

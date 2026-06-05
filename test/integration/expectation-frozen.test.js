@@ -15,7 +15,7 @@ import path from 'node:path';
 
 import { buildSubprocessEnv } from '../../lib/invoke-autodev.js';
 import { slugify } from '../../lib/parse-dream.js';
-import { resolveAlignmentAnchor } from '../../lib/conductor/expectation.js';
+import { resolveAlignmentAnchor, buildExpectationContent } from '../../lib/conductor/expectation.js';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const MMD = path.join(REPO_ROOT, 'bin', 'mmd.js');
@@ -175,6 +175,54 @@ test('@integration v0.20.a AC-4: resolveAlignmentAnchor returns the correct drea
     });
     assert.match(anchor, /add a small greeting feature/);
     assert.doesNotMatch(anchor, /markdown previewer/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('@integration v0.20.a AC-5: --resume with a mismatched oracle logs ⚠️ warning to stderr', { skip: SKIP_ON_WINDOWS }, () => {
+  const tmp = makeTmp('mmd-exp-resume-mismatch-');
+  try {
+    initCleanRepo(tmp);
+    // Gitignore the run-local state we seed below so the dirty-tree check is clean.
+    writeFileSync(path.join(tmp, '.gitignore'), '.mmd/\nstatus.json\n', 'utf8');
+    git(['add', '.gitignore'], tmp);
+    git(['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-m', 'ignore .mmd', '-q'], tmp);
+
+    // Seed a FROZEN oracle stamped for dream A.
+    const sharedDir = path.join(tmp, '.mmd', 'shared');
+    mkdirSync(sharedDir, { recursive: true });
+    writeFileSync(
+      path.join(sharedDir, 'expectation.md'),
+      buildExpectationContent('dream A for mismatch test'),
+      'utf8',
+    );
+
+    // A resumable checkpoint: phase 2 of N done, not complete → decideResume → relaunch.
+    const localDir = path.join(tmp, '.mmd', 'local');
+    mkdirSync(localDir, { recursive: true });
+    writeFileSync(
+      path.join(localDir, 'checkpoint.json'),
+      JSON.stringify({ last_completed_phase: 2, spec_frozen: true, spec_path: 'SPEC.md' }),
+      'utf8',
+    );
+
+    // status.json carries dream B — DIFFERENT from the frozen oracle's dream A.
+    writeFileSync(
+      path.join(tmp, 'status.json'),
+      JSON.stringify({
+        state: 'in_progress',
+        dream: 'dream B DIFFERENT from the oracle',
+        slice_id: 'mismatch-test',
+      }),
+      'utf8',
+    );
+
+    const r = runHere(['--here', '--resume'], { cwd: tmp });
+    // finishResume preserves the oracle (anti-drift on a resume) but must WARN the
+    // user that the resume dream does not match the frozen oracle (never silently
+    // grade the wrong dream — universal §VI honesty).
+    assert.match(r.stderr, /⚠️.*resume dream differs|resume dream differs from the frozen oracle/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

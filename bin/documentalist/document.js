@@ -679,6 +679,11 @@ export function buildDocumentReport(parts) {
   lines.push('Step 3 — SPEC archival');
   if (archival.wall) {
     lines.push(`  wall: ${archival.wall}`);
+  } else if (archival.moved === 0 && mode === 'check') {
+    // --check is a read-only gate, so archival is deliberately NOT run. Saying
+    // "no root SPEC_V*.md found" here would be a §VI honesty bug — root SPECs may
+    // well exist; they are simply skipped because --check never mutates the tree.
+    lines.push('  SPEC archival skipped (--check is a read-only gate).');
   } else if (archival.moved === 0) {
     lines.push('  no root SPEC_V*.md found — nothing to archive.');
   } else if (mode === 'dry-run') {

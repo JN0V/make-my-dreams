@@ -230,6 +230,9 @@ test('@integration document --check: drift → exit 1, NO commit', async () => {
     assert.equal(r.status, 1, `expected gate fail, got ${r.status}: ${r.stdout}`);
     assert.match(r.stderr, /document --check: FAIL/);
     assert.match(r.stderr, /dangling/);
+    // F12: --check still writes the dashboard it scans (the gate reads what it
+    // wrote). If the write were suppressed in check mode, this would catch it.
+    assert.ok(existsSync(path.join(dir, 'docs', 'coherence-review.md')), '--check must write the dashboard');
     // No commit in --check mode (read-only gate).
     assert.equal(logLines(dir).length, before, '--check must not commit');
     // No SPEC archival in --check mode (read-only beyond the dashboards).
@@ -256,6 +259,9 @@ test('@integration document --check: clean → exit 0', async () => {
     const r = runDocument(dir, ['--check']);
     assert.equal(r.status, 0, `expected clean pass, got ${r.status}: ${r.stderr}`);
     assert.match(r.stdout, /document --check: PASS — no conformance drift/);
+    // F12: --check still writes the dashboard it scans (the gate reads what it
+    // wrote). If the write were suppressed in check mode, this would catch it.
+    assert.ok(existsSync(path.join(dir, 'docs', 'coherence-review.md')), '--check must write the dashboard');
     // F1/F5: --check must not modify HANDOVER.md / README.md (read-only beyond the
     // dashboard). The only working-tree change allowed is the untracked dashboard.
     const dirty = git(dir, ['status', '--porcelain'])
@@ -278,6 +284,29 @@ test('@integration document --check: not a git repo → exit 5', async () => {
     const r = runDocument(dir, ['--check']);
     assert.equal(r.status, 5, r.stdout);
     assert.match(r.stderr, /not a git repository/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// F11: exit 4 — --check detection could not run (the roadmap is unreadable). A
+// git repo WITHOUT MAKE_MY_DREAMS.md gives runDashboard a wall, which --check must
+// surface as the distinct exit 4 ("could not detect"), NOT exit 5 ("no git").
+test('@integration document --check: no MAKE_MY_DREAMS.md → detection wall → exit 4', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'mmd-document-noroadmap-'));
+  try {
+    // A minimal but real git repo — no roadmap, so the drift detector cannot run.
+    await writeFile(path.join(dir, 'package.json'), JSON.stringify({ name: 'fixture', version: '0.19.0' }));
+    await writeFile(path.join(dir, 'README.md'), '# Readme\n');
+    git(dir, ['init', '-q']);
+    git(dir, ['config', 'user.email', 't@t.t']);
+    git(dir, ['config', 'user.name', 'T']);
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-qm', 'baseline']);
+
+    const r = runDocument(dir, ['--check']);
+    assert.equal(r.status, 4, `expected detection-wall exit 4, got ${r.status}: ${r.stdout}${r.stderr}`);
+    assert.match(r.stderr, /could not run detection/, 'must honestly report the detection wall');
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -442,6 +471,30 @@ test('@unit buildDocumentReport: --no-commit reports "nothing to commit" when no
     },
   });
   assert.match(changedReport, /changes left in the working tree/, 'a real change → honest dirty-tree line');
+});
+
+// F10: in --check mode archival is deliberately skipped (read-only gate). The
+// report must NOT claim "no root SPEC_V*.md found" when SPECs actually exist — it
+// must honestly say the archival was skipped because --check is read-only (§VI).
+test('@unit buildDocumentReport: --check with existing SPECs reports archival skipped, not "nothing to archive"', () => {
+  const parts = {
+    mode: 'check',
+    handover: { status: 'unchanged' },
+    readme: { status: { status: 'unchanged' }, changelog: { status: 'unchanged' } },
+    blocksCommit: null,
+    dashboard: {
+      written: true, driftTotal: 0,
+      drift: { dangling: [], staleFacts: [], deprecated: [], stalePromises: [] },
+      file: 'docs/coherence-review.md', wall: null,
+    },
+    // --check never runs archival → moved:0, even though SPECs exist on disk.
+    archival: { moved: 0, refsRewritten: 0, filesChanged: 0, changedFiles: [], wall: null, specs: [{ name: 'SPEC_V01.md', title: '# spec one' }] },
+    archivalCommit: null,
+    coupling: 'No files changed this pass — nothing to couple.',
+  };
+  const report = buildDocumentReport(parts);
+  assert.match(report, /SPEC archival skipped \(--check is a read-only gate\)\./, '--check must say archival was skipped');
+  assert.doesNotMatch(report, /no root SPEC_V\*\.md found — nothing to archive/, '--check must not falsely claim no SPECs exist');
 });
 
 // ── AC-6: docs + version landed (the slice's own deliverables) ───────────────

@@ -89,6 +89,8 @@ test('@integration v0.20.a AC-4: a second --here run with a DIFFERENT dream OVER
     // the alignment gate grades THIS dream (the exact v0.19 leak being fixed).
     const r = runHere(['--here', DREAM], { cwd: tmp });
     assert.equal(r.status, 0, `expected exit 0; stderr=${r.stderr}`);
+    // AC-5: the new-dream overwrite logs an honest line to stdout.
+    assert.match(r.stdout, /New dream.*fresh alignment oracle/);
     const content = readFileSync(expPath, 'utf8');
     // The oracle now holds the NEW dream — the build is graded against the right ask.
     assert.match(content, /add a small greeting feature/);

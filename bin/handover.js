@@ -81,6 +81,11 @@ export async function runHandover(rawArgs) {
     return parsed.error.exitCode;
   }
 
+  // v0.19.0 AC-4: deprecated alias of the `mmdream document` orchestrator. One
+  // non-fatal line to stderr (after --help + arg parsing, before any real work),
+  // then the command STILL runs unchanged (back-compat — nothing breaks).
+  stderr.write('[DEPRECATED] mmdream handover is deprecated — use: mmdream document (the one-pass Documentalist)\n');
+
   const root = processCwd();
   const handoverPath = path.join(root, 'HANDOVER.md');
 

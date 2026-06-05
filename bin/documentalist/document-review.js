@@ -752,6 +752,11 @@ export async function runDocumentReview(rawArgs, injected = {}) {
     return parsed.error.exitCode;
   }
 
+  // v0.19.0 AC-4: deprecated alias of the `mmdream document` orchestrator. One
+  // non-fatal stderr line (after --help + arg parsing) — stdout stays clean for
+  // the --since query / --dry-run dashboard piping — then run unchanged.
+  stderr.write('[DEPRECATED] mmdream document-review is deprecated — use: mmdream document (full pass) or mmdream document --check (CI gate)\n');
+
   const root = processCwd();
 
   // v0.7.d: --since is a standalone, READ-ONLY staleness query. It returns before

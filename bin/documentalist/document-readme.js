@@ -125,6 +125,10 @@ export async function runDocumentReadme(rawArgs) {
     return parsed.error.exitCode;
   }
 
+  // v0.19.0 AC-4: deprecated alias of the `mmdream document` orchestrator. One
+  // non-fatal stderr line (after --help + arg parsing), then run unchanged.
+  stderr.write('[DEPRECATED] mmdream document-readme is deprecated — use: mmdream document\n');
+
   const root = processCwd();
   const readmePath = path.join(root, 'README.md');
 

@@ -238,6 +238,11 @@ export async function runDocumentCompact(rawArgs) {
     return parsed.error.exitCode;
   }
 
+  // v0.19.0 AC-4: deprecated alias of the `mmdream document` orchestrator (the
+  // SPEC archival runs as part of the full pass). One non-fatal stderr line
+  // (after --help + arg parsing), then run unchanged.
+  stderr.write('[DEPRECATED] mmdream document-compact is deprecated — use: mmdream document (the SPEC archival runs as part of the full pass)\n');
+
   const root = processCwd();
 
   // Gather the root SPEC sprawl + any already-archived specs (for a complete

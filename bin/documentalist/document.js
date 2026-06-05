@@ -222,12 +222,20 @@ function isGitRepo(root) {
  *   committed:false → nothing staged (reason: 'nothing to commit') or a git wall
  */
 function commitFiles(root, message, files) {
-  const real = files.filter((f) => typeof f === 'string' && f.length > 0);
+  const real = [...new Set(files.filter((f) => typeof f === 'string' && f.length > 0))];
   if (real.length === 0) return { committed: false, reason: 'nothing to commit' };
 
-  const add = git(root, ['add', '-A', '--', ...real]);
-  if (!add.ok) {
-    return { committed: false, reason: `git add failed: ${add.stderr.trim() || `status ${add.status}`}` };
+  // Stage ONLY the paths that exist on disk. A `git mv` source path no longer
+  // exists (its deletion is ALREADY staged), and `git add -A -- <missing>` errors
+  // on the unmatched pathspec — so we never feed a gone source to `git add`. The
+  // commit below is still scoped to the FULL set (existing + the already-staged
+  // rename source), so the rename is captured atomically.
+  const onDisk = real.filter((rel) => existsSync(path.join(root, rel)));
+  if (onDisk.length > 0) {
+    const add = git(root, ['add', '-A', '--', ...onDisk]);
+    if (!add.ok) {
+      return { committed: false, reason: `git add failed: ${add.stderr.trim() || `status ${add.status}`}` };
+    }
   }
 
   // Are there STAGED changes among these paths? `git diff --cached --quiet` exits

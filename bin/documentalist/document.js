@@ -36,6 +36,7 @@
 //   0  ok (pass completed, or --check clean)
 //   1  --check: a conformance drift finding was detected (gate failed)
 //   2  user/argv error
+//   4  --check: detection could not run (e.g. roadmap unreadable) — distinct from 5
 //   5  not a git repository (--check needs one; archival needs git mv)
 
 import { cwd as processCwd, stdout, stderr } from 'node:process';
@@ -127,6 +128,7 @@ Exit codes:
   0  ok (pass completed, or --check clean)
   1  --check: a conformance drift finding was detected (gate failed)
   2  user/argv error
+  4  --check: detection could not run (e.g. roadmap unreadable)
   5  not a git repository
 
 mmdream ${VERSION}
@@ -665,8 +667,12 @@ export function buildDocumentReport(parts) {
       );
     }
   }
-  // Steps 1+2 share one commit (the lossless block + dashboard refresh).
-  lines.push(`  → ${commitLine(mode, blocksCommit, 'docs(document): refresh mechanical blocks and coherence dashboard')}`);
+  // Steps 1+2 share one commit (the lossless block + dashboard refresh). Whether
+  // anything actually changed this pass (for the honest --no-commit line, F7): a
+  // block was refreshed OR the dashboard was (re)written (dashboard.file is the
+  // written path, null when not written, e.g. under --dry-run/--check).
+  const blocksChanged = Boolean(handover.file || readme.file || dashboard.file);
+  lines.push(`  → ${commitLine(mode, blocksCommit, 'docs(document): refresh mechanical blocks and coherence dashboard', blocksChanged)}`);
 
   // Step 3.
   lines.push('');
@@ -687,7 +693,8 @@ export function buildDocumentReport(parts) {
     );
   }
   if (archival.moved > 0 && !archival.wall) {
-    lines.push(`  → ${commitLine(mode, archivalCommit, `docs(document): archive ${archival.moved} shipped SPEC${archival.moved === 1 ? '' : 's'} into ${ARCHIVE_DIR}/`)}`);
+    // archival.moved > 0 here, so SPECs really were archived → the tree changed.
+    lines.push(`  → ${commitLine(mode, archivalCommit, `docs(document): archive ${archival.moved} shipped SPEC${archival.moved === 1 ? '' : 's'} into ${ARCHIVE_DIR}/`, true)}`);
   }
 
   // Step 4.
@@ -712,11 +719,24 @@ function blockLine(o) {
   return `wall: ${o.detail}`;
 }
 
-/** The "→ committed: …" line, honest per mode. */
-function commitLine(mode, commit, message) {
+/**
+ * The "→ committed: …" line, honest per mode (universal §VI/§VII).
+ *
+ * @param {string} mode
+ * @param {object|null} commit the commitFiles result (default mode only)
+ * @param {string} message the conventional commit message
+ * @param {boolean} [changed] did this step actually produce a change? Used to keep
+ *   the --no-commit line honest (F7): "nothing to commit" when nothing changed,
+ *   rather than implying changes are sitting in the working tree.
+ */
+function commitLine(mode, commit, message, changed = true) {
   if (mode === 'dry-run') return 'preview only (--dry-run: nothing committed)';
   if (mode === 'check') return 'not committed (--check is a read-only gate)';
-  if (mode === 'no-commit') return 'not committed (--no-commit: changes left in the working tree)';
+  if (mode === 'no-commit') {
+    return changed
+      ? 'not committed (--no-commit: changes left in the working tree)'
+      : 'nothing to commit';
+  }
   if (!commit) return 'nothing to commit';
   if (commit.committed) return `committed: "${message}"`;
   if (commit.reason === 'nothing to commit') return 'nothing to commit';
@@ -793,13 +813,23 @@ export async function runDocument(rawArgs) {
   }
 
   const mode = parsed.check ? 'check' : parsed.dryRun ? 'dry-run' : parsed.noCommit ? 'no-commit' : 'default';
-  const write = mode !== 'dry-run'; // --dry-run previews; every other mode writes
+  // --dry-run previews (writes nothing); --check is read-only BEYOND the dashboards
+  // (it writes docs/coherence-review.md but NEVER touches HANDOVER.md/README.md —
+  // the "read-only beyond the dashboards" contract, SPEC §4 / AC-3). So in --check
+  // the block refreshers run preview-only (write:false) while runDashboard still
+  // writes. default + --no-commit write everything.
+  const write = mode !== 'dry-run' && mode !== 'check';
   const doCommit = mode === 'default'; // ONLY default mode auto-commits
 
   // ── Steps 1+2: mechanical blocks + dashboard ────────────────────────────────
+  // The block refreshers honor `write` (preview-only under --dry-run AND --check —
+  // --check is read-only beyond the dashboards, so HANDOVER.md / README.md are
+  // NEVER touched). The dashboard, by contrast, IS one of the dashboards --check is
+  // allowed to (re)write: it writes whenever we are not in --dry-run. (SPEC §4 /
+  // AC-3 — the same "writes the dashboard it scans" rule document-review --check has.)
   const handover = await refreshHandover(root, write);
   const readme = await refreshReadme(root, write);
-  const dashboard = runDashboard(root, write);
+  const dashboard = runDashboard(root, mode !== 'dry-run');
 
   // Auto-commit the lossless block + dashboard refresh as ONE atomic commit.
   let blocksCommit = null;
@@ -845,8 +875,12 @@ export async function runDocument(rawArgs) {
   // --check). No commits in this mode (read-only beyond the dashboard).
   if (mode === 'check') {
     if (dashboard.wall) {
+      // A detection wall (e.g. MAKE_MY_DREAMS.md unreadable) is NOT "not a git repo"
+      // (exit 5) — it is "could not run the detection" (exit 4), mirroring
+      // document-review --check, where an unreadable roadmap exits 4 (§VI honesty:
+      // distinguish "no git" from "could not detect").
       stderr.write(`\ndocument --check: could not run detection — ${dashboard.wall}\n`);
-      return 5;
+      return 4;
     }
     if (dashboard.driftTotal > 0) {
       const d = dashboard.drift;

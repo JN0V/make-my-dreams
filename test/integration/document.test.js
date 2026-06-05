@@ -179,6 +179,47 @@ test('@integration document: --no-commit writes the changes but creates NO commi
   }
 });
 
+// ── AC-5: read-only safety invariant — only the expected paths change ─────────
+
+test('@integration document: default mode changes ONLY the expected lossless paths', async () => {
+  const dir = await makeRepo();
+  try {
+    const baseline = git(dir, ['rev-parse', 'HEAD']).trim();
+    const r = runDocument(dir, []);
+    assert.equal(r.status, 0, r.stderr);
+
+    // The whole pass committed everything lossless → clean tree.
+    assert.equal(git(dir, ['status', '--porcelain']).trim(), '', 'tree must be clean after default mode');
+
+    // The ONLY paths that changed between baseline and HEAD are the lossless,
+    // mechanical ones the orchestrator is allowed to touch: the refreshed blocks,
+    // the dashboard, and the archived SPEC (rename = old path + docs/specs/* + index).
+    const changed = git(dir, ['diff', '--name-only', '-M', baseline, 'HEAD'])
+      .split('\n').map((s) => s.trim()).filter(Boolean).sort();
+    const allowed = new Set([
+      'HANDOVER.md',
+      'README.md',
+      'docs/coherence-review.md',
+      'SPEC_V01.md', // the rename source (git diff lists it without -M follow)
+      'docs/specs/SPEC_V01.md',
+      'docs/specs/INDEX.md',
+    ]);
+    for (const p of changed) {
+      assert.ok(
+        allowed.has(p) || p.startsWith('docs/specs/'),
+        `default mode changed an UNEXPECTED path: ${p} (allowed: blocks, dashboard, docs/specs/*)`,
+      );
+    }
+    // No prose doc was deleted or rewritten beyond the mechanical blocks: the
+    // roadmap + lessons + ADR are untouched.
+    assert.ok(!changed.includes('MAKE_MY_DREAMS.md'), 'roadmap must not be touched');
+    assert.ok(!changed.includes('docs/lessons-learned.md'), 'lessons must not be touched');
+    assert.ok(!changed.includes('docs/adr/001-x.md'), 'ADRs must not be touched');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 // ── AC-3: --check gate (teeth), read-only ────────────────────────────────────
 
 test('@integration document --check: drift → exit 1, NO commit', async () => {
@@ -193,6 +234,17 @@ test('@integration document --check: drift → exit 1, NO commit', async () => {
     assert.equal(logLines(dir).length, before, '--check must not commit');
     // No SPEC archival in --check mode (read-only beyond the dashboards).
     assert.ok(!existsSync(path.join(dir, 'docs', 'specs', 'SPEC_V01.md')), '--check must not archive');
+    // F1/F5: --check is read-only BEYOND the dashboards — HANDOVER.md / README.md
+    // must NOT be modified. The ONLY working-tree change allowed is the (untracked)
+    // dashboard it writes + scans.
+    const dirty = git(dir, ['status', '--porcelain'])
+      .split('\n').map((s) => s.trim()).filter(Boolean);
+    assert.ok(!dirty.some((l) => / HANDOVER\.md$/.test(l)), `--check modified HANDOVER.md: ${dirty}`);
+    assert.ok(!dirty.some((l) => / README\.md$/.test(l)), `--check modified README.md: ${dirty}`);
+    assert.ok(
+      dirty.every((l) => /docs\/coherence-review\.md$/.test(l)),
+      `--check touched a path beyond the dashboard: ${dirty}`,
+    );
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -204,6 +256,16 @@ test('@integration document --check: clean → exit 0', async () => {
     const r = runDocument(dir, ['--check']);
     assert.equal(r.status, 0, `expected clean pass, got ${r.status}: ${r.stderr}`);
     assert.match(r.stdout, /document --check: PASS — no conformance drift/);
+    // F1/F5: --check must not modify HANDOVER.md / README.md (read-only beyond the
+    // dashboard). The only working-tree change allowed is the untracked dashboard.
+    const dirty = git(dir, ['status', '--porcelain'])
+      .split('\n').map((s) => s.trim()).filter(Boolean);
+    assert.ok(!dirty.some((l) => / HANDOVER\.md$/.test(l)), `--check modified HANDOVER.md: ${dirty}`);
+    assert.ok(!dirty.some((l) => / README\.md$/.test(l)), `--check modified README.md: ${dirty}`);
+    assert.ok(
+      dirty.every((l) => /docs\/coherence-review\.md$/.test(l)),
+      `--check touched a path beyond the dashboard: ${dirty}`,
+    );
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -258,6 +320,9 @@ test('@integration document: each deprecated alias warns on stderr AND still run
 
     const rd = run('document-readme', ['--dry-run']);
     assert.match(rd.stderr, /\[DEPRECATED\] mmdream document-readme is deprecated/);
+    // F8: assert it actually RAN, not just warned — --dry-run prints the fully
+    // rewritten README.md to stdout (so the status marker block is present).
+    assert.match(rd.stdout, /mmd:readme:status:start/, 'document-readme --dry-run must print the rewritten README');
 
     const rv = run('document-review', ['--dry-run']);
     assert.match(rv.stderr, /\[DEPRECATED\] mmdream document-review is deprecated/);
@@ -343,4 +408,62 @@ test('@unit buildDocumentReport: assembles a human-readable report, never throws
   const wallReport = buildDocumentReport(wallParts);
   assert.match(wallReport, /wall: HANDOVER\.md unreadable/);
   assert.match(wallReport, /wall: MAKE_MY_DREAMS\.md unreadable/);
+});
+
+// F7: --no-commit is honest about "nothing to commit" when nothing changed.
+test('@unit buildDocumentReport: --no-commit reports "nothing to commit" when no block changed', () => {
+  const nothingChanged = {
+    mode: 'no-commit',
+    handover: { status: 'unchanged' },
+    readme: { status: { status: 'unchanged' }, changelog: { status: 'unchanged' } },
+    blocksCommit: null,
+    // Nothing written: no block file, no dashboard file.
+    dashboard: { written: false, driftTotal: 0, drift: { dangling: [], staleFacts: [], deprecated: [], stalePromises: [] }, file: null, wall: null },
+    archival: { moved: 0, refsRewritten: 0, filesChanged: 0, changedFiles: [], wall: null },
+    archivalCommit: null,
+    coupling: 'No files changed this pass — nothing to couple.',
+  };
+  const report = buildDocumentReport(nothingChanged);
+  // The blocks step line must say "nothing to commit", NOT "changes left in the
+  // working tree" (which would imply a dirty tree that does not exist).
+  assert.match(report, /nothing to commit/, 'idle --no-commit must say "nothing to commit"');
+  assert.doesNotMatch(report, /changes left in the working tree/, 'no fabricated dirty-tree claim');
+
+  // When a block DID change, --no-commit honestly reports the working-tree state.
+  // buildDocumentReport derives "changed" from handover.file / readme.file /
+  // dashboard.file, so a refreshed block carrying its `file` flips the line.
+  const changedReport = buildDocumentReport({
+    ...nothingChanged,
+    handover: { status: 'refreshed', file: 'HANDOVER.md' },
+    dashboard: {
+      written: true, driftTotal: 0,
+      drift: { dangling: [], staleFacts: [], deprecated: [], stalePromises: [] },
+      file: 'docs/coherence-review.md', wall: null,
+    },
+  });
+  assert.match(changedReport, /changes left in the working tree/, 'a real change → honest dirty-tree line');
+});
+
+// ── AC-6: docs + version landed (the slice's own deliverables) ───────────────
+
+test('@integration document AC-6: ADR-058 exists, docs mention `mmdream document`, version is 0.19.0', async () => {
+  const read = async (rel) => readFile(path.join(REPO_ROOT, rel), 'utf8');
+
+  // ADR-058 landed.
+  assert.ok(
+    existsSync(path.join(REPO_ROOT, 'docs', 'adr', '058-document-orchestrator.md')),
+    'ADR-058 (the one-agent consolidation) must exist',
+  );
+
+  // README + CLAUDE.md + the /mmdream slash command mention the new orchestrator.
+  // Match the bare `mmdream document` (not `mmdream document-review` etc).
+  const bareDoc = /mmdream document(?![-\w])/;
+  for (const rel of ['README.md', 'CLAUDE.md', 'assets/claude-commands/mmdream.md']) {
+    const text = await read(rel);
+    assert.match(text, bareDoc, `${rel} must mention the \`mmdream document\` orchestrator`);
+  }
+
+  // Version bumped to 0.19.0.
+  const pkg = JSON.parse(await read('package.json'));
+  assert.equal(pkg.version, '0.19.0', 'package.json version must be 0.19.0');
 });

@@ -755,7 +755,20 @@ export async function runDocumentReview(rawArgs, injected = {}) {
   // v0.19.0 AC-4: deprecated alias of the `mmdream document` orchestrator. One
   // non-fatal stderr line (after --help + arg parsing) — stdout stays clean for
   // the --since query / --dry-run dashboard piping — then run unchanged.
-  stderr.write('[DEPRECATED] mmdream document-review is deprecated — use: mmdream document (full pass) or mmdream document --check (CI gate)\n');
+  //
+  // F6 honesty (§VI): the `--since` staleness-on-diff flow has NO equivalent in
+  // `mmdream document` yet, so for that path we MUST NOT tell the user to switch —
+  // that would point them at a command that cannot do what they asked. The plain
+  // review / --check facets DO have an equivalent (`mmdream document` /
+  // `mmdream document --check`), so those still get the migration pointer.
+  if (parsed.since) {
+    stderr.write(
+      '[DEPRECATED] mmdream document-review --since is still the right command for staleness-on-diff queries '
+      + '(mmdream document has no --since equivalent yet). This alias will eventually be updated.\n',
+    );
+  } else {
+    stderr.write('[DEPRECATED] mmdream document-review is deprecated — use: mmdream document (full pass) or mmdream document --check (CI gate)\n');
+  }
 
   const root = processCwd();
 

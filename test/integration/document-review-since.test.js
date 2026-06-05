@@ -82,6 +82,12 @@ test('@integration document-review --since: a changed lib file surfaces its impo
     assert.match(r.stdout, /Coupling ≠ certainty/, 'advisory framing present');
     assert.match(r.stdout, /Changed in this diff \(1 file\)/);
 
+    // F6 (v0.19.0): the --since deprecation note must be HONEST — `mmdream document`
+    // has NO --since equivalent yet, so it must NOT redirect the user there.
+    assert.match(r.stderr, /\[DEPRECATED\] mmdream document-review --since is still the right command/);
+    assert.match(r.stderr, /no --since equivalent yet/);
+    assert.doesNotMatch(r.stderr, /use: mmdream document \(full pass\)/, '--since must NOT be told to switch to mmdream document');
+
     // The genuine couplings, all STRONG, with their edge kind.
     assert.match(r.stdout, /→ review \(strong\): lib\/b\.js {3}\[imports\]/);
     assert.match(r.stdout, /→ review \(strong\): test\/a\.test\.js {3}\[imports\]/);

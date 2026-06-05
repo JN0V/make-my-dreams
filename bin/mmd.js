@@ -93,7 +93,11 @@ Usage:
   mmdream lessons                          Introspect docs/lessons-learned.md + composer audits (v0.2e)
   mmdream document-lessons [--dry-run]     Increment lesson counters + auto-promote at threshold (v0.2.i)
   mmdream unblock [<branch>] [--dry-run]   Run a 5-Whys stuck-recovery session on a slice (v0.2.j)
-  mmdream handover [--tests N] [--dry-run] Refresh HANDOVER.md's mechanical State block (v0.2.p)
+  mmdream document [--check | --dry-run | --no-commit]
+                                       Documentalist orchestrator — one autonomous maintenance pass: refresh
+                                       blocks, write drift dashboard, archive SPECs, report coupling, auto-commit
+                                       the lossless work; --check gates (exit 1) on drift, --dry-run previews (v0.19.0)
+  mmdream handover [--tests N] [--dry-run] Refresh HANDOVER.md's mechanical State block (v0.2.p) [deprecated → mmdream document]
   mmdream document-readme [--tests N] [--dry-run]
                                        Refresh README.md's Status + Changelog blocks; report doc drift (v0.3.d)
   mmdream document-review [--with-claude] [--dry-run] [--check]
@@ -2201,10 +2205,25 @@ async function main() {
     const { runUnblock } = await import('./conductor/unblock.js');
     return runUnblock(rawArgs.slice(1));
   }
+  if (rawArgs[0] === 'document') {
+    // v0.19.0 AC-1: `mmdream document` — the autonomous Documentalist orchestrator.
+    // Dispatched here (before checkGate / argv parsing) for the same reason as the
+    // document-* family — it must not parse as a dream string equal to "document".
+    // Runs one maintenance pass: refresh HANDOVER + README mechanical blocks, write
+    // the coherence-review.md drift dashboard, archive shipped root SPEC_V*.md into
+    // docs/specs/, report doc↔code↔ADR coupling. Auto-commits the lossless changes
+    // (default mode). --check: CI gate (exit 1 on drift, read-only). --dry-run:
+    // preview, clean tree. --no-commit: write but don't commit. It REUSES the
+    // existing capabilities — no detection/render/plan logic is duplicated.
+    const { runDocument } = await import('./documentalist/document.js');
+    return runDocument(rawArgs.slice(1));
+  }
   if (rawArgs[0] === 'handover') {
     // v0.2.p AC-1: `mmdream handover` subcommand. Dispatched here (before checkGate
     // / argv parsing) for the same reason as unblock/ship — must not parse as a
     // dream string equal to "handover". Refreshes HANDOVER.md's State block.
+    // v0.19.0 AC-4: deprecated alias of `mmdream document` (prints a one-line
+    // notice + still runs unchanged).
     const { runHandover } = await import('./handover.js');
     return runHandover(rawArgs.slice(1));
   }

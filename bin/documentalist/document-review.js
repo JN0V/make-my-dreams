@@ -232,9 +232,12 @@ function realSubcommands(root) {
 
 /**
  * Build the inventory from the real repo (injected fs + git + parser).
+ *
+ * Exported (v0.19.0 AC-1) so the `mmdream document` orchestrator REUSES the exact
+ * same inventory gather — no duplicated detection logic (DRY, §III; SPEC §4.1).
  * @param {string} root
  */
-function gatherRealInventory(root) {
+export function gatherRealInventory(root) {
   const readFile = (rel) => readFileSync(path.join(root, rel), 'utf8');
   const readDir = (rel) => readdirSync(path.join(root, rel));
   const listTags = () => {
@@ -305,10 +308,13 @@ function gatherUxTextSurface(root) {
  *
  * @param {string} root
  * @param {object} inventory
+ * Exported (v0.19.0 AC-1) so the `mmdream document` orchestrator REUSES the exact
+ * same deterministic drift scan — no second detection path (DRY, §III; SPEC §4.1).
+ *
  * @returns {{ dangling: object[], staleFacts: object[], deprecated: object[],
  *             stalePromises: object[], scannedDocs: number, scannedUx: number }}
  */
-function scanDrift(root, inventory) {
+export function scanDrift(root, inventory) {
   const truthDocs = gatherTruthDocs(root);
   const uxSurface = gatherUxTextSurface(root); // AC-2: scripts + --help/USAGE
 
@@ -550,8 +556,11 @@ function defaultGitSeam(root, ref) {
  *   `unanalyzedLangs` = the languages in the DIFF whose code coupling has no
  *   import adapter yet (Rust/Go/C…) — surfaced honestly by the report rather than
  *   silently omitted (§VIII / §VI). Empty for an all-JS/Python diff.
+ *
+ * Exported (v0.19.0 AC-1) so the `mmdream document` orchestrator REUSES the exact
+ * same coupling walk for its step-4 report — no second graph build (DRY, §III).
  */
-function buildSinceCoupling(root, changed, tracked, inventory) {
+export function buildSinceCoupling(root, changed, tracked, inventory) {
   const trackedSet = new Set(tracked);
   // Code files = every tracked file an import adapter handles (JS, Python, …).
   // The import graph is now POLYGLOT (SPEC_V081): the code↔code edges come from

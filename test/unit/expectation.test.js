@@ -206,21 +206,23 @@ test('@unit AC-3: writeExpectation degrades honestly when the write throws (neve
   assert.match(res.reason, /write failed/);
 });
 
-test('@unit AC-3: writeExpectation backward-compat — no readFileSync seam, existing file, non-resume → refresh', () => {
+test('@unit Phase-4 F1: writeExpectation — no readFileSync seam + existing file → safe PRESERVE (never overwrite an oracle we cannot read)', () => {
   const target = path.join('/shared', 'expectation.md');
   const files = { [target]: 'old oracle, no reader available' };
   const deps = {
     fs: { writeFileSync(p, c) { files[p] = c; } },
     existsSync(p) { return Object.prototype.hasOwnProperty.call(files, p); },
-    // NO readFileSync → existing content unknown → treated as different dream.
+    // NO readFileSync → existing content unknown → anti-drift default: preserve.
   };
   const res = writeExpectation('/shared', 'a new ask', undefined, deps);
-  assert.equal(res.written, true);
-  assert.equal(res.reason, 'new dream');
-  assert.match(files[target], /a new ask/);
+  assert.equal(res.written, false);
+  assert.match(res.reason, /no reader seam.*preserved|preserved/);
+  // The existing oracle survives byte-for-byte — we never overwrite a file whose
+  // dream-id we could not read (could have been the SAME dream).
+  assert.equal(files[target], 'old oracle, no reader available');
 });
 
-test('@unit AC-3: writeExpectation backward-compat — no readFileSync seam, existing file, RESUME → preserve', () => {
+test('@unit Phase-4 F1: writeExpectation — no readFileSync seam, existing file, RESUME → preserve', () => {
   const target = path.join('/shared', 'expectation.md');
   const files = { [target]: 'old oracle, no reader available' };
   const deps = {
@@ -232,6 +234,37 @@ test('@unit AC-3: writeExpectation backward-compat — no readFileSync seam, exi
   assert.equal(res.written, false);
   // Resume never moves the goalposts, even when the reader is unavailable.
   assert.match(files[target], /old oracle/);
+});
+
+test('@unit Phase-4 F1: writeExpectation — readFileSync THROWS (EACCES/race) + existing file → safe PRESERVE (never overwrite)', () => {
+  const target = path.join('/shared', 'expectation.md');
+  const files = { [target]: buildExpectationContent('the original dream', undefined) };
+  const deps = {
+    fs: { writeFileSync(p, c) { files[p] = c; } },
+    existsSync(p) { return Object.prototype.hasOwnProperty.call(files, p); },
+    readFileSync() { const e = new Error('EACCES'); e.code = 'EACCES'; throw e; },
+  };
+  let res;
+  assert.doesNotThrow(() => { res = writeExpectation('/shared', 'a genuinely new ask', undefined, deps); });
+  // Read failed → we cannot tell if the oracle is for THIS dream → preserve, NOT overwrite.
+  assert.equal(res.written, false);
+  assert.match(res.reason, /could not read/);
+  // The original oracle is untouched (the F1 bug would have overwritten it).
+  assert.match(files[target], /the original dream/);
+  assert.doesNotMatch(files[target], /genuinely new ask/);
+});
+
+test('@unit Phase-4 F3/AC-5: writeExpectation on a RESUME with a different dream returns mismatch:true (caller logs the warning)', () => {
+  const target = path.join('/shared', 'expectation.md');
+  // Stamped oracle for dream A; a resume arrives with a different dream B.
+  const { files, deps } = fakeFs({ [target]: buildExpectationContent('dream A — the original', undefined) });
+  const res = writeExpectation('/shared', 'dream B — resumed but different', undefined, { ...deps, isResume: true });
+  // The return contract the bin/mmd.js finishResume warning branch keys off:
+  assert.equal(res.mismatch, true);
+  assert.equal(res.written, false);
+  assert.equal(res.reason, 'resume-mismatch');
+  // The original oracle survives — resume never moves the goalposts.
+  assert.match(files[target], /dream A — the original/);
 });
 
 // ── decideExpectationWrite (PURE, v0.20.a AC-2) ──────────────────────────────
@@ -269,9 +302,16 @@ test('@unit AC-2: decideExpectationWrite never throws on junk input and returns 
   assert.ok(r.action === 'write-fresh' || r.action === 'preserve');
   assert.doesNotThrow(() => { r = decideExpectationWrite({ existing: undefined, currentDreamId: undefined, isResume: undefined }); });
   assert.ok(r.action === 'write-fresh' || r.action === 'preserve');
-  // A non-string existing that isn't null → still never throws.
-  assert.doesNotThrow(() => { r = decideExpectationWrite({ existing: 42, currentDreamId: 'x', isResume: false }); });
-  assert.ok(r.action === 'write-fresh' || r.action === 'preserve');
+});
+
+test('@unit Phase-4 F4: decideExpectationWrite — non-string non-null existing → safe PRESERVE (unknown oracle)', () => {
+  // A non-string truthy existing (e.g. 42, {}) cannot yield a dream-id → unknown
+  // oracle → preserve (never overwrite what we cannot read), even on a non-resume.
+  assert.equal(decideExpectationWrite({ existing: 42, currentDreamId: 'abc', isResume: false }).action, 'preserve');
+  assert.equal(decideExpectationWrite({ existing: {}, currentDreamId: 'abc', isResume: false }).action, 'preserve');
+  assert.equal(decideExpectationWrite({ existing: [], currentDreamId: 'abc', isResume: false }).action, 'preserve');
+  // Even on a resume → preserve (consistent).
+  assert.equal(decideExpectationWrite({ existing: 42, currentDreamId: 'abc', isResume: true }).action, 'preserve');
 });
 
 test('@unit AC-1: writeExpectation never throws + degrades honestly without a usable fs seam', () => {

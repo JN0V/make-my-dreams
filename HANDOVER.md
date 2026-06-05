@@ -21,17 +21,19 @@
 - **ADRs**: 56 (ADR-001..ADR-057)
 - **Tests**: 2271 passing
 - **Recent commits**:
+  - `7891722 docs(handover): mark Documentalist blind-spots 4/5 closed + 5th substantial (v0.18.0)`
+  - `926a27f docs: refresh mechanical blocks (v0.18.0 — Documentalist blind-spots closed)`
   - `1b73165 docs(v0.18.0): ADR-057, README + CLAUDE.md + mmdream.md, version bump + live capture (AC-6)`
   - `f758c82 feat(documentalist): --check flag exits 1 on any conformance drift (AC-5)`
   - `d7fc926 feat(documentalist): broaden conformance scan to install-mmd.sh printf + CLI --help/USAGE text (AC-2)`
-  - `95cc657 feat(documentalist): deterministic deprecated-surface + version-pinned-promise checks (AC-3, AC-4)`
-  - `d065c26 fix(roadmap-reconcile): stop false-partial on tag-number/weak-token match — unknown when no name match (AC-1)`
-- **Generated**: 2026-06-04 by `mmdream handover` (mechanical block — intent sections are human-authored)
+- **Generated**: 2026-06-05 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
 ## ▶ RIGHT NOW — handoff orientation (read this if you're picking up mid-session)
 
-**State:** `main` clean, last tag **v0.14.0**, **2153 tests green** (see the mechanical State block above for live counts). A long single session took the project **v0.10.0 → v0.14.0**, building and proving the **Conductor A→B→C arc** end-to-end (see `MAKE_MY_DREAMS.md` §9.0).
+**State:** `main` clean, last tag **v0.18.0**, **~2271 tests green** (see the mechanical State block above for live counts). A long multi-day session took the project **v0.10.0 → v0.18.0**: the **Conductor A→B→C arc** (built + proven live), then transparent handoff, model-per-task, the monitor fix, **align-to-original-expectation (v0.17)**, the **Documentalist blind-spots (v0.18)**, and a SPEC-sprawl re-align. See `MAKE_MY_DREAMS.md` §9.0.
+
+**⏭️ THE IMMEDIATE NEXT TASK (scoped + agreed, NOT yet executed) — make the README concise (Documentalist conciseness role).** Sébastien (2026-06-05): the root README is illegible, ~10× too long (897 lines vs the 200 cap), everything jumbled — a full changelog inline that should be a LINK to a `CHANGELOG.md`. The Documentalist's major **conciseness role (§6.4) is unfulfilled** (doc-health *flags* over-cap but never *acts*). **AGREED scope** (memory [[readme-conciseness-documentalist-role]]): EXTRACT (lossless, safe), not CUT (risky) — (1) changelog → `CHANGELOG.md` maintained by `document-readme` (README keeps a link), (2) the verbose per-feature Usage → `docs/usage.md` (linked), (3) a concise README rewrite (~100–150 lines: quick-start + links); make `document-readme` maintain `CHANGELOG.md` as a reusable capability, and have doc-health **propose extractions role-aware** (a landing page must be short; a reference doc like `MAKE_MY_DREAMS.md` ~1700 lines is *legitimately* long — NOT a blanket "shard all over-cap"). **DEFERRED:** generic auto-shard + the CUT operation (needs a propose-cuts-for-review model). **OPEN:** who executes — in-session prose curation (recommended, editorial judgment) vs an auto-dev slice.
 
 **⚠️ WHAT THIS SESSION DID — the prior reckoning is now largely CLOSED (read first).** The earlier reckoning (a bad first `serve` PDF-editor build) named: a hardcoded greenfield prompt, no real quality gate, no resume, and a Conductor that only monitored. This session addressed all the top items:
 - **v0.10.0 — greenfield prompt is now technology-agnostic** (ADR-048): the agent derives the stack from the dream (no more forced camera/canvas), writes a `run.json` descriptor, and Reality Check / serve degrade honestly for a non-web build. *(The PDF-editor itself was not re-run end-to-end — a `serve` re-test is still owed to confirm the lived fix.)*
@@ -41,7 +43,7 @@
 
 **The throughline: "always verify / untested = broken."** It caught the false-handoff, my own version-pin regression, and the broken cooperative handoff — and proved each fix live before merge. Carry this discipline (memory [[always-verify-live]]).
 
-**DONE since the priorities below were first written (so they don't get re-attempted):** transparent auto-handoff (v0.15.0, default-on + `MMD_NO_AUTO_HANDOFF=1`), model-per-task (v0.16.0, ADR-055), the monitor 1546% fix (v0.16.1), the serve-context-gauge de-flake (v0.16.2), and the root-SPEC archival (16 → `docs/specs/`). The suspected `contextWindowFor('sonnet')` bug was a **FALSE alarm** — 200k is correct (verified via `modelUsage.contextWindow`); no change needed.
+**DONE since the priorities below were first written (so they don't get re-attempted):** transparent auto-handoff (v0.15.0, default-on + `MMD_NO_AUTO_HANDOFF=1`), model-per-task (v0.16.0, ADR-055), the monitor 1546% fix (v0.16.1), the serve-context-gauge de-flake (v0.16.2), the root-SPEC archival (16 → `docs/specs/`), **align-to-original-expectation / re-framed Reality Check (v0.17.0, ADR-056)**, and the **Documentalist blind-spots (v0.18.0, ADR-057 — 4/5 closed + 5th substantial)**. The suspected `contextWindowFor('sonnet')` bug was a **FALSE alarm** — 200k is correct (verified via `modelUsage.contextWindow`); no change needed. **Residuals (minor):** an intermittent flaky test (~1/5, caught by the gate but un-identified — needs tracking) + 2 re-accumulated root SPECs (V017A, V018A — a future `document-compact` archives them).
 
 **THE REAL NEXT PRIORITIES — re-grounded against the §9 roadmap (2026-06-04, after a drift-audit via `document-review`).** We over-built the orchestration/Conductor spine (good, it was broken/absent) and under-built the USER-PATH items the original roadmap actually sequenced. In impact order:
 1. ~~**v0.6 — Polymorphic Reality Check**~~ — **CORE DONE (v0.17.0, ADR-056).** Re-framed (Sébastien) from "a gStack-skill catalogue" to "**align the result to the ORIGINAL expectation**": a frozen `.mmd/shared/expectation.md` oracle (anti-drift) + a **dual-face** completion gate — semantic (the v0.11 judge, re-anchored to the frozen oracle) + **deterministic (Reality Check UN-SKIPPED on `--here`** — runs the project's tests + a `run.json`-kind does-it-run check) — that bounded-iterates on a gap on either face. **Deferred extension:** the richer gStack catalogue (`/design-review`, `/cso`, `/canary` by deliverable type) layered onto the deterministic face; a full sealed-test suite on the normal path (today `--sealed`-only). Live confirm owed: a real `--here` that genuinely iterates on a deterministic FAIL.

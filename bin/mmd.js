@@ -682,13 +682,26 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
       'utf8',
     );
 
-    // v0.17.a (SPEC_V017A AC-1) — FREEZE the original expectation as the immutable
-    // alignment oracle. Written ONCE; a resume/re-run never overwrites it, so the
-    // build's later edits to slice.md/spec cannot redefine its own success. The
-    // dual-face gate (AC-2/AC-4) grades against THIS file, not the mutable slice.
-    const expRes = writeExpectation(sharedDir, dream, undefined, { fs: { writeFileSync }, existsSync });
+    // v0.17.a (SPEC_V017A AC-1) — FREEZE the original expectation as the alignment
+    // oracle. v0.20.a (SPEC_V020A, ADR-059) makes it PER-DREAM: a genuinely new
+    // dream on a non-resume launch OVERWRITES a stale oracle from a prior slice;
+    // the SAME dream (re-run) or a resume PRESERVES it (anti-drift WITHIN a dream).
+    // runHereMode is always a fresh (non-resume) invocation — the dedicated
+    // `--resume` path lives elsewhere — so isResume:false here.
+    const expRes = writeExpectation(sharedDir, dream, undefined, {
+      fs: { writeFileSync },
+      existsSync,
+      readFileSync, // reader seam → per-dream decision (different dream → refresh)
+      isResume: false,
+    });
     if (expRes.written) {
-      stdout.write('Frozen the original expectation → .mmd/shared/expectation.md (immutable alignment oracle)\n');
+      if (expRes.reason === 'new dream') {
+        stdout.write('New dream — wrote a fresh alignment oracle (previous oracle was for a different dream)\n');
+      } else {
+        stdout.write('Frozen the original expectation → .mmd/shared/expectation.md (immutable alignment oracle)\n');
+      }
+    } else if (expRes.mismatch) {
+      stderr.write('⚠️ resume dream differs from the frozen oracle — keeping the original oracle; verify this is the intended resume\n');
     }
 
     await writeStatus(absTargetDir, inProgressStatus);
@@ -2013,6 +2026,23 @@ async function finishResume({ runDir, slug, effectiveDream, status, buildRelaunc
     return 0;
   }
 
+  // v0.20.a AC-5 — on a RESUME, the oracle is never overwritten (anti-drift). But
+  // if the resume's effective dream differs from the frozen oracle's dream, that is
+  // a silent wrong-grade risk: log an honest warning (writeExpectation with
+  // isResume:true preserves the oracle and flags the mismatch). Never throws.
+  {
+    const resumeSharedDir = path.join(runDir, '.mmd', 'shared');
+    const expCheck = writeExpectation(resumeSharedDir, effectiveDream, undefined, {
+      fs: { writeFileSync },
+      existsSync,
+      readFileSync,
+      isResume: true,
+    });
+    if (expCheck.mismatch) {
+      stderr.write('⚠️ resume dream differs from the frozen oracle — keeping the original oracle; verify this is the intended resume\n');
+    }
+  }
+
   stdout.write(`--resume (${label}): ${decision.reason}. Relaunching auto-dev to continue...\n`);
 
   const timestamp = `${nowIso().replace(/[:.]/g, '-')}-${process.pid}`;
@@ -2580,9 +2610,23 @@ async function main() {
   {
     const greenSharedDir = path.join(demoDir, '.mmd', 'shared');
     const caughtScope = dream !== originalDream ? dream : undefined;
-    const expRes = writeExpectation(greenSharedDir, originalDream, caughtScope, { fs: { writeFileSync }, existsSync });
+    // v0.20.a — per-dream oracle (see runHereMode above). The greenfield first-run
+    // is a fresh (non-resume) invocation; a different dream over a stale oracle
+    // refreshes it, the same dream preserves it.
+    const expRes = writeExpectation(greenSharedDir, originalDream, caughtScope, {
+      fs: { writeFileSync },
+      existsSync,
+      readFileSync,
+      isResume: false,
+    });
     if (expRes.written) {
-      stdout.write('Frozen the original expectation → .mmd/shared/expectation.md (immutable alignment oracle)\n');
+      if (expRes.reason === 'new dream') {
+        stdout.write('New dream — wrote a fresh alignment oracle (previous oracle was for a different dream)\n');
+      } else {
+        stdout.write('Frozen the original expectation → .mmd/shared/expectation.md (immutable alignment oracle)\n');
+      }
+    } else if (expRes.mismatch) {
+      stderr.write('⚠️ resume dream differs from the frozen oracle — keeping the original oracle; verify this is the intended resume\n');
     }
   }
 

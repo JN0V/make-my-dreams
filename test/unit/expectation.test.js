@@ -13,12 +13,66 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 
 import {
+  expectationDreamId,
+  readExpectationDreamId,
   buildExpectationContent,
+  decideExpectationWrite,
   writeExpectation,
   resolveAlignmentAnchor,
 } from '../../lib/conductor/expectation.js';
 
+// ── expectationDreamId (PURE, v0.20.a AC-1) ──────────────────────────────────
+
+test('@unit AC-1: expectationDreamId is deterministic — same dream → same id', () => {
+  assert.equal(expectationDreamId('build a counter app'), expectationDreamId('build a counter app'));
+});
+
+test('@unit AC-1: expectationDreamId normalizes whitespace — extra spaces collapse', () => {
+  assert.equal(expectationDreamId('dream  one'), expectationDreamId('dream one'));
+  assert.equal(expectationDreamId('  trim me  '), expectationDreamId('trim me'));
+});
+
+test('@unit AC-1: expectationDreamId never throws on odd inputs and always returns a string', () => {
+  for (const bad of [null, 42, undefined, {}, []]) {
+    let id;
+    assert.doesNotThrow(() => { id = expectationDreamId(bad); });
+    assert.equal(typeof id, 'string');
+    assert.ok(id.length > 0);
+  }
+});
+
+test('@unit AC-1: expectationDreamId returns a stable id for the empty string (not null/undefined)', () => {
+  const a = expectationDreamId('');
+  const b = expectationDreamId('   ');
+  assert.equal(typeof a, 'string');
+  assert.equal(a, b);
+  assert.match(a, /^[a-f0-9]{16}$/);
+});
+
+// ── readExpectationDreamId (PURE, v0.20.a AC-1) ──────────────────────────────
+
+test('@unit AC-1: readExpectationDreamId round-trips a stamped oracle', () => {
+  const content = buildExpectationContent('hello', undefined);
+  assert.equal(readExpectationDreamId(content), expectationDreamId('hello'));
+});
+
+test('@unit AC-1: readExpectationDreamId returns null when no stamp is present', () => {
+  assert.equal(readExpectationDreamId('# Original expectation\n\n## Original dream\nno stamp here\n'), null);
+});
+
+test('@unit AC-1: readExpectationDreamId returns null for non-string input', () => {
+  assert.equal(readExpectationDreamId(null), null);
+  assert.equal(readExpectationDreamId(42), null);
+  assert.equal(readExpectationDreamId(undefined), null);
+});
+
 // ── buildExpectationContent (PURE) ───────────────────────────────────────────
+
+test('@unit AC-1: buildExpectationContent stamps a machine-readable dream-id line that round-trips', () => {
+  const out = buildExpectationContent('a dream worth grading', undefined);
+  assert.match(out, /<!-- dream-id: [a-f0-9]{16} -->/);
+  assert.equal(readExpectationDreamId(out), expectationDreamId('a dream worth grading'));
+});
 
 test('@unit AC-1: buildExpectationContent embeds the dream verbatim under the frozen header', () => {
   const out = buildExpectationContent('build a counter app', undefined);
@@ -62,6 +116,12 @@ function fakeFs(initial = {}) {
       existsSync(p) {
         return Object.prototype.hasOwnProperty.call(files, p);
       },
+      readFileSync(p) {
+        if (!Object.prototype.hasOwnProperty.call(files, p)) {
+          const err = new Error(`ENOENT: ${p}`); err.code = 'ENOENT'; throw err;
+        }
+        return files[p];
+      },
     },
   };
 }
@@ -75,26 +135,143 @@ test('@unit AC-1: writeExpectation writes the oracle once → { written: true }'
   assert.match(files[target], /my dream/);
 });
 
-test('@unit AC-1: writeExpectation is a NO-OP when expectation.md already exists (immutable, resume-safe)', () => {
+test('@unit AC-3: writeExpectation OVERWRITES when an existing (unstamped) oracle is for a different dream', () => {
   const target = path.join('/shared', 'expectation.md');
+  // Old v0.17 oracle with NO dream-id stamp → id null → treated as a different dream.
   const { files, deps } = fakeFs({ [target]: '# Original expectation\nfirst ask\n' });
   const res = writeExpectation('/shared', 'a DIFFERENT later ask', 'scope', deps);
-  assert.equal(res.written, false);
-  assert.match(res.reason, /already exists/);
-  // The original content is untouched — the goalposts cannot move.
-  assert.match(files[target], /first ask/);
-  assert.doesNotMatch(files[target], /DIFFERENT later ask/);
+  assert.equal(res.written, true);
+  assert.equal(res.reason, 'new dream');
+  // The new dream now lives in the oracle — the gate grades THIS dream (the fix).
+  assert.match(files[target], /DIFFERENT later ask/);
+  assert.doesNotMatch(files[target], /first ask/);
 });
 
-test('@unit AC-1: writeExpectation second call no-ops (write-once invariant)', () => {
+test('@unit AC-3: writeExpectation second call with a DIFFERENT dream OVERWRITES (per-dream, not write-once)', () => {
   const { files, deps } = fakeFs();
   const first = writeExpectation('/shared', 'dream one', undefined, deps);
   assert.equal(first.written, true);
-  const second = writeExpectation('/shared', 'dream two (an attempt to redefine)', undefined, deps);
-  assert.equal(second.written, false);
+  const second = writeExpectation('/shared', 'dream two (a genuinely new ask)', undefined, deps);
+  assert.equal(second.written, true);
+  assert.equal(second.reason, 'new dream');
   const target = path.join('/shared', 'expectation.md');
-  assert.match(files[target], /dream one/);
-  assert.doesNotMatch(files[target], /dream two/);
+  assert.match(files[target], /dream two/);
+  assert.doesNotMatch(files[target], /dream one/);
+});
+
+test('@unit AC-3: writeExpectation PRESERVES on a same-dream re-run (anti-drift within a dream)', () => {
+  const { files, deps } = fakeFs();
+  const first = writeExpectation('/shared', 'my dream', undefined, deps);
+  assert.equal(first.written, true);
+  const target = path.join('/shared', 'expectation.md');
+  const after = files[target];
+  const second = writeExpectation('/shared', 'my dream', undefined, deps);
+  assert.equal(second.written, false);
+  assert.equal(second.reason, 'same dream');
+  // Byte-for-byte unchanged — the goalposts cannot move within a dream.
+  assert.equal(files[target], after);
+});
+
+test('@unit AC-3: writeExpectation PRESERVES a different dream on a RESUME and flags the mismatch', () => {
+  const target = path.join('/shared', 'expectation.md');
+  // A stamped oracle for dream A.
+  const { files, deps } = fakeFs({ [target]: buildExpectationContent('dream A', undefined) });
+  const res = writeExpectation('/shared', 'dream B (resumed but different)', undefined, { ...deps, isResume: true });
+  assert.equal(res.written, false);
+  assert.equal(res.reason, 'resume-mismatch');
+  assert.equal(res.mismatch, true);
+  // The original oracle survives — resume never moves the goalposts.
+  assert.match(files[target], /dream A/);
+  assert.doesNotMatch(files[target], /dream B/);
+});
+
+test('@unit AC-3: writeExpectation PRESERVES the SAME dream on a resume (no mismatch flag)', () => {
+  const target = path.join('/shared', 'expectation.md');
+  const { files, deps } = fakeFs({ [target]: buildExpectationContent('same dream', undefined) });
+  const res = writeExpectation('/shared', 'same dream', undefined, { ...deps, isResume: true });
+  assert.equal(res.written, false);
+  assert.equal(res.reason, 'same dream');
+  assert.ok(!res.mismatch);
+});
+
+test('@unit AC-3: writeExpectation degrades honestly when the write throws (never propagates)', () => {
+  const throwingDeps = {
+    fs: { writeFileSync() { throw new Error('EACCES'); } },
+    existsSync() { return false; },
+    readFileSync() { return ''; },
+  };
+  let res;
+  assert.doesNotThrow(() => { res = writeExpectation('/shared', 'd', undefined, throwingDeps); });
+  assert.equal(res.written, false);
+  assert.match(res.reason, /write failed/);
+});
+
+test('@unit AC-3: writeExpectation backward-compat — no readFileSync seam, existing file, non-resume → refresh', () => {
+  const target = path.join('/shared', 'expectation.md');
+  const files = { [target]: 'old oracle, no reader available' };
+  const deps = {
+    fs: { writeFileSync(p, c) { files[p] = c; } },
+    existsSync(p) { return Object.prototype.hasOwnProperty.call(files, p); },
+    // NO readFileSync → existing content unknown → treated as different dream.
+  };
+  const res = writeExpectation('/shared', 'a new ask', undefined, deps);
+  assert.equal(res.written, true);
+  assert.equal(res.reason, 'new dream');
+  assert.match(files[target], /a new ask/);
+});
+
+test('@unit AC-3: writeExpectation backward-compat — no readFileSync seam, existing file, RESUME → preserve', () => {
+  const target = path.join('/shared', 'expectation.md');
+  const files = { [target]: 'old oracle, no reader available' };
+  const deps = {
+    fs: { writeFileSync(p, c) { files[p] = c; } },
+    existsSync(p) { return Object.prototype.hasOwnProperty.call(files, p); },
+    isResume: true,
+  };
+  const res = writeExpectation('/shared', 'a new ask', undefined, deps);
+  assert.equal(res.written, false);
+  // Resume never moves the goalposts, even when the reader is unavailable.
+  assert.match(files[target], /old oracle/);
+});
+
+// ── decideExpectationWrite (PURE, v0.20.a AC-2) ──────────────────────────────
+
+test('@unit AC-2: decideExpectationWrite — no existing oracle → write-fresh', () => {
+  assert.deepEqual(decideExpectationWrite({ existing: null, currentDreamId: 'x', isResume: false }), { action: 'write-fresh' });
+  assert.deepEqual(decideExpectationWrite({ existing: undefined, currentDreamId: 'x', isResume: false }), { action: 'write-fresh' });
+  assert.deepEqual(decideExpectationWrite({ existing: '   ', currentDreamId: 'x', isResume: false }), { action: 'write-fresh' });
+});
+
+test('@unit AC-2: decideExpectationWrite — same dream-id → preserve', () => {
+  const id = expectationDreamId('same');
+  const existing = buildExpectationContent('same', undefined);
+  assert.deepEqual(decideExpectationWrite({ existing, currentDreamId: id, isResume: false }), { action: 'preserve' });
+  // Same id on a resume too → preserve, no mismatch.
+  assert.deepEqual(decideExpectationWrite({ existing, currentDreamId: id, isResume: true }), { action: 'preserve' });
+});
+
+test('@unit AC-2: decideExpectationWrite — different id, NOT a resume → write-fresh (the fix)', () => {
+  const existing = buildExpectationContent('dream A', undefined);
+  const idB = expectationDreamId('dream B');
+  assert.deepEqual(decideExpectationWrite({ existing, currentDreamId: idB, isResume: false }), { action: 'write-fresh' });
+});
+
+test('@unit AC-2: decideExpectationWrite — different id ON a resume → preserve + mismatch', () => {
+  const existing = buildExpectationContent('dream A', undefined);
+  const idB = expectationDreamId('dream B');
+  assert.deepEqual(decideExpectationWrite({ existing, currentDreamId: idB, isResume: true }), { action: 'preserve', mismatch: true });
+});
+
+test('@unit AC-2: decideExpectationWrite never throws on junk input and returns a valid action', () => {
+  let r;
+  assert.doesNotThrow(() => { r = decideExpectationWrite(); });
+  // No args → existing undefined → no oracle → write-fresh; the guarantee is it never throws.
+  assert.ok(r.action === 'write-fresh' || r.action === 'preserve');
+  assert.doesNotThrow(() => { r = decideExpectationWrite({ existing: undefined, currentDreamId: undefined, isResume: undefined }); });
+  assert.ok(r.action === 'write-fresh' || r.action === 'preserve');
+  // A non-string existing that isn't null → still never throws.
+  assert.doesNotThrow(() => { r = decideExpectationWrite({ existing: 42, currentDreamId: 'x', isResume: false }); });
+  assert.ok(r.action === 'write-fresh' || r.action === 'preserve');
 });
 
 test('@unit AC-1: writeExpectation never throws + degrades honestly without a usable fs seam', () => {

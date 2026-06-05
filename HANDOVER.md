@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.18.0`
-- **Branch**: `slice/here-document-orchestrator-1780660895`
+- **Latest tag**: `v0.19.0`
+- **Branch**: `main`
 - **Version**: `0.19.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 57 (ADR-001..ADR-058)
-- **Tests**: 2283 passing
+- **Tests**: 2288 passing
 - **Recent commits**:
+  - `519409e docs(document): refresh mechanical blocks and coherence dashboard`
+  - `1c4251d fix(document): honest --check archival message; pin dashboard-written + exit-4 test invariants (Phase-4 F10-F12)`
+  - `dcf45c8 fix(document): --check must not write HANDOVER/README; honest --since deprecation + nothing-to-commit; add read-only invariant + AC-6 tests (Phase-4 F1-F8)`
+  - `2f5599f docs(document): ADR-058, README + CLAUDE.md + mmdream slash command, version 0.19.0, refreshed mechanical blocks (AC-6)`
   - `54905b6 test(document): integration + unit tests for AC-1 through AC-5`
-  - `8183629 feat(document): deprecate the 4 maintenance commands as back-compat aliases (AC-4)`
-  - `ffb96f1 feat(document): fix auto-commit of git-mv'd SPECs; verify --dry-run / --no-commit modes (AC-2)`
-  - `2a8cd1d feat(document): implement mmdream document orchestrator — four-step Documentalist pass with unified report (AC-1)`
-  - `b6ac19b docs(spec): v0.19.a — mmdream document, the autonomous Documentalist orchestrator`
 - **Generated**: 2026-06-05 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

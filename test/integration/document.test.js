@@ -508,6 +508,12 @@ test('@integration document AC-6: ADR-058 exists, docs mention `mmdream document
     'ADR-058 (the one-agent consolidation) must exist',
   );
 
+  // ADR-059 (v0.20.a — the per-dream expectation oracle) landed.
+  assert.ok(
+    existsSync(path.join(REPO_ROOT, 'docs', 'adr', '059-per-dream-expectation-oracle.md')),
+    'ADR-059 (per-dream expectation oracle) must exist',
+  );
+
   // README + CLAUDE.md + the /mmdream slash command mention the new orchestrator.
   // Match the bare `mmdream document` (not `mmdream document-review` etc).
   const bareDoc = /mmdream document(?![-\w])/;

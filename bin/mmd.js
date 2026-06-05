@@ -700,9 +700,9 @@ async function runHereMode({ cwd: targetDir, dream, slug, branchSlug = slug, eng
       } else {
         stdout.write('Frozen the original expectation → .mmd/shared/expectation.md (immutable alignment oracle)\n');
       }
-    } else if (expRes.mismatch) {
-      stderr.write('⚠️ resume dream differs from the frozen oracle — keeping the original oracle; verify this is the intended resume\n');
     }
+    // No `else if (expRes.mismatch)` here: isResume:false → decideExpectationWrite
+    // never returns mismatch:true. The resume-mismatch warning lives in finishResume.
 
     await writeStatus(absTargetDir, inProgressStatus);
   } catch (err) {
@@ -2625,9 +2625,9 @@ async function main() {
       } else {
         stdout.write('Frozen the original expectation → .mmd/shared/expectation.md (immutable alignment oracle)\n');
       }
-    } else if (expRes.mismatch) {
-      stderr.write('⚠️ resume dream differs from the frozen oracle — keeping the original oracle; verify this is the intended resume\n');
     }
+    // No `else if (expRes.mismatch)` here: isResume:false → decideExpectationWrite
+    // never returns mismatch:true. The resume-mismatch warning lives in finishResume.
   }
 
   // AC-4: FAST mode overwrites slice.md with a 1-page heuristic spec BEFORE

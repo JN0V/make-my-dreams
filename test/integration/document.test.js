@@ -499,7 +499,7 @@ test('@unit buildDocumentReport: --check with existing SPECs reports archival sk
 
 // ── AC-6: docs + version landed (the slice's own deliverables) ───────────────
 
-test('@integration document AC-6: ADR-058 exists, docs mention `mmdream document`, version is 0.19.0', async () => {
+test('@integration document AC-6: ADR-058 + ADR-059 exist, docs mention `mmdream document`, version is 0.20.0', async () => {
   const read = async (rel) => readFile(path.join(REPO_ROOT, rel), 'utf8');
 
   // ADR-058 landed.

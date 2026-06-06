@@ -19,13 +19,13 @@
 - **Version**: `0.20.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 58 (ADR-001..ADR-059)
-- **Tests**: (run `npm test` to refresh — pass `mmdream handover --tests N`)
+- **Tests**: 2313 passing
 - **Recent commits**:
+  - `9a0149b docs(document): archive 1 shipped SPEC into docs/specs/`
+  - `2c37a88 docs(document): refresh mechanical blocks and coherence dashboard`
   - `3e28320 test(expectation): @integration AC-5 resume-mismatch warning asserted in finishResume path (Phase-4 F3-NEW)`
   - `8d0e390 test(document): update outdated test title to include ADR-059 + v0.20.0 (Phase-4 F2-NEW)`
   - `03fda1b docs(expectation): fix JSDoc backward-compat note to reflect actual preserve-on-unknown behavior (Phase-4 F1-NEW)`
-  - `57232e9 test(document): pin ADR-059 in version test; HANDOVER post-merge note (Phase-4 F5/F6)`
-  - `b9599e7 test(expectation): assert AC-5 new-dream overwrite logs to stdout (Phase-4 F3)`
 - **Generated**: 2026-06-06 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

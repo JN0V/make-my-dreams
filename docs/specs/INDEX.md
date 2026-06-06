@@ -44,7 +44,11 @@
 - **v0.2.c** — [`SPEC_V02C.md`](SPEC_V02C.md) — Make My Dreams — v0.2c Spec: Project Onboarder (`mmd discover`)
 - **v0.2.b** — [`SPEC_V02B.md`](SPEC_V02B.md) — Make My Dreams — v0.2b Spec: `mmd bench` (dream-bench v0)
 - **v0.2.a** — [`SPEC_V02A.md`](SPEC_V02A.md) — Make My Dreams — v0.2a Spec: `--here` mode (self / brownfield-in-place)
+- **v0.2.0.a** — [`SPEC_V020A.md`](SPEC_V020A.md) — Make My Dreams — v0.20.0 Spec (slice v0.20.a): fix the alignment-gate oracle leak (per-dream expectation, not write-once-forever)
 - **v0.2** — [`SPEC_V02.md`](SPEC_V02.md) — Make My Dreams — v0.2 Spec: FAST engine (`mmd --fast`)
+- **v0.1.9.a** — [`SPEC_V019A.md`](SPEC_V019A.md) — Make My Dreams — v0.19.0 Spec (slice v0.19.a): `mmdream document` — the autonomous Documentalist (orchestrator)
+- **v0.1.8.a** — [`SPEC_V018A.md`](SPEC_V018A.md) — Make My Dreams — v0.18.0 Spec (slice v0.18.a): close the Documentalist's 5 blind-spots
+- **v0.1.7.a** — [`SPEC_V017A.md`](SPEC_V017A.md) — Make My Dreams — v0.17.0 Spec (slice v0.17.a): align the result to the ORIGINAL expectation — frozen oracle + dual-face verify
 - **v0.1.6.a** — [`SPEC_V016A.md`](SPEC_V016A.md) — Make My Dreams — v0.16.0 Spec (slice v0.16.a): model-per-task — the Conductor allocates the model to the role
 - **v0.1.5.a** — [`SPEC_V015A.md`](SPEC_V015A.md) — Make My Dreams — v0.15.0 Spec (slice v0.15.a): the transparent Conductor — auto-handoff default-on
 - **v0.1.4.b** — [`SPEC_V014B.md`](SPEC_V014B.md) — Make My Dreams — v0.14.0 Spec (slice v0.14.b): hybrid auto-handoff (incite, then enforce at a checkpoint)

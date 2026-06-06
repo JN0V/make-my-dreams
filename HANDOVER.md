@@ -14,19 +14,19 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.19.0`
-- **Branch**: `slice/here-fix-alignment-oracle-leak-1780666334`
+- **Latest tag**: `v0.20.0`
+- **Branch**: `main`
 - **Version**: `0.20.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 58 (ADR-001..ADR-059)
 - **Tests**: (run `npm test` to refresh — pass `mmdream handover --tests N`)
 - **Recent commits**:
-  - `a48bc34 test(expectation): regression lock — the v0.19 oracle leak cannot recur (v0.20.a AC-4)`
-  - `62e1f40 fix(bin): wire isResume + honest per-dream oracle logging (v0.20.a AC-5)`
-  - `b0c3eb3 feat(expectation): per-dream alignment oracle — stamp dream-id, decide write vs preserve (v0.20.a AC-1/AC-2/AC-3)`
-  - `90fed3c docs(spec): v0.20.a — fix the alignment-gate oracle leak (per-dream expectation)`
-  - `8e9cc9f docs(document): refresh mechanical blocks and coherence dashboard`
-- **Generated**: 2026-06-05 by `mmdream handover` (mechanical block — intent sections are human-authored)
+  - `3e28320 test(expectation): @integration AC-5 resume-mismatch warning asserted in finishResume path (Phase-4 F3-NEW)`
+  - `8d0e390 test(document): update outdated test title to include ADR-059 + v0.20.0 (Phase-4 F2-NEW)`
+  - `03fda1b docs(expectation): fix JSDoc backward-compat note to reflect actual preserve-on-unknown behavior (Phase-4 F1-NEW)`
+  - `57232e9 test(document): pin ADR-059 in version test; HANDOVER post-merge note (Phase-4 F5/F6)`
+  - `b9599e7 test(expectation): assert AC-5 new-dream overwrite logs to stdout (Phase-4 F3)`
+- **Generated**: 2026-06-06 by `mmdream handover` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
 ## ▶ RIGHT NOW — handoff orientation (read this if you're picking up mid-session)

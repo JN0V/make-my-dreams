@@ -801,19 +801,23 @@ function runConciseness(root, write, opts = {}) {
     let newText = docText;
 
     // ── ACT 1: MOVE the surplus (only if over budget) ──────────────────────────
-    // The sections to extract = the oversized ones PLUS the genuine changelog
-    // (identified by its marker / heading), which belongs in CHANGELOG.md for a
-    // concise doc REGARDLESS of its size (SPEC §4 — the changelog special-case).
+    // The sections to extract = the oversized ones PLUS the known NARRATIVE
+    // sections that don't belong inline on a concise LANDING doc regardless of
+    // their size: the genuine changelog (→ CHANGELOG.md, identified by its marker /
+    // heading) and the prose History narrative (→ docs/<stem>-history.md). A
+    // landing doc is a quick-start surface; the long-form story + the release list
+    // live in siblings (SPEC §4 + AC-6 — History & changelog explicitly relocated).
     const sectionsToMove = [...structure.oversizedSections];
     if (structure.overBudget) {
       const docLines = newText.split('\n');
-      const changelogSec = splitSections(newText).find((s) => {
-        if (/^changelog$/i.test(s.heading.trim())) return true;
-        const secText = docLines.slice(s.startLine - 1, s.endLine).join('\n');
-        return secText.includes('mmd:readme:changelog');
-      });
-      if (changelogSec && !sectionsToMove.some((s) => s.heading.trim() === changelogSec.heading.trim())) {
-        sectionsToMove.push(changelogSec);
+      for (const s of splitSections(newText)) {
+        const isChangelog = /^changelog$/i.test(s.heading.trim())
+          || docLines.slice(s.startLine - 1, s.endLine).join('\n').includes('mmd:readme:changelog');
+        const isHistory = /^history$/i.test(s.heading.trim());
+        if ((isChangelog || isHistory)
+          && !sectionsToMove.some((m) => m.heading.trim() === s.heading.trim())) {
+          sectionsToMove.push(s);
+        }
       }
     }
     if (structure.overBudget && sectionsToMove.length > 0) {

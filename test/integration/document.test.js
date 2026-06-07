@@ -506,7 +506,7 @@ test('@unit buildDocumentReport: --check with existing SPECs reports archival sk
 
 // ── AC-6: docs + version landed (the slice's own deliverables) ───────────────
 
-test('@integration document AC-6: ADR-058 + ADR-059 exist, docs mention `mmdream document`, version is 0.20.0', async () => {
+test('@integration document AC-6: ADR-058..060 exist, docs mention `mmdream document`, version is 0.21.0', async () => {
   const read = async (rel) => readFile(path.join(REPO_ROOT, rel), 'utf8');
 
   // ADR-058 landed.
@@ -521,6 +521,12 @@ test('@integration document AC-6: ADR-058 + ADR-059 exist, docs mention `mmdream
     'ADR-059 (per-dream expectation oracle) must exist',
   );
 
+  // ADR-060 (v0.21.a — the detect+act two-operation model) landed.
+  assert.ok(
+    existsSync(path.join(REPO_ROOT, 'docs', 'adr', '060-documentalist-detect-act.md')),
+    'ADR-060 (documentalist detect+act) must exist',
+  );
+
   // README + CLAUDE.md + the /mmdream slash command mention the new orchestrator.
   // Match the bare `mmdream document` (not `mmdream document-review` etc).
   const bareDoc = /mmdream document(?![-\w])/;
@@ -529,8 +535,8 @@ test('@integration document AC-6: ADR-058 + ADR-059 exist, docs mention `mmdream
     assert.match(text, bareDoc, `${rel} must mention the \`mmdream document\` orchestrator`);
   }
 
-  // Version is at or past the v0.19 baseline (bumped to 0.20.0 in v0.20.a — this
+  // Version is at or past the v0.19 baseline (bumped to 0.21.0 in v0.21.a — this
   // assertion tracks the live package.json version, not a frozen number).
   const pkg = JSON.parse(await read('package.json'));
-  assert.equal(pkg.version, '0.20.0', 'package.json version must be 0.20.0');
+  assert.equal(pkg.version, '0.21.0', 'package.json version must be 0.21.0');
 });

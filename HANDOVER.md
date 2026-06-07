@@ -19,13 +19,13 @@
 - **Version**: `0.22.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 60 (ADR-001..ADR-061)
-- **Tests**: (run `npm test` to refresh — pass `mmdream document --tests N`)
+- **Tests**: 2356 passing
 - **Recent commits**:
+  - `84de2c9 docs(document): archive 1 shipped SPEC into docs/specs/`
+  - `8e052e1 docs(document): refresh mechanical blocks and coherence dashboard`
   - `1225d92 docs: fix the stale forward-looking roadmap line the v0.22 detector flagged`
   - `c7454d0 refactor(documentalist): phase-4 adversarial-review fixes for obsolete-forward check`
   - `aafad05 refactor(documentalist): adversarial-review fixes for obsolete-forward check`
-  - `247f74d docs: ADR-061 + README/CLAUDE + version 0.22.0 for obsolete-forward detection (AC-5)`
-  - `d8cf3a0 feat(document): wire obsolete-forward detection into mmdream document (AC-3)`
 - **Generated**: 2026-06-07 by `mmdream document` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

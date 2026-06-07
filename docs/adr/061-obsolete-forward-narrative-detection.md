@@ -83,11 +83,11 @@ advisory and does NOT gate.
 the dozens of valid refs and on genuine future items elsewhere:
 
 ```
-OBSOLETE FORWARD: README.md:73 — forward cue names v0.4, at or below the current version
+OBSOLETE FORWARD: README.md:75 — forward cue names v0.4, at or below the current version
                   (flagged; rewrite is semantic, deferred)
 ```
 
-Exactly the line-73 case. It is FLAGGED (a multi-clause prose sentence), not
+Exactly the line-75 case. It is FLAGGED (a multi-clause prose sentence), not
 auto-deleted — the high-confidence detection without the risky semantic rewrite.
 
 ## Consequences

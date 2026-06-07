@@ -147,6 +147,19 @@ test('@unit checkObsoleteForwardClaims: a list item that ALSO names a future ver
   assert.equal(r[0].removable, false, 'a surviving future version means the item still names a real plan');
 });
 
+test('@unit checkObsoleteForwardClaims: capability-only list item (no version) → removable whole-line', () => {
+  // A discrete list item naming a built capability but NO version token.
+  // allVersionsAtOrBelow returns true (no version token → no surviving future version),
+  // so the item is removable. This covers the capability-signal removable:true path.
+  const r = checkObsoleteForwardClaims({
+    docText: '- next: the Documentalist agent',
+    doc: 'x', roadmap: ROADMAP, inventory: INVENTORY, currentVersion: '0.22.0',
+  });
+  assert.equal(r.length, 1);
+  assert.equal(r[0].removable, true, 'a capability-only list item with no version is removable');
+  assert.equal(r[0].removalMode, 'whole-line');
+});
+
 // ── purity / null-safety ────────────────────────────────────────────────────
 
 test('@unit checkObsoleteForwardClaims: pure + never throws on odd input', () => {

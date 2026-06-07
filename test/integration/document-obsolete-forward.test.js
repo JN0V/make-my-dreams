@@ -164,6 +164,61 @@ test('@integration document (default): deletes a removable obsolete-forward item
   }
 });
 
+// ── AC-2 / F3 coverage: capability signal path (no version token) ─────────────
+// Exercises the "built capability" branch of checkObsoleteForwardClaims end-to-
+// end: a forward-looking claim that names a BUILT capability but contains NO
+// version token — so the finding comes purely from the reconcileRoadmap signal.
+
+test('@integration document --check: forward claim naming a BUILT capability (no version token) → flagged via capability signal', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'mmd-obsolete-fwd-cap-'));
+  try {
+    // A roadmap with "Documentalist" at v0.19 (built) and "Voice mode" at v0.30 (unbuilt).
+    const roadmap = [
+      '# Make My Dreams', '',
+      '## 9. Roadmap', '',
+      '### v0.19 — Documentalist (autonomous doc agent)',
+      '### v0.30 — Voice mode (speak your dream)',
+      '',
+    ].join('\n');
+
+    await mkdir(path.join(dir, 'docs', 'adr'), { recursive: true });
+    await mkdir(path.join(dir, 'lib', 'documentalist'), { recursive: true });
+    await mkdir(path.join(dir, 'bin'), { recursive: true });
+    await writeFile(path.join(dir, 'MAKE_MY_DREAMS.md'), roadmap);
+    await writeFile(path.join(dir, 'package.json'), JSON.stringify({ name: 'fixture', version: '0.22.0' }));
+    await writeFile(path.join(dir, 'docs', 'adr', '001-x.md'), '# ADR-001 — x\n');
+    await writeFile(path.join(dir, 'docs', 'lessons-learned.md'), '## L-001 — a\n**Status**: active\n');
+    // lib/documentalist/ exists + 'document' in SUBCOMMANDS → Documentalist classifies built.
+    await writeFile(path.join(dir, 'lib', 'documentalist', 'index.js'), '// doc\n');
+    await writeFile(path.join(dir, 'bin', 'mmd.js'),
+      "// SUBCOMMANDS\nconst SUBCOMMANDS = ['document', 'discover'];\n");
+    await writeFile(path.join(dir, 'HANDOVER.md'),
+      ['# Handover', '', '<!-- mmd:handover:state:start -->', 'old', '<!-- mmd:handover:state:end -->', ''].join('\n'));
+    // The README makes a forward claim naming Documentalist but with NO version token.
+    await writeFile(path.join(dir, 'README.md'), [
+      '# Fixture', '', '## Roadmap', '',
+      'Next: the Documentalist agent, coming soon.',
+      '',
+    ].join('\n'));
+
+    git(dir, ['init', '-q']);
+    git(dir, ['config', 'user.email', 't@t.t']);
+    git(dir, ['config', 'user.name', 'T']);
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-qm', 'baseline']);
+    git(dir, ['tag', '-a', 'v0.22.0', '-m', 'v0.22.0']);
+
+    const r = runDocument(dir, ['--check']);
+    // The Documentalist is built → the forward claim is a stale obsolete finding.
+    assert.equal(r.status, 1,
+      `expected exit 1 (obsolete-forward finding via capability signal), got ${r.status}\n${r.stdout}\n${r.stderr}`);
+    assert.match(r.stderr, /obsolete-forward/);
+    assert.match(r.stdout, /OBSOLETE FORWARD/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 // ── AC-4: precision — a repo with ONLY a real future item → --check PASSES ───
 
 test('@integration document --check: a repo with only a genuine future roadmap item is clean', async () => {

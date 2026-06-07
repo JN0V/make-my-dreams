@@ -44,14 +44,14 @@ Legend: ✅ built · 🟡 partial · ❌ unbuilt · ❓ unknown.
 - ⚠️ BOOTSTRAP.md: 393 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ docs/lessons-learned.md: 516 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 
-## Inventory  (18 subcommands · 59 ADRs · 21 lessons · tags v0.1.0..v0.20.0)
+## Inventory  (18 subcommands · 59 ADRs · 21 lessons · tags v0.1.0..v0.21.0)
 
 - **Subcommands** (18): serve, bench, ship, discover, qa, cso, document-release, unblock, document-lessons, document, handover, document-readme, document-review, document-compact, test-health, secret-scan, deps-gate, lessons
 - **lib/ modules** (30): argv-parser, autolearn, bench, code-graph, composer, conductor, constitution-compose, discover, documentalist, dream-catcher, engine, greenfield, handover, here-mode, here-mode, invoke-autodev, onboarding, parse-dream, rate-limit, readme-sync, reality-check, sealed-tests, security, security-headers, server, skills, spec-derive, sse, state, test-curator
 - **ADRs** (59): latest ADR-060 — ADR-060: Documentalist detect + act — MOVE the surplus, DELETE the false/deprecated
 - **Active lessons**: 21
 - **Root SPEC files**: 0
-- **Tags**: 62 (v0.1.0..v0.20.0)
+- **Tags**: 63 (v0.1.0..v0.21.0)
 
 ## Drift / conformance  (does the doc still match reality?)
 
@@ -71,7 +71,10 @@ _Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edi
 
 ### Deprecated surface (a stale token recommended as the current entry)
 
-- ✅ No deprecated-surface recommendations — no known-stale token is presented as primary.
+- ⚠️ HANDOVER.md:341 recommends `mmdream document-review` — `mmdream document-review` is deprecated (the CLI emits a [DEPRECATED] notice) — use `mmdream document` (use `mmdream document`)
+- ⚠️ bin/mmd.js --help:27 recommends `mmdream document-readme` — `mmdream document-readme` is deprecated (the CLI emits a [DEPRECATED] notice) — use `mmdream document` (use `mmdream document`)
+- ⚠️ bin/mmd.js --help:29 recommends `mmdream document-review` — `mmdream document-review` is deprecated (the CLI emits a [DEPRECATED] notice) — use `mmdream document` (use `mmdream document`)
+- ⚠️ bin/mmd.js --help:32 recommends `mmdream document-compact` — `mmdream document-compact` is deprecated (the CLI emits a [DEPRECATED] notice) — use `mmdream document` (use `mmdream document`)
 
 ### Stale promises (a version-pinned promise that came due)
 

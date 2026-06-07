@@ -14,18 +14,18 @@
 > human intent and is preserved byte-for-byte.
 
 <!-- mmd:handover:state:start -->
-- **Latest tag**: `v0.20.0`
-- **Branch**: `slice/here-documentalist-detect-act-1780812580`
+- **Latest tag**: `v0.21.0`
+- **Branch**: `main`
 - **Version**: `0.21.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
 - **ADRs**: 59 (ADR-001..ADR-060)
-- **Tests**: (run `npm test` to refresh — pass `mmdream document --tests N`)
+- **Tests**: 2335 passing
 - **Recent commits**:
-  - `edae1a1 test: read the README documentation SURFACE (README + extracted siblings)`
-  - `7ed8bc6 docs: update CLAUDE.md with the v0.21.a documentalist detect+act entry`
-  - `7920fe5 docs(document): condense concise docs — move surplus losslessly, remove false/deprecated surface`
-  - `64f4c83 docs(document): archive 1 shipped SPEC into docs/specs/`
-  - `49b7728 docs(document): refresh mechanical blocks and coherence dashboard`
+  - `add9a37 docs(document): refresh mechanical blocks and coherence dashboard`
+  - `79b6dfd docs: correct stale document-readme/handover descriptive mentions → mmdream document`
+  - `f4391cd docs: note moved-sibling inherited-refs limitation in ADR-060 (F4)`
+  - `beeb87d fix: catch deprecated teaching in all current-state docs + honest summary (F1, F2, F3, F5)`
+  - `c67baf6 docs(document): refresh mechanical blocks and coherence dashboard`
 - **Generated**: 2026-06-07 by `mmdream document` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

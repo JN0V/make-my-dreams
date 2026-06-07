@@ -811,8 +811,11 @@ function runConciseness(root, write, opts = {}) {
     if (structure.overBudget) {
       const docLines = newText.split('\n');
       for (const s of splitSections(newText)) {
+        // The REAL changelog marker is the HTML-comment START tag, NOT a bare
+        // 'mmd:readme:changelog' substring (which appears in PROSE describing the
+        // markers — matching it would misroute Usage to CHANGELOG.md, the v0.21-v1 bug).
         const isChangelog = /^changelog$/i.test(s.heading.trim())
-          || docLines.slice(s.startLine - 1, s.endLine).join('\n').includes('mmd:readme:changelog');
+          || docLines.slice(s.startLine - 1, s.endLine).join('\n').includes('<!-- mmd:readme:changelog:start -->');
         const isHistory = /^history$/i.test(s.heading.trim());
         if ((isChangelog || isHistory)
           && !sectionsToMove.some((m) => m.heading.trim() === s.heading.trim())) {

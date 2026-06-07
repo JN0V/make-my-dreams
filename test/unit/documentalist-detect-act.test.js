@@ -201,6 +201,34 @@ test('@unit planExtraction: the genuine changelog (marker) → CHANGELOG.md, nev
   assert.match(mv.stub, /for the full changelog/);
 });
 
+test('@unit planExtraction: a section that only MENTIONS the changelog marker in prose is NOT the changelog (the v0.21-v1 misroute bug)', async () => {
+  const { splitSections } = await import('../../lib/documentalist/doc-structure.js');
+  // A Usage section that DESCRIBES the markers in prose (backticked) — it must NOT
+  // be routed to CHANGELOG.md. Only a section carrying the real HTML-comment
+  // START marker is the changelog.
+  const doc = [
+    '# T', '',
+    '## Usage', '',
+    'Two managed blocks: the `mmd:readme:status` pair and the `mmd:readme:changelog` pair.',
+    'more usage prose here describing things at length',
+    '',
+    '## Changelog', '',
+    '<!-- mmd:readme:changelog:start -->',
+    '- v1', '- v2',
+    '<!-- mmd:readme:changelog:end -->', '',
+  ].join('\n');
+  const secs = splitSections(doc);
+  const plan = planExtraction({ docPath: 'README.md', docText: doc, role: 'concise', sections: secs });
+  const usageMove = plan.moves.find((m) => m.heading === 'Usage');
+  const clMove = plan.moves.find((m) => m.heading === 'Changelog');
+  assert.ok(usageMove, 'Usage moved');
+  assert.equal(usageMove.dst, 'docs/readme-usage.md', 'Usage must NOT go to CHANGELOG.md');
+  assert.equal(usageMove.isChangelog, false);
+  assert.ok(clMove, 'Changelog moved');
+  assert.equal(clMove.dst, 'CHANGELOG.md', 'only the real marker-block changelog → CHANGELOG.md');
+  assert.equal(clMove.isChangelog, true);
+});
+
 test('@unit planRemovals: whole-line + trailing-clause excision; mid-sentence flagged; pure', () => {
   // whole-line list item
   const r1 = planRemovals({

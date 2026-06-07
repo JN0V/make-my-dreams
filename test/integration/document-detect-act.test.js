@@ -221,6 +221,82 @@ test('@integration document: regenerated Status/State blocks name `mmdream docum
   }
 });
 
+// ── F1: the DERIVED deprecated set reaches ALL current-state docs (not just README) ──
+// Regression for the F1 finding: scanDrift's checkDeprecatedSurface was called
+// WITHOUT the derived set, so a deprecated command taught as PRIMARY in CLAUDE.md /
+// HANDOVER.md (not in CONCISE_DOCS, only README is) sailed past the dashboard +
+// the --check gate. The Step-5 conciseness scan only covers README; the drift scan
+// must cover CLAUDE.md / HANDOVER.md with the SAME derived set (SPEC_V021A AC-2).
+
+/** A minimal, marker-complete fixture so the only finding under test is the
+ *  deprecated teaching we plant — no spurious mechanical-block walls. */
+async function makeCleanRepo() {
+  const dir = await mkdtemp(path.join(tmpdir(), 'mmd-f1-'));
+  await mkdir(path.join(dir, 'docs', 'adr'), { recursive: true });
+  await mkdir(path.join(dir, 'bin', 'documentalist'), { recursive: true });
+  await writeFile(path.join(dir, 'MAKE_MY_DREAMS.md'), ROADMAP);
+  await writeFile(path.join(dir, 'package.json'), JSON.stringify({ name: 'fixture', version: '0.21.0' }));
+  await writeFile(path.join(dir, 'docs', 'adr', '001-x.md'), '# ADR-001 — x\n');
+  await writeFile(path.join(dir, 'docs', 'lessons-learned.md'), '## L-001 — a\n**Status**: active\n');
+  await writeFile(path.join(dir, 'HANDOVER.md'),
+    ['# Handover', '', '<!-- mmd:handover:state:start -->', 'old', '<!-- mmd:handover:state:end -->', ''].join('\n'));
+  // A short, within-budget README with the full marker pair (so Step 1 + Step 5 are quiet).
+  await writeFile(path.join(dir, 'README.md'), [
+    '# Fixture', '', '## Quick start', '', 'Run `mmdream document` to maintain docs.', '',
+    '## Status', '', '<!-- mmd:readme:status:start -->', 'old status', '<!-- mmd:readme:status:end -->', '',
+    '## Changelog', '', '<!-- mmd:readme:changelog:start -->', '- **v0.1.0** — first release', '<!-- mmd:readme:changelog:end -->', '',
+  ].join('\n'));
+  // The real [DEPRECATED] notice source so `document-readme` is DERIVED-deprecated.
+  await writeFile(path.join(dir, 'bin', 'documentalist', 'document-readme.js'),
+    "stderr.write('[DEPRECATED] mmdream document-readme is deprecated — use: mmdream document');\n");
+  git(dir, ['init', '-q']);
+  git(dir, ['config', 'user.email', 't@t.t']);
+  git(dir, ['config', 'user.name', 'T']);
+  return dir;
+}
+
+test('@integration F1 — document --check catches a deprecated command taught as primary in CLAUDE.md', async () => {
+  const dir = await makeCleanRepo();
+  try {
+    // CLAUDE.md (a current-state truth doc, NOT in CONCISE_DOCS) teaches the
+    // DERIVED-deprecated `mmdream document-readme` as the primary way to do a thing.
+    await writeFile(path.join(dir, 'CLAUDE.md'),
+      ['# Project memory', '', 'To refresh the README, run `mmdream document-readme --tests 5`.', ''].join('\n'));
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-qm', 'baseline']);
+    git(dir, ['tag', '-a', 'v0.21.0', '-m', 'v0.21.0']);
+
+    const r = runDocument(dir, ['--check']);
+    assert.equal(r.status, 1, `expected exit 1, got ${r.status}\n${r.stdout}\n${r.stderr}`);
+    assert.match(r.stderr, /FAIL/);
+    // The dashboard drift scan (not the README-only Step 5) flagged the deprecated surface.
+    assert.match(r.stderr, /deprecated-surface/);
+    // --check is read-only beyond the dashboard — CLAUDE.md itself is never edited.
+    const claude = await readFile(path.join(dir, 'CLAUDE.md'), 'utf8');
+    assert.match(claude, /mmdream document-readme/, '--check does not edit CLAUDE.md (read-only)');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('@integration F1 — document --check stays GREEN when CLAUDE.md teaches only the current command (precision)', async () => {
+  const dir = await makeCleanRepo();
+  try {
+    // CLAUDE.md teaches the CURRENT `mmdream document` — no deprecated surface.
+    await writeFile(path.join(dir, 'CLAUDE.md'),
+      ['# Project memory', '', 'To refresh the docs, run `mmdream document`.', ''].join('\n'));
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-qm', 'baseline']);
+    git(dir, ['tag', '-a', 'v0.21.0', '-m', 'v0.21.0']);
+
+    const r = runDocument(dir, ['--check']);
+    assert.equal(r.status, 0, `expected clean exit 0, got ${r.status}\n${r.stdout}\n${r.stderr}`);
+    assert.match(r.stdout, /document --check: PASS/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 // ── AC-4: REFERENCE-role doc is NEVER condensed ─────────────────────────────
 
 test('@integration document: a long MAKE_MY_DREAMS.md (reference role) is left untouched by Step 5', async () => {

@@ -64,6 +64,7 @@ import {
   scanDrift,
   buildSinceCoupling,
   renderCoupledChanges,
+  deriveDeprecatedSet,
   REPORT_REL_PATH,
 } from './document-review.js';
 import { reconcileRoadmap } from '../../lib/documentalist/roadmap-reconcile.js';
@@ -84,7 +85,6 @@ import { assessDocStructure, inferRole, splitSections } from '../../lib/document
 import {
   checkCapabilityClaims,
   checkDeprecatedSurface,
-  deriveDeprecatedCommands,
 } from '../../lib/documentalist/conformance.js';
 import {
   planExtraction,
@@ -705,36 +705,10 @@ function runArchival(root, write) {
 
 // ── Step 5 — conciseness / correction (SPEC_V021A) ──────────────────────────
 
-// The concise/landing docs MMD condenses. README.md is the live target; any other
-// concise-role doc the repo carries could be added, but KISS — README is the one.
+// v0.21 scope: only README.md targeted for conciseness (§VIII generalization to
+// any concise-role markdown doc in any repo is deferred to a later slice). README
+// is the live target; KISS — one doc, explicit (F2).
 const CONCISE_DOCS = ['README.md'];
-
-/**
- * Read the bin source texts that emit the real `[DEPRECATED]` notices so the
- * deprecated-surface set is DERIVED, not hand-curated (AC-2). Never throws — an
- * unreadable file contributes nothing.
- *
- * @param {string} root
- * @returns {string[]} command names (e.g. ['handover','document-readme',…])
- */
-function deriveDeprecatedSet(root) {
-  const candidates = [
-    'bin/handover.js',
-    'bin/documentalist/document-readme.js',
-    'bin/documentalist/document-review.js',
-    'bin/documentalist/document-compact.js',
-    'bin/mmd.js',
-  ];
-  const sources = [];
-  for (const rel of candidates) {
-    try {
-      sources.push(readFileSync(path.join(root, rel), 'utf8'));
-    } catch {
-      // unreadable → skip (honest: the derivation just sees fewer notices).
-    }
-  }
-  return deriveDeprecatedCommands(sources);
-}
 
 /**
  * Run the conciseness / correction pass over the concise-role docs (SPEC_V021A
@@ -801,12 +775,15 @@ function runConciseness(root, write, opts = {}) {
     let newText = docText;
 
     // ── ACT 1: MOVE the surplus (only if over budget) ──────────────────────────
-    // The sections to extract = the oversized ones PLUS the known NARRATIVE
-    // sections that don't belong inline on a concise LANDING doc regardless of
-    // their size: the genuine changelog (→ CHANGELOG.md, identified by its marker /
+    // The sections to extract = the oversized ones PLUS, when the doc IS over
+    // budget, the known NARRATIVE sections that read as surplus on a concise
+    // LANDING doc: the genuine changelog (→ CHANGELOG.md, identified by its marker /
     // heading) and the prose History narrative (→ docs/<stem>-history.md). A
     // landing doc is a quick-start surface; the long-form story + the release list
     // live in siblings (SPEC §4 + AC-6 — History & changelog explicitly relocated).
+    // NOTE: this relocation only happens when `structure.overBudget` (the whole
+    // MOVE pass below is gated on it); a within-budget doc keeps its changelog +
+    // History inline unchanged (SPEC AC-4 requires an over-budget concise doc).
     const sectionsToMove = [...structure.oversizedSections];
     if (structure.overBudget) {
       const docLines = newText.split('\n');
@@ -975,9 +952,16 @@ export function buildDocumentReport(parts) {
   // Summary.
   lines.push('');
   const commits = countCommits(blocksCommit, archivalCommit, concisenessCommit);
-  const stepsDone = 5;
+  // All 5 steps are always ATTEMPTED; a step that hit a wall is reported per-step
+  // above (its `wall` line). "steps run" is honest where "steps completed" would
+  // overclaim when a step walled (F5 — §VI: don't imply success a step didn't have).
+  const stepsRun = 5;
+  const walls = countWalls(handover, readme, dashboard, archival, conciseness);
   const driftN = dashboard.wall ? 0 : dashboard.driftTotal;
-  lines.push(`Summary: ${stepsDone} steps completed, ${commits} auto-commit${commits === 1 ? '' : 's'}, ${driftN} drift finding${driftN === 1 ? '' : 's'}.`);
+  lines.push(
+    `Summary: ${stepsRun} steps run${walls > 0 ? ` (${walls} hit a wall — see above)` : ''}, ` +
+    `${commits} auto-commit${commits === 1 ? '' : 's'}, ${driftN} drift finding${driftN === 1 ? '' : 's'}.`,
+  );
   return lines.join('\n');
 }
 
@@ -1078,6 +1062,30 @@ function commitLine(mode, commit, message, changed = true) {
 
 function countCommits(...commits) {
   return commits.filter((c) => c && c.committed).length;
+}
+
+/**
+ * Count how many of the five steps hit a wall, tolerant of each step's distinct
+ * outcome shape (handover/dashboard/archival/conciseness carry a wall flag;
+ * README carries per-block statuses). Used for the honest summary line (F5).
+ * Never throws.
+ *
+ * @param {object} handover refreshHandover outcome ({ status })
+ * @param {object} readme refreshReadme outcome ({ status:{status}, changelog:{status} })
+ * @param {object} dashboard runDashboard outcome ({ wall })
+ * @param {object} archival runArchival outcome ({ wall })
+ * @param {object} conciseness runConciseness outcome ({ wall })
+ * @returns {number}
+ */
+function countWalls(handover, readme, dashboard, archival, conciseness) {
+  let n = 0;
+  if (handover && handover.status === 'wall') n += 1;
+  if (readme && ((readme.status && readme.status.status === 'wall')
+    || (readme.changelog && readme.changelog.status === 'wall'))) n += 1;
+  if (dashboard && dashboard.wall) n += 1;
+  if (archival && archival.wall) n += 1;
+  if (conciseness && conciseness.wall) n += 1;
+  return n;
 }
 
 /** Indent every line of `text` by `pad`. */

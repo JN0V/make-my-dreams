@@ -113,7 +113,7 @@ test('@integration document: runs all five steps + writes the coherence dashboar
     assert.match(r.stdout, /Step 3 — SPEC archival/);
     assert.match(r.stdout, /Step 4 — Doc↔code↔ADR coupling/);
     assert.match(r.stdout, /Step 5 — Conciseness . correction/);
-    assert.match(r.stdout, /Summary: 5 steps completed/);
+    assert.match(r.stdout, /Summary: 5 steps run/);
     // The dashboard was written (step 2 reuses document-review's detector + render).
     assert.ok(existsSync(path.join(dir, 'docs', 'coherence-review.md')), 'dashboard written');
     const dash = await readFile(path.join(dir, 'docs', 'coherence-review.md'), 'utf8');
@@ -428,7 +428,7 @@ test('@unit buildDocumentReport: assembles a human-readable report, never throws
   assert.match(report, /committed: "docs\(document\): refresh mechanical blocks and coherence dashboard"/);
   assert.match(report, /2 root SPEC_V\*\.md archived/);
   assert.match(report, /Step 5 — Conciseness . correction/);
-  assert.match(report, /Summary: 5 steps completed, 2 auto-commits, 0 drift findings\./);
+  assert.match(report, /Summary: 5 steps run, 2 auto-commits, 0 drift findings\./);
 
   // A wall-on-a-step is reported honestly (§VI), not a fabricated success.
   const wallParts = {
@@ -444,6 +444,9 @@ test('@unit buildDocumentReport: assembles a human-readable report, never throws
   const wallReport = buildDocumentReport(wallParts);
   assert.match(wallReport, /wall: HANDOVER\.md unreadable/);
   assert.match(wallReport, /wall: MAKE_MY_DREAMS\.md unreadable/);
+  // F5: the summary reports the walls honestly (2 here: handover + dashboard),
+  // never a fabricated "5 steps completed".
+  assert.match(wallReport, /Summary: 5 steps run \(2 hit a wall — see above\)/);
 });
 
 // F7: --no-commit is honest about "nothing to commit" when nothing changed.

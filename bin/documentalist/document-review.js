@@ -38,6 +38,7 @@ import {
   checkFactConformance,
   checkDeprecatedSurface,
   checkVersionPinnedPromises,
+  deriveDeprecatedCommands,
 } from '../../lib/documentalist/conformance.js';
 import { buildUxTextSurface } from '../../lib/documentalist/ux-text-surface.js';
 import { extractDocLinks } from '../../lib/documentalist/doc-links.js';
@@ -296,6 +297,38 @@ function gatherUxTextSurface(root) {
 }
 
 /**
+ * Read the bin source texts that emit the real `[DEPRECATED]` notices so the
+ * deprecated-surface set is DERIVED from the code, not only hand-curated
+ * (SPEC_V021A AC-2 — the v0.7.d golden rule: derive, don't hand-maintain). When a
+ * command is un-deprecated or a new one is deprecated, the doc-check follows the
+ * CLI automatically. Never throws — an unreadable file simply contributes nothing.
+ *
+ * Exported so the `mmdream document` orchestrator REUSES the exact same derivation
+ * (DRY, §III) instead of carrying a second copy of the candidate-file list.
+ *
+ * @param {string} root
+ * @returns {string[]} deprecated command names (e.g. ['handover','document-readme',…])
+ */
+export function deriveDeprecatedSet(root) {
+  const candidates = [
+    'bin/handover.js',
+    'bin/documentalist/document-readme.js',
+    'bin/documentalist/document-review.js',
+    'bin/documentalist/document-compact.js',
+    'bin/mmd.js',
+  ];
+  const sources = [];
+  for (const rel of candidates) {
+    try {
+      sources.push(readFileSync(path.join(root, rel), 'utf8'));
+    } catch {
+      // unreadable → skip (honest: the derivation just sees fewer notices).
+    }
+  }
+  return deriveDeprecatedCommands(sources);
+}
+
+/**
  * Run the deterministic drift / conformance scan (AC-3/AC-4 + AC-2/AC-3/AC-4 of
  * SPEC_V018A). Pure-ish: the only I/O is reading the truth docs + the UX-text
  * surface + the injected fileExistsFn; the judgment is the pure conformance checks.
@@ -363,7 +396,14 @@ export function scanDrift(root, inventory) {
     ...truthDocs.filter((d) => CURRENT_STATE_DOCS.has(d.doc)).map((d) => ({ path: d.doc, text: d.text })),
     ...uxSurface,
   ];
-  const deprecated = checkDeprecatedSurface(currencySurface);
+  // F1 fix: wire the DERIVED deprecated set (the real `[DEPRECATED]` command names
+  // the CLI emits) into the drift scan, not only the tiny curated set. Without it,
+  // CLAUDE.md / HANDOVER.md (in currencySurface) could teach a deprecated command
+  // as primary and the dashboard / --check gate would never catch it — the
+  // derived `document-*`/`handover` set was previously only used in the README
+  // conciseness step (SPEC_V021A AC-2: derive, don't hand-curate; AC-5: gate teeth).
+  const derivedCommands = deriveDeprecatedSet(root);
+  const deprecated = checkDeprecatedSurface(currencySurface, { derivedCommands });
   const stalePromises = checkVersionPinnedPromises(currencySurface, { currentVersion: VERSION });
 
   return {

@@ -85,6 +85,7 @@ import { assessDocStructure, inferRole, splitSections } from '../../lib/document
 import {
   checkCapabilityClaims,
   checkDeprecatedSurface,
+  checkObsoleteForwardClaims,
 } from '../../lib/documentalist/conformance.js';
 import {
   planExtraction,
@@ -731,7 +732,7 @@ const CONCISE_DOCS = ['README.md'];
  */
 function runConciseness(root, write, opts = {}) {
   const result = {
-    findings: { capability: [], deprecated: [], structure: [] },
+    findings: { capability: [], deprecated: [], obsoleteForward: [], structure: [] },
     moves: [], removed: [], flagged: [], changedFiles: [], beforeAfter: [], wall: null,
   };
 
@@ -762,9 +763,15 @@ function runConciseness(root, write, opts = {}) {
     const structure = assessDocStructure({ docPath: docRel, docText });
     const capability = checkCapabilityClaims({ docText, doc: docRel, roadmap: roadmapText, inventory });
     const deprecated = checkDeprecatedSurface([{ path: docRel, text: docText }], { derivedCommands });
+    // SPEC_V022A AC-1: obsolete forward-looking narrative (a "next: X" of an
+    // already-built capability / past version). Same detect→act split.
+    const obsoleteForward = checkObsoleteForwardClaims({
+      docText, doc: docRel, roadmap: roadmapText, inventory, currentVersion: VERSION,
+    });
     result.findings.structure.push({ doc: docRel, ...structure });
     result.findings.capability.push(...capability);
     result.findings.deprecated.push(...deprecated);
+    result.findings.obsoleteForward.push(...obsoleteForward);
 
     // --check / --dry-run never mutate the doc here — detection only.
     if (!write) {
@@ -829,7 +836,10 @@ function runConciseness(root, write, opts = {}) {
     // the MOVE rewrote the doc.
     const capAfter = checkCapabilityClaims({ docText: newText, doc: docRel, roadmap: roadmapText, inventory });
     const depAfter = checkDeprecatedSurface([{ path: docRel, text: newText }], { derivedCommands });
-    const removalFindings = [...capAfter, ...depAfter];
+    const fwdAfter = checkObsoleteForwardClaims({
+      docText: newText, doc: docRel, roadmap: roadmapText, inventory, currentVersion: VERSION,
+    });
+    const removalFindings = [...capAfter, ...depAfter, ...fwdAfter];
     const removalPlan = planRemovals({ docText: newText, findings: removalFindings });
     for (const rm of removalPlan.removals) result.removed.push({ doc: docRel, ...rm });
     result.flagged.push(...removalPlan.flagged.map((f) => ({ doc: docRel, ...f })));
@@ -980,9 +990,13 @@ function renderConciseness(lines, mode, c, commit) {
     lines.push(`  wall: ${c.wall}`);
   }
   // Detection summary (always shown — it is the value even when nothing acted).
-  const capN = c.findings.capability.length;
-  const depN = c.findings.deprecated.length;
-  const overBudget = c.findings.structure.filter((s) => s.overBudget);
+  const capList = Array.isArray(c.findings.capability) ? c.findings.capability : [];
+  const depList = Array.isArray(c.findings.deprecated) ? c.findings.deprecated : [];
+  const fwdList = Array.isArray(c.findings.obsoleteForward) ? c.findings.obsoleteForward : [];
+  const capN = capList.length;
+  const depN = depList.length;
+  const fwdN = fwdList.length;
+  const overBudget = (Array.isArray(c.findings.structure) ? c.findings.structure : []).filter((s) => s.overBudget);
   if (overBudget.length > 0) {
     for (const s of overBudget) {
       lines.push(`  ${s.doc}: ${s.lineCount} lines (budget ${s.budget}) — over budget, ${s.oversizedSections.length} oversized section${s.oversizedSections.length === 1 ? '' : 's'}${s.changelogInline ? ', changelog inline' : ''}`);
@@ -990,7 +1004,15 @@ function renderConciseness(lines, mode, c, commit) {
   } else {
     lines.push('  structure: all concise docs within budget.');
   }
-  lines.push(`  detected: ${capN} capability-lie${capN === 1 ? '' : 's'} · ${depN} deprecated-as-primary mention${depN === 1 ? '' : 's'}`);
+  lines.push(`  detected: ${capN} capability-lie${capN === 1 ? '' : 's'} · ${depN} deprecated-as-primary mention${depN === 1 ? '' : 's'} · ${fwdN} obsolete forward-looking claim${fwdN === 1 ? '' : 's'}`);
+  // SPEC_V022A: name each obsolete forward-looking finding (it is the headline new
+  // detection — show it explicitly, not just a count). Honest, human-readable §VII.
+  if (fwdN > 0) {
+    for (const f of fwdList.slice(0, 10)) {
+      lines.push(`    - OBSOLETE FORWARD: ${f.doc}:${f.line} — ${f.reason}${f.removable ? '' : ' (flagged; rewrite is semantic, deferred)'}`);
+    }
+    if (fwdN > 10) lines.push(`    … +${fwdN - 10} more`);
+  }
 
   if (mode === 'dry-run' || mode === 'check') {
     // Detection-only modes: no MOVE/DELETE applied.
@@ -1018,7 +1040,7 @@ function renderConciseness(lines, mode, c, commit) {
   if (realFlagged.length > 0) {
     lines.push(`  FLAGGED for review (not auto-edited): ${realFlagged.length}`);
     for (const f of realFlagged.slice(0, 10)) {
-      lines.push(`    - ${f.doc}:${f.line} — ${f.capability || f.token || 'finding'} (not cleanly excisable)`);
+      lines.push(`    - ${f.doc}:${f.line} — ${f.capability || f.token || f.reason || 'finding'} (not cleanly excisable)`);
     }
     if (realFlagged.length > 10) lines.push(`    … +${realFlagged.length - 10} more`);
   }
@@ -1247,7 +1269,9 @@ export async function runDocument(rawArgs) {
     // addition to the existing coherence-dashboard drift.
     const capLies = conciseness.findings.capability.length;
     const depSurface = conciseness.findings.deprecated.length;
-    const newFindings = capLies + depSurface;
+    const obsoleteForward = Array.isArray(conciseness.findings.obsoleteForward)
+      ? conciseness.findings.obsoleteForward.length : 0;
+    const newFindings = capLies + depSurface + obsoleteForward;
     if (dashboard.driftTotal > 0 || newFindings > 0) {
       const d = dashboard.drift;
       const total = dashboard.driftTotal + newFindings;
@@ -1255,7 +1279,8 @@ export async function runDocument(rawArgs) {
         `\ndocument --check: FAIL — ${total} conformance finding${total === 1 ? '' : 's'} ` +
         `(${d.dangling.length} dangling · ${d.staleFacts.length} stale fact${d.staleFacts.length === 1 ? '' : 's'} · ` +
         `${d.deprecated.length} deprecated-surface · ${d.stalePromises.length} stale promise${d.stalePromises.length === 1 ? '' : 's'} · ` +
-        `${capLies} capability-lie${capLies === 1 ? '' : 's'} · ${depSurface} deprecated-as-primary).\n` +
+        `${capLies} capability-lie${capLies === 1 ? '' : 's'} · ${depSurface} deprecated-as-primary · ` +
+        `${obsoleteForward} obsolete-forward).\n` +
         `  See ${REPORT_REL_PATH} for the dashboard details. (The roadmap heuristic is advisory and does NOT affect this gate.)\n`,
       );
       return 1;

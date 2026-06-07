@@ -39,7 +39,6 @@ Legend: ✅ built · 🟡 partial · ❌ unbuilt · ❓ unknown.
 ## Doc health
 
 - ⚠️ MAKE_MY_DREAMS.md: 1757 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
-- ⚠️ README.md: 919 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ HANDOVER.md: 346 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ PROBLEMS.md: 241 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
 - ⚠️ BOOTSTRAP.md: 393 lines (cap 200 per MAKE_MY_DREAMS §6.4.4) — split candidate
@@ -51,7 +50,7 @@ Legend: ✅ built · 🟡 partial · ❌ unbuilt · ❓ unknown.
 - **lib/ modules** (30): argv-parser, autolearn, bench, code-graph, composer, conductor, constitution-compose, discover, documentalist, dream-catcher, engine, greenfield, handover, here-mode, here-mode, invoke-autodev, onboarding, parse-dream, rate-limit, readme-sync, reality-check, sealed-tests, security, security-headers, server, skills, spec-derive, sse, state, test-curator
 - **ADRs** (59): latest ADR-060 — ADR-060: Documentalist detect + act — MOVE the surplus, DELETE the false/deprecated
 - **Active lessons**: 21
-- **Root SPEC files**: 1
+- **Root SPEC files**: 0
 - **Tags**: 62 (v0.1.0..v0.20.0)
 
 ## Drift / conformance  (does the doc still match reality?)
@@ -60,14 +59,11 @@ _Heuristic + advisory — the Documentalist **flags** drift, it does **NOT** edi
 
 ### Dangling references (a doc claims an artifact that does not exist)
 
-- ⚠️ README.md:854 → `lib/a.js` — file not found (renamed/removed?)
 - ⚠️ HANDOVER.md:38 → `docs/usage.md` — file not found (renamed/removed?)
 - ⚠️ docs/lessons-learned.md:240 → `bin/ship.js` — file not found (renamed/removed?)
 - ⚠️ docs/adr/032-transparent-first-run-setup.md:60 → `mmd init` — 'init' is not a known subcommand (renamed/removed/planned?)
 - ⚠️ docs/adr/039-mmd-operator-slash-command.md:45 → `assets/claude-commands/mmd.md` — file not found (renamed/removed?)
 - ⚠️ docs/adr/039-mmd-operator-slash-command.md:80 → `mmd playbook` — 'playbook' is not a known subcommand (renamed/removed/planned?)
-- ⚠️ docs/adr/060-documentalist-detect-act.md:108 → `docs/readme-history.md` — file not found (renamed/removed?)
-- ⚠️ docs/adr/060-documentalist-detect-act.md:108 → `docs/readme-usage.md` — file not found (renamed/removed?)
 
 ### Stale facts (a prose claim disagrees with the live inventory)
 

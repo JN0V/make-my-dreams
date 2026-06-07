@@ -21,11 +21,11 @@
 - **ADRs**: 59 (ADR-001..ADR-060)
 - **Tests**: (run `npm test` to refresh — pass `mmdream document --tests N`)
 - **Recent commits**:
-  - `46cd478 fix: changelog identified by the real HTML-comment marker, not a prose mention`
-  - `0eeb491 feat: relocate the prose History narrative to docs/<stem>-history.md when over budget`
-  - `197cfeb chore: bump version to 0.21.0`
-  - `2bceb0d docs: add ADR-060 — documentalist detect+act two-operation model`
-  - `9cf5d84 test: AC-1..AC-5 unit + integration tests for documentalist detect+act`
+  - `edae1a1 test: read the README documentation SURFACE (README + extracted siblings)`
+  - `7ed8bc6 docs: update CLAUDE.md with the v0.21.a documentalist detect+act entry`
+  - `7920fe5 docs(document): condense concise docs — move surplus losslessly, remove false/deprecated surface`
+  - `64f4c83 docs(document): archive 1 shipped SPEC into docs/specs/`
+  - `49b7728 docs(document): refresh mechanical blocks and coherence dashboard`
 - **Generated**: 2026-06-07 by `mmdream document` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

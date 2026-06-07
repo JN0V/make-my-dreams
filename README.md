@@ -55,9 +55,9 @@ See [History](docs/readme-history.md) for the full history.
 ## Status
 
 <!-- mmd:readme:status:start -->
-- **Version**: `0.21.0` (package.json)
+- **Version**: `0.22.0` (package.json)
 - **Latest tag**: `v0.21.0`
-- **ADRs**: 59 (ADR-001..ADR-060)
+- **ADRs**: 60 (ADR-001..ADR-061)
 - **Active lessons**: 21 active
 - **Reflexive slices (release tags)**: 63
 - **Tests**: (run `npm test` to refresh — pass `mmdream document --tests N`)
@@ -69,6 +69,8 @@ The bulleted block above (version, tag, counts) is machine-maintained by `mmdrea
 **v0.3.4** (2026-06-01) — actively developed and **usable today**: the CLI, the `mmdream serve` web UI, and the auto-dev pipeline all work. MMD is built through a **reflexive bootstrap** (MMD develops MMD) — the live slice/test/ADR/lesson counts are in the mechanical block above (they used to drift in this prose until `mmdream document-readme` started maintaining them).
 
 What works now: **Dream Catcher** (conversational dream refinement on web *and* CLI — pick who it's for and how involved you want to be, get a small buildable scope, edit it, launch); `mmdream serve` (local web UI for non-technical users); `mmdream "<dream>"` / `mmdream --here` (greenfield + brownfield auto-dev); plus `mmdream document`, `mmdream unblock`, `mmdream discover`, `mmdream ship`, `mmdream qa`, `mmdream cso`, `mmdream document-release`, `mmdream document-lessons`, `mmdream lessons`, `mmdream bench`. Audience **profiles** (Kid / Curious / Pro) now shape the generated app via the constitution composer.
+
+The Documentalist (`mmdream document`) now keeps docs true across all three drift directions: **unbuilt-claimed-as-done** (capability-lie), **deprecated-as-current** (deprecated-surface), and **done-claimed-as-future** — v0.22 adds detection of **obsolete forward-looking narrative** (a "next / coming / planned / then vX" line describing a capability that already shipped or a version already released). `mmdream document --check` fails on it; a cleanly-removable shipped list-item is deleted, a stale forward prose sentence is flagged for review.
 
 Next on the roadmap (see [MAKE_MY_DREAMS.md](./MAKE_MY_DREAMS.md)): a lite doc-sync Documentalist, then v0.4 stateless Orchestrator + auto-handoff, v0.5 Conductor, v0.5b full Documentalist. See [BOOTSTRAP.md](./BOOTSTRAP.md) for the active plan, [docs/adr/](./docs/adr/) for decisions, and [PROBLEMS.md](./PROBLEMS.md) for the 26 documented dev-by-AI problems.
 

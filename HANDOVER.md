@@ -15,17 +15,17 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.21.0`
-- **Branch**: `main`
-- **Version**: `0.21.0` (package.json)
+- **Branch**: `slice/here-documentalist-obsolete-narrative-1780818746`
+- **Version**: `0.22.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 59 (ADR-001..ADR-060)
-- **Tests**: 2335 passing
+- **ADRs**: 60 (ADR-001..ADR-061)
+- **Tests**: (run `npm test` to refresh — pass `mmdream document --tests N`)
 - **Recent commits**:
-  - `add9a37 docs(document): refresh mechanical blocks and coherence dashboard`
-  - `79b6dfd docs: correct stale document-readme/handover descriptive mentions → mmdream document`
-  - `f4391cd docs: note moved-sibling inherited-refs limitation in ADR-060 (F4)`
-  - `beeb87d fix: catch deprecated teaching in all current-state docs + honest summary (F1, F2, F3, F5)`
-  - `c67baf6 docs(document): refresh mechanical blocks and coherence dashboard`
+  - `d8cf3a0 feat(document): wire obsolete-forward detection into mmdream document (AC-3)`
+  - `60ce6cb feat(documentalist): detect obsolete forward-looking narrative (AC-1/AC-2)`
+  - `a6cece8 test: README documents the current mmdream document, not the deprecated handover alias`
+  - `65dd0b9 docs(spec): v0.22.a — detect obsolete forward-looking narrative`
+  - `8abd366 fix: clean --check baseline — deprecation markers in USAGE, update HANDOVER, fix ADR note (F-NEW-1/2/3)`
 - **Generated**: 2026-06-07 by `mmdream document` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 

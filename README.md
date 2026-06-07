@@ -72,7 +72,7 @@ What works now: **Dream Catcher** (conversational dream refinement on web *and* 
 
 The Documentalist (`mmdream document`) now keeps docs true across all three drift directions: **unbuilt-claimed-as-done** (capability-lie), **deprecated-as-current** (deprecated-surface), and **done-claimed-as-future** — v0.22 adds detection of **obsolete forward-looking narrative** (a "next / coming / planned / then vX" line describing a capability that already shipped or a version already released). `mmdream document --check` fails on it; a cleanly-removable shipped list-item is deleted, a stale forward prose sentence is flagged for review.
 
-Next on the roadmap (see [MAKE_MY_DREAMS.md](./MAKE_MY_DREAMS.md)): a lite doc-sync Documentalist, then v0.4 stateless Orchestrator + auto-handoff, v0.5 Conductor, v0.5b full Documentalist. See [BOOTSTRAP.md](./BOOTSTRAP.md) for the active plan, [docs/adr/](./docs/adr/) for decisions, and [PROBLEMS.md](./PROBLEMS.md) for the 26 documented dev-by-AI problems.
+For the current roadmap and what remains, see [MAKE_MY_DREAMS.md](./MAKE_MY_DREAMS.md) §9, [BOOTSTRAP.md](./BOOTSTRAP.md) for the active plan, [docs/adr/](./docs/adr/) for decisions, and [PROBLEMS.md](./PROBLEMS.md) for the 26 documented dev-by-AI problems.
 
 ## Changelog
 

@@ -30,6 +30,7 @@
 - **v0.3.a1** — [`SPEC_V03A1.md`](SPEC_V03A1.md) — Make My Dreams — v0.3.a-1 Spec: Dream Catcher walking skeleton (Autonome mode, web)
 - **v0.3.a** — [`SPEC_V03A.md`](SPEC_V03A.md) — Make My Dreams — v0.3.a Spec: Dream Catcher — refine the dream before launch
 - **v0.2.5** — [`SPEC_V025.md`](SPEC_V025.md) — Make My Dreams — v0.2.5 Spec: `mmd serve` (accessibility milestone)
+- **v0.2.1.a** — [`SPEC_V021A.md`](SPEC_V021A.md) — Make My Dreams — v0.21.0 Spec (slice v0.21.a): the Documentalist detects + ACTS — MOVE the surplus, DELETE the false/deprecated
 - **v0.2.p** — [`SPEC_V02P.md`](SPEC_V02P.md) — Make My Dreams — v0.2.p Spec: `mmd handover` — auto-refresh the State block (L-020 closure)
 - **v0.2.n** — [`SPEC_V02N.md`](SPEC_V02N.md) — Make My Dreams — v0.2.n Spec: WIP-salvage stall signal + composer regression-lock (L-019 closure)
 - **v0.2.m** — [`SPEC_V02M.md`](SPEC_V02M.md) — Make My Dreams — v0.2.m Spec: Spec Kit + OpenSpec + Ralph Loop install hardening

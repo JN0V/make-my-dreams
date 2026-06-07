@@ -15,18 +15,18 @@
 
 <!-- mmd:handover:state:start -->
 - **Latest tag**: `v0.20.0`
-- **Branch**: `main`
-- **Version**: `0.20.0` (package.json)
+- **Branch**: `slice/here-documentalist-detect-act-1780812580`
+- **Version**: `0.21.0` (package.json)
 - **Active lessons**: 21 (L-001, L-003, L-004, L-005, L-006, L-007, L-008, L-009, L-012, L-015, L-017, L-018, L-019, L-020, L-021, L-022, L-023, L-024, L-025, L-026, L-027)
-- **ADRs**: 58 (ADR-001..ADR-059)
-- **Tests**: 2313 passing
+- **ADRs**: 59 (ADR-001..ADR-060)
+- **Tests**: (run `npm test` to refresh — pass `mmdream document --tests N`)
 - **Recent commits**:
-  - `9a0149b docs(document): archive 1 shipped SPEC into docs/specs/`
-  - `2c37a88 docs(document): refresh mechanical blocks and coherence dashboard`
-  - `3e28320 test(expectation): @integration AC-5 resume-mismatch warning asserted in finishResume path (Phase-4 F3-NEW)`
-  - `8d0e390 test(document): update outdated test title to include ADR-059 + v0.20.0 (Phase-4 F2-NEW)`
-  - `03fda1b docs(expectation): fix JSDoc backward-compat note to reflect actual preserve-on-unknown behavior (Phase-4 F1-NEW)`
-- **Generated**: 2026-06-06 by `mmdream handover` (mechanical block — intent sections are human-authored)
+  - `46cd478 fix: changelog identified by the real HTML-comment marker, not a prose mention`
+  - `0eeb491 feat: relocate the prose History narrative to docs/<stem>-history.md when over budget`
+  - `197cfeb chore: bump version to 0.21.0`
+  - `2bceb0d docs: add ADR-060 — documentalist detect+act two-operation model`
+  - `9cf5d84 test: AC-1..AC-5 unit + integration tests for documentalist detect+act`
+- **Generated**: 2026-06-07 by `mmdream document` (mechanical block — intent sections are human-authored)
 <!-- mmd:handover:state:end -->
 
 ## ▶ RIGHT NOW — handoff orientation (read this if you're picking up mid-session)

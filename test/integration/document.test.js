@@ -102,7 +102,7 @@ function logLines(dir) {
 
 // ── AC-1: orchestrates the four maintenance hats in one pass ─────────────────
 
-test('@integration document: runs all four steps + writes the coherence dashboard + unified report', async () => {
+test('@integration document: runs all five steps + writes the coherence dashboard + unified report', async () => {
   const dir = await makeRepo();
   try {
     const r = runDocument(dir, []);
@@ -112,7 +112,8 @@ test('@integration document: runs all four steps + writes the coherence dashboar
     assert.match(r.stdout, /Step 2 — Coherence drift dashboard/);
     assert.match(r.stdout, /Step 3 — SPEC archival/);
     assert.match(r.stdout, /Step 4 — Doc↔code↔ADR coupling/);
-    assert.match(r.stdout, /Summary: 4 steps completed/);
+    assert.match(r.stdout, /Step 5 — Conciseness . correction/);
+    assert.match(r.stdout, /Summary: 5 steps completed/);
     // The dashboard was written (step 2 reuses document-review's detector + render).
     assert.ok(existsSync(path.join(dir, 'docs', 'coherence-review.md')), 'dashboard written');
     const dash = await readFile(path.join(dir, 'docs', 'coherence-review.md'), 'utf8');
@@ -414,6 +415,11 @@ test('@unit buildDocumentReport: assembles a human-readable report, never throws
     dashboard: { written: true, driftTotal: 0, drift: { dangling: [], staleFacts: [], deprecated: [], stalePromises: [] }, wall: null },
     archival: { moved: 2, refsRewritten: 3, filesChanged: 1, changedFiles: [], wall: null },
     archivalCommit: { committed: true, reason: null },
+    conciseness: {
+      findings: { capability: [], deprecated: [], structure: [] },
+      moves: [], removed: [], flagged: [], changedFiles: [], beforeAfter: [], wall: null,
+    },
+    concisenessCommit: null,
     coupling: 'No files changed this pass — nothing to couple.',
   };
   const report = buildDocumentReport(parts);
@@ -421,7 +427,8 @@ test('@unit buildDocumentReport: assembles a human-readable report, never throws
   assert.match(report, /Step 1 — Mechanical blocks refreshed/);
   assert.match(report, /committed: "docs\(document\): refresh mechanical blocks and coherence dashboard"/);
   assert.match(report, /2 root SPEC_V\*\.md archived/);
-  assert.match(report, /Summary: 4 steps completed, 2 auto-commits, 0 drift findings\./);
+  assert.match(report, /Step 5 — Conciseness . correction/);
+  assert.match(report, /Summary: 5 steps completed, 2 auto-commits, 0 drift findings\./);
 
   // A wall-on-a-step is reported honestly (§VI), not a fabricated success.
   const wallParts = {

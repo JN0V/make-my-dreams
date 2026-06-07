@@ -10,6 +10,8 @@
 //   2. détecte     — write docs/coherence-review.md (drift/conformance dashboard)
 //   3. consolide   — archive shipped root SPEC_V*.md → docs/specs/ + rewrite refs
 //   4. liens       — report the doc↔code↔ADR coupling for the files changed this pass
+//   5. condense    — role-aware conciseness/correction (SPEC_V021A): MOVE surplus
+//                    (byte-lossless → linked sibling) + DELETE false/deprecated
 //
 // SRP (universal §I.S): this file is a THIN COORDINATOR. It SEQUENCES + COMMITS +
 // REPORTS only. Every detector/renderer/planner it calls is the existing, tested
@@ -75,6 +77,21 @@ import {
   ARCHIVE_DIR,
 } from '../../lib/documentalist/compact.js';
 
+// Step 5 — conciseness/correction: structure assessment + the two actions
+// (SPEC_V021A). All pure detection/planning; the I/O (write siblings, rewrite the
+// doc, git commit) lives here in the bin.
+import { assessDocStructure, inferRole, splitSections } from '../../lib/documentalist/doc-structure.js';
+import {
+  checkCapabilityClaims,
+  checkDeprecatedSurface,
+  deriveDeprecatedCommands,
+} from '../../lib/documentalist/conformance.js';
+import {
+  planExtraction,
+  planRemovals,
+  CHANGELOG_FILE,
+} from '../../lib/documentalist/compact-action.js';
+
 const PKG_PATH = fileURLToPath(new URL('../../package.json', import.meta.url));
 let VERSION = '0.0.0';
 try {
@@ -105,6 +122,11 @@ Behavior:
     3. consolide   archive shipped root SPEC_V*.md → ${ARCHIVE_DIR}/ with an index
                    and rewritten references (git mv, lossless → auto-committed)
     4. liens       report the doc↔code↔ADR coupling for the files changed this pass
+    5. condense    role-aware conciseness/correction (SPEC_V021A): detect structure
+                   + capability-lies + deprecated-surface, then MOVE the surplus
+                   (true-but-verbose → linked sibling, byte-lossless) and DELETE the
+                   high-confidence removable falsehoods/deprecations (precision-first;
+                   a non-excisable finding is FLAGGED, never auto-edited)
 
   Then prints ONE unified, human-readable report: what was committed, the drift
   findings, the coupling. Honest (§VI): a step that found nothing says so; a step
@@ -370,13 +392,39 @@ async function refreshReadme(root, write) {
     };
   }
   const changelogRes = rewriteMarkers(statusRes.text, changelogBlock, CHANGELOG_MARKERS);
+  // SPEC_V021A §4 — the refresh FOLLOWS THE MARKER. Once Step 5 has relocated the
+  // changelog markers + content to CHANGELOG.md, README no longer carries them, so
+  // the in-README changelog rewrite returns ok:false. That is NOT a wall — the
+  // changelog now lives in CHANGELOG.md and is refreshed THERE (the changelog is
+  // maintained at its new location, the README keeps only the link).
+  let changelogFollowFile = null;
+  let changelogOutcome;
   if (!changelogRes.ok) {
+    const followed = refreshRelocatedChangelog(root, changelogBlock, write);
+    if (followed.found) {
+      changelogOutcome = followed.outcome;
+      changelogFollowFile = followed.file; // CHANGELOG.md when it actually changed
+    } else {
+      // The markers are in neither README nor CHANGELOG.md — a genuine wall.
+      changelogOutcome = { status: 'wall', detail: `missing the Changelog marker(s): ${changelogRes.missing.join(', ')}` };
+    }
+    // Status may still have changed; write README with the Status rewrite only.
+    const statusOnly = statusRes.text;
+    const statusChangedOnly = statusOnly !== fileText;
+    if (statusChangedOnly && write) {
+      try {
+        writeFileSync(readmePath, statusOnly, 'utf8');
+      } catch (err) {
+        return fail(`cannot write README.md: ${err.message}`);
+      }
+    }
     return {
-      status: statusRes.text === fileText
-        ? { status: 'unchanged', detail: 'already up to date' }
-        : { status: 'refreshed', detail: 'Status block refreshed' },
-      changelog: { status: 'wall', detail: `missing the Changelog marker(s): ${changelogRes.missing.join(', ')}` },
-      file: null,
+      status: statusChangedOnly
+        ? { status: 'refreshed', detail: 'Status block refreshed' }
+        : { status: 'unchanged', detail: 'already up to date' },
+      changelog: changelogOutcome,
+      file: statusChangedOnly ? 'README.md' : null,
+      changelogFile: changelogFollowFile,
     };
   }
 
@@ -399,7 +447,44 @@ async function refreshReadme(root, write) {
       ? { status: 'refreshed', detail: 'Changelog block refreshed' }
       : { status: 'unchanged', detail: 'already up to date' },
     file: finalText !== fileText ? 'README.md' : null,
+    changelogFile: null,
   };
+}
+
+/**
+ * Refresh the changelog block at its RELOCATED home (CHANGELOG.md) once Step 5 has
+ * moved the markers there (SPEC_V021A §4 — the refresh follows the marker). Never
+ * throws: a missing/marker-less CHANGELOG.md → { found:false }.
+ *
+ * @param {string} root
+ * @param {string} changelogBlock the freshly-built changelog content
+ * @param {boolean} write
+ * @returns {{ found: boolean, outcome?: object, file?: string|null }}
+ */
+function refreshRelocatedChangelog(root, changelogBlock, write) {
+  const clPath = path.join(root, CHANGELOG_FILE);
+  let text;
+  try {
+    text = readFileSync(clPath, 'utf8');
+  } catch {
+    return { found: false };
+  }
+  if (!text.includes(CHANGELOG_MARKERS.start) || !text.includes(CHANGELOG_MARKERS.end)) {
+    return { found: false };
+  }
+  const res = rewriteMarkers(text, changelogBlock, CHANGELOG_MARKERS);
+  if (!res.ok) return { found: false };
+  if (res.text === text) {
+    return { found: true, outcome: { status: 'unchanged', detail: 'already up to date (in CHANGELOG.md)' }, file: null };
+  }
+  if (write) {
+    try {
+      writeFileSync(clPath, res.text, 'utf8');
+    } catch (err) {
+      return { found: true, outcome: { status: 'wall', detail: `cannot write ${CHANGELOG_FILE}: ${err.message}` }, file: null };
+    }
+  }
+  return { found: true, outcome: { status: 'refreshed', detail: 'Changelog block refreshed (in CHANGELOG.md)' }, file: CHANGELOG_FILE };
 }
 
 // ── Step 2 — coherence dashboard ────────────────────────────────────────────
@@ -618,6 +703,169 @@ function runArchival(root, write) {
   return { moved: moved.length, refsRewritten, filesChanged, changedFiles, wall: null };
 }
 
+// ── Step 5 — conciseness / correction (SPEC_V021A) ──────────────────────────
+
+// The concise/landing docs MMD condenses. README.md is the live target; any other
+// concise-role doc the repo carries could be added, but KISS — README is the one.
+const CONCISE_DOCS = ['README.md'];
+
+/**
+ * Read the bin source texts that emit the real `[DEPRECATED]` notices so the
+ * deprecated-surface set is DERIVED, not hand-curated (AC-2). Never throws — an
+ * unreadable file contributes nothing.
+ *
+ * @param {string} root
+ * @returns {string[]} command names (e.g. ['handover','document-readme',…])
+ */
+function deriveDeprecatedSet(root) {
+  const candidates = [
+    'bin/handover.js',
+    'bin/documentalist/document-readme.js',
+    'bin/documentalist/document-review.js',
+    'bin/documentalist/document-compact.js',
+    'bin/mmd.js',
+  ];
+  const sources = [];
+  for (const rel of candidates) {
+    try {
+      sources.push(readFileSync(path.join(root, rel), 'utf8'));
+    } catch {
+      // unreadable → skip (honest: the derivation just sees fewer notices).
+    }
+  }
+  return deriveDeprecatedCommands(sources);
+}
+
+/**
+ * Run the conciseness / correction pass over the concise-role docs (SPEC_V021A
+ * AC-5): detect (structure + capability-lies + deprecated-surface), then ACT —
+ * MOVE the surplus (byte-lossless) + DELETE the high-confidence removable
+ * falsehoods/deprecations, role-aware, precision-first. Pure detection + the I/O
+ * here; the planners decide, this applies.
+ *
+ * @param {string} root
+ * @param {boolean} write actually write/commit (false for --dry-run / --check preview)
+ * @returns {{
+ *   findings: { capability: object[], deprecated: object[], structure: object[] },
+ *   moves: Array<{ doc: string, heading: string, dst: string, isChangelog: boolean }>,
+ *   removed: Array<{ doc: string, line: number, mode: string, what: string }>,
+ *   flagged: Array<object>,
+ *   changedFiles: string[],
+ *   beforeAfter: Array<{ doc: string, before: number, after: number }>,
+ *   wall: string|null,
+ * }}
+ */
+function runConciseness(root, write, opts = {}) {
+  const result = {
+    findings: { capability: [], deprecated: [], structure: [] },
+    moves: [], removed: [], flagged: [], changedFiles: [], beforeAfter: [], wall: null,
+  };
+
+  // Roadmap text for the capability-lie corroboration (reuse the dashboard's read).
+  let roadmapText = null;
+  try {
+    roadmapText = readFileSync(path.join(root, 'MAKE_MY_DREAMS.md'), 'utf8');
+  } catch {
+    roadmapText = null; // capability-lie still fires on the curated trigger.
+  }
+  const inventory = opts.inventory || gatherRealInventory(root);
+  const derivedCommands = deriveDeprecatedSet(root);
+
+  for (const docRel of CONCISE_DOCS) {
+    const docPath = path.join(root, docRel);
+    let docText;
+    try {
+      docText = readFileSync(docPath, 'utf8');
+    } catch {
+      continue; // doc absent → nothing to condense (honest skip).
+    }
+    const role = inferRole(docRel);
+    if (role === 'reference') continue; // never condense a reference doc.
+
+    const beforeLines = docText.split('\n').length;
+
+    // ── DETECT ────────────────────────────────────────────────────────────────
+    const structure = assessDocStructure({ docPath: docRel, docText });
+    const capability = checkCapabilityClaims({ docText, doc: docRel, roadmap: roadmapText, inventory });
+    const deprecated = checkDeprecatedSurface([{ path: docRel, text: docText }], { derivedCommands });
+    result.findings.structure.push({ doc: docRel, ...structure });
+    result.findings.capability.push(...capability);
+    result.findings.deprecated.push(...deprecated);
+
+    // --check / --dry-run never mutate the doc here — detection only.
+    if (!write) {
+      result.beforeAfter.push({ doc: docRel, before: beforeLines, after: beforeLines });
+      continue;
+    }
+
+    let newText = docText;
+
+    // ── ACT 1: MOVE the surplus (only if over budget) ──────────────────────────
+    // The sections to extract = the oversized ones PLUS the genuine changelog
+    // (identified by its marker / heading), which belongs in CHANGELOG.md for a
+    // concise doc REGARDLESS of its size (SPEC §4 — the changelog special-case).
+    const sectionsToMove = [...structure.oversizedSections];
+    if (structure.overBudget) {
+      const docLines = newText.split('\n');
+      const changelogSec = splitSections(newText).find((s) => {
+        if (/^changelog$/i.test(s.heading.trim())) return true;
+        const secText = docLines.slice(s.startLine - 1, s.endLine).join('\n');
+        return secText.includes('mmd:readme:changelog');
+      });
+      if (changelogSec && !sectionsToMove.some((s) => s.heading.trim() === changelogSec.heading.trim())) {
+        sectionsToMove.push(changelogSec);
+      }
+    }
+    if (structure.overBudget && sectionsToMove.length > 0) {
+      const plan = planExtraction({
+        docPath: docRel, docText: newText, role,
+        sections: sectionsToMove,
+      });
+      for (const mv of plan.moves) {
+        const dstAbs = path.join(root, mv.dst);
+        try {
+          // CHANGELOG.md special-case: the moved content already carries the
+          // freshly-refreshed changelog markers + lines (Step 1 ran first), so
+          // writing it to CHANGELOG.md regenerates the changelog AT its new
+          // location (SPEC §4 — the refresh follows the marker).
+          mkdirSync(path.dirname(dstAbs), { recursive: true });
+          const body = mv.content.endsWith('\n') ? mv.content : `${mv.content}\n`;
+          writeFileSync(dstAbs, body, 'utf8');
+          result.changedFiles.push(mv.dst);
+          result.moves.push({ doc: docRel, heading: mv.heading, dst: mv.dst, isChangelog: mv.isChangelog });
+        } catch (err) {
+          result.wall = `cannot write ${mv.dst}: ${err.message}`;
+        }
+      }
+      newText = plan.newDocText;
+    }
+
+    // ── ACT 2: DELETE the high-confidence removable falsehoods/deprecations ─────
+    // Re-detect on the (possibly shortened) text so line numbers are current after
+    // the MOVE rewrote the doc.
+    const capAfter = checkCapabilityClaims({ docText: newText, doc: docRel, roadmap: roadmapText, inventory });
+    const depAfter = checkDeprecatedSurface([{ path: docRel, text: newText }], { derivedCommands });
+    const removalFindings = [...capAfter, ...depAfter];
+    const removalPlan = planRemovals({ docText: newText, findings: removalFindings });
+    for (const rm of removalPlan.removals) result.removed.push({ doc: docRel, ...rm });
+    result.flagged.push(...removalPlan.flagged.map((f) => ({ doc: docRel, ...f })));
+    newText = removalPlan.newDocText;
+
+    // Write the condensed doc if it changed.
+    if (newText !== docText) {
+      try {
+        writeFileSync(docPath, newText, 'utf8');
+        result.changedFiles.push(docRel);
+      } catch (err) {
+        result.wall = `cannot write ${docRel}: ${err.message}`;
+      }
+    }
+    result.beforeAfter.push({ doc: docRel, before: beforeLines, after: newText.split('\n').length });
+  }
+
+  return result;
+}
+
 // ── Report assembly (pure) ──────────────────────────────────────────────────
 
 const SEP = '═'.repeat(58);
@@ -637,7 +885,8 @@ const SEP = '═'.repeat(58);
  */
 export function buildDocumentReport(parts) {
   const {
-    mode, handover, readme, blocksCommit, dashboard, archival, archivalCommit, coupling,
+    mode, handover, readme, blocksCommit, dashboard, archival, archivalCommit,
+    conciseness, concisenessCommit, coupling,
   } = parts;
   const lines = [];
   lines.push(`mmdream document — autonomous Documentalist pass (v${VERSION})`);
@@ -671,7 +920,7 @@ export function buildDocumentReport(parts) {
   // anything actually changed this pass (for the honest --no-commit line, F7): a
   // block was refreshed OR the dashboard was (re)written (dashboard.file is the
   // written path, null when not written, e.g. under --dry-run/--check).
-  const blocksChanged = Boolean(handover.file || readme.file || dashboard.file);
+  const blocksChanged = Boolean(handover.file || readme.file || readme.changelogFile || dashboard.file);
   lines.push(`  → ${commitLine(mode, blocksCommit, 'docs(document): refresh mechanical blocks and coherence dashboard', blocksChanged)}`);
 
   // Step 3.
@@ -702,6 +951,15 @@ export function buildDocumentReport(parts) {
     lines.push(`  → ${commitLine(mode, archivalCommit, `docs(document): archive ${archival.moved} shipped SPEC${archival.moved === 1 ? '' : 's'} into ${ARCHIVE_DIR}/`, true)}`);
   }
 
+  // Step 5 — conciseness / correction (SPEC_V021A).
+  lines.push('');
+  lines.push('Step 5 — Conciseness / correction (role-aware: move surplus, delete false/deprecated)');
+  if (conciseness) {
+    renderConciseness(lines, mode, conciseness, concisenessCommit);
+  } else {
+    lines.push('  (not run)');
+  }
+
   // Step 4.
   lines.push('');
   lines.push('Step 4 — Doc↔code↔ADR coupling (files changed this pass)');
@@ -709,11 +967,74 @@ export function buildDocumentReport(parts) {
 
   // Summary.
   lines.push('');
-  const commits = countCommits(blocksCommit, archivalCommit);
-  const stepsDone = 4;
+  const commits = countCommits(blocksCommit, archivalCommit, concisenessCommit);
+  const stepsDone = 5;
   const driftN = dashboard.wall ? 0 : dashboard.driftTotal;
   lines.push(`Summary: ${stepsDone} steps completed, ${commits} auto-commit${commits === 1 ? '' : 's'}, ${driftN} drift finding${driftN === 1 ? '' : 's'}.`);
   return lines.join('\n');
+}
+
+/**
+ * Render the Step 5 conciseness/correction outcome (SPEC_V021A AC-5). Honest per
+ * mode + per finding (universal §VI/§VII): what was detected, moved, removed, and
+ * what was FLAGGED for human review (never auto-edited). Pure.
+ *
+ * @param {string[]} lines the accumulating report lines (mutated)
+ * @param {string} mode
+ * @param {object} c the runConciseness result
+ * @param {object|null} commit the conciseness commitFiles result (default mode)
+ */
+function renderConciseness(lines, mode, c, commit) {
+  if (c.wall) {
+    lines.push(`  wall: ${c.wall}`);
+  }
+  // Detection summary (always shown — it is the value even when nothing acted).
+  const capN = c.findings.capability.length;
+  const depN = c.findings.deprecated.length;
+  const overBudget = c.findings.structure.filter((s) => s.overBudget);
+  if (overBudget.length > 0) {
+    for (const s of overBudget) {
+      lines.push(`  ${s.doc}: ${s.lineCount} lines (budget ${s.budget}) — over budget, ${s.oversizedSections.length} oversized section${s.oversizedSections.length === 1 ? '' : 's'}${s.changelogInline ? ', changelog inline' : ''}`);
+    }
+  } else {
+    lines.push('  structure: all concise docs within budget.');
+  }
+  lines.push(`  detected: ${capN} capability-lie${capN === 1 ? '' : 's'} · ${depN} deprecated-as-primary mention${depN === 1 ? '' : 's'}`);
+
+  if (mode === 'dry-run' || mode === 'check') {
+    // Detection-only modes: no MOVE/DELETE applied.
+    lines.push(`  (${mode}: detection only — no move/delete applied)`);
+    return;
+  }
+
+  // Actions taken.
+  if (c.moves.length > 0) {
+    for (const mv of c.moves) {
+      lines.push(`  MOVED: ${mv.doc} § "${mv.heading}" → ${mv.dst}${mv.isChangelog ? ' (changelog)' : ''}`);
+    }
+  } else {
+    lines.push('  no surplus sections to move.');
+  }
+  if (c.removed.length > 0) {
+    for (const rm of c.removed) {
+      lines.push(`  REMOVED (${rm.mode}): ${rm.doc}:${rm.line} — ${rm.what}`);
+    }
+  } else {
+    lines.push('  no false/deprecated surface removed.');
+  }
+  // Flagged (non-removable) — reported, NEVER auto-edited (precision-first §VI).
+  const realFlagged = c.flagged.filter((f) => f && (f.confidence === 'high'));
+  if (realFlagged.length > 0) {
+    lines.push(`  FLAGGED for review (not auto-edited): ${realFlagged.length}`);
+    for (const f of realFlagged.slice(0, 10)) {
+      lines.push(`    - ${f.doc}:${f.line} — ${f.capability || f.token || 'finding'} (not cleanly excisable)`);
+    }
+    if (realFlagged.length > 10) lines.push(`    … +${realFlagged.length - 10} more`);
+  }
+  for (const ba of c.beforeAfter) {
+    if (ba.before !== ba.after) lines.push(`  ${ba.doc}: ${ba.before} → ${ba.after} lines`);
+  }
+  lines.push(`  → ${commitLine(mode, commit, 'docs(document): condense concise docs', c.changedFiles.length > 0)}`);
 }
 
 /** One step's block outcome → a human phrase. */
@@ -839,7 +1160,7 @@ export async function runDocument(rawArgs) {
   // Auto-commit the lossless block + dashboard refresh as ONE atomic commit.
   let blocksCommit = null;
   if (doCommit) {
-    const files = [handover.file, readme.file, dashboard.file].filter(Boolean);
+    const files = [handover.file, readme.file, readme.changelogFile, dashboard.file].filter(Boolean);
     blocksCommit = commitFiles(root, 'docs(document): refresh mechanical blocks and coherence dashboard', files);
   }
 
@@ -858,9 +1179,27 @@ export async function runDocument(rawArgs) {
     );
   }
 
+  // ── Step 5: conciseness / correction (SPEC_V021A) ───────────────────────────
+  // Detect (structure + capability-lies + deprecated-surface) and ACT — MOVE the
+  // surplus + DELETE the high-confidence removable falsehoods, role-aware. In
+  // --check / --dry-run it DETECTS only (write:false → no mutation, clean tree).
+  // Runs AFTER Steps 1-3 so the changelog markers/content it relocates to
+  // CHANGELOG.md are the freshly-refreshed ones (the refresh follows the marker).
+  const conciseness = runConciseness(root, write, { inventory: dashboard.inventory });
+
+  let concisenessCommit = null;
+  if (doCommit && conciseness.changedFiles.length > 0 && !conciseness.wall) {
+    concisenessCommit = commitFiles(
+      root,
+      'docs(document): condense concise docs — move surplus losslessly, remove false/deprecated surface',
+      [...new Set(conciseness.changedFiles)],
+    );
+  }
+
   // ── Step 4: coupling for the files changed this pass ────────────────────────
   const changedThisPass = [
-    handover.file, readme.file, dashboard.file, ...(archival.changedFiles || []),
+    handover.file, readme.file, readme.changelogFile, dashboard.file,
+    ...(archival.changedFiles || []), ...(conciseness.changedFiles || []),
   ].filter(Boolean);
   const coupling = mode === 'dry-run' || changedThisPass.length === 0
     ? 'No files changed this pass — nothing to couple.'
@@ -868,7 +1207,8 @@ export async function runDocument(rawArgs) {
 
   // ── Unified report ──────────────────────────────────────────────────────────
   const report = buildDocumentReport({
-    mode, handover, readme, blocksCommit, dashboard, archival, archivalCommit, coupling,
+    mode, handover, readme, blocksCommit, dashboard, archival, archivalCommit,
+    conciseness, concisenessCommit, coupling,
   });
   stdout.write(report);
   if (!report.endsWith('\n')) stdout.write('\n');
@@ -887,13 +1227,21 @@ export async function runDocument(rawArgs) {
       stderr.write(`\ndocument --check: could not run detection — ${dashboard.wall}\n`);
       return 4;
     }
-    if (dashboard.driftTotal > 0) {
+    // SPEC_V021A AC-5: the gate now ALSO fails on a capability-lie or a
+    // deprecated-surface-as-primary finding from Step 5 (the new teeth), in
+    // addition to the existing coherence-dashboard drift.
+    const capLies = conciseness.findings.capability.length;
+    const depSurface = conciseness.findings.deprecated.length;
+    const newFindings = capLies + depSurface;
+    if (dashboard.driftTotal > 0 || newFindings > 0) {
       const d = dashboard.drift;
+      const total = dashboard.driftTotal + newFindings;
       stderr.write(
-        `\ndocument --check: FAIL — ${dashboard.driftTotal} conformance drift finding${dashboard.driftTotal === 1 ? '' : 's'} ` +
+        `\ndocument --check: FAIL — ${total} conformance finding${total === 1 ? '' : 's'} ` +
         `(${d.dangling.length} dangling · ${d.staleFacts.length} stale fact${d.staleFacts.length === 1 ? '' : 's'} · ` +
-        `${d.deprecated.length} deprecated-surface · ${d.stalePromises.length} stale promise${d.stalePromises.length === 1 ? '' : 's'}).\n` +
-        `  See ${REPORT_REL_PATH} for the details. (The roadmap heuristic is advisory and does NOT affect this gate.)\n`,
+        `${d.deprecated.length} deprecated-surface · ${d.stalePromises.length} stale promise${d.stalePromises.length === 1 ? '' : 's'} · ` +
+        `${capLies} capability-lie${capLies === 1 ? '' : 's'} · ${depSurface} deprecated-as-primary).\n` +
+        `  See ${REPORT_REL_PATH} for the dashboard details. (The roadmap heuristic is advisory and does NOT affect this gate.)\n`,
       );
       return 1;
     }

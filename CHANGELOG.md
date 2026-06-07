@@ -3,6 +3,7 @@
 One line per release, newest first, generated from each git tag's annotation by `mmdream document`. This is the *mechanical* release list; the narrative **History** above is the human-owned story of why each slice happened.
 
 <!-- mmd:readme:changelog:start -->
+- **v0.22.0** — the Documentalist detects OBSOLETE forward-looking narrative
 - **v0.21.0** — the Documentalist detects + acts: MOVE surplus, DELETE false/deprecated
 - **v0.20.0** — fix the alignment-gate oracle leak (per-dream expectation)
 - **v0.19.0** — mmdream document: the autonomous Documentalist orchestrator

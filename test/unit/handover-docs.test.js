@@ -13,8 +13,10 @@ import { parseLessons } from '../../lib/composer/parse-lessons.js';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const read = (rel) => readFileSync(path.join(ROOT, rel), 'utf8');
 
-test('@unit README lists the mmdream handover subcommand', () => {
-  assert.match(read('README.md'), /mmdream handover/);
+test('@unit README lists the current mmdream document command (handover is now a deprecated alias)', () => {
+  // `mmdream handover` was deprecated in favor of the one-agent `mmdream document`
+  // (v0.19+); the README now teaches the current command, not the deprecated alias.
+  assert.match(read('README.md'), /mmdream document/);
 });
 
 test('@unit ADR-020 documents the handover subcommand', () => {

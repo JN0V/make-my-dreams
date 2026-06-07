@@ -9,6 +9,7 @@ import path from 'node:path';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const read = (rel) => readFileSync(path.join(REPO_ROOT, rel), 'utf8');
+import { readReadmeSurface } from "../helpers/readme-surface.js";
 
 test('@unit AC-6: ADR-021 exists and covers the Dream Catcher rationale', () => {
   const p = 'docs/adr/021-dream-catcher.md';
@@ -33,7 +34,7 @@ test('@unit AC-6: L-021 is a formal lesson with Category / Applies to / Keywords
 });
 
 test('@unit AC-6: README documents Dream Catcher under mmd serve', () => {
-  const md = read('README.md');
+  const md = readReadmeSurface(REPO_ROOT);
   assert.match(md, /Dream Catcher/);
   assert.match(md, /\/api\/catch\/start/);
   assert.match(md, /ADR-021/);
@@ -56,7 +57,7 @@ test('@unit AC-7: ADR-022 exists and covers the dial + state-driven answer + tag
 });
 
 test('@unit AC-7: README covers the 3 levels + scope editing + /api/catch/edit', () => {
-  const md = read('README.md');
+  const md = readReadmeSurface(REPO_ROOT);
   assert.match(md, /Autonome/);
   assert.match(md, /Équilibré/);
   assert.match(md, /Guidé/);
@@ -90,7 +91,7 @@ test('@unit AC-6: L-022 is a formal lesson with Category / Applies to / Keywords
 });
 
 test('@unit AC-6: README documents interactive mmd dream mode + --catch/--no-catch + MMD_PROFILE', () => {
-  const md = read('README.md');
+  const md = readReadmeSurface(REPO_ROOT);
   assert.match(md, /--catch/);
   assert.match(md, /--no-catch/);
   assert.match(md, /MMD_PROFILE/);
@@ -129,7 +130,7 @@ test('@unit AC-5: CLAUDE.md says the Layer C composer now EXISTS (not "planned")
 });
 
 test('@unit AC-5: README documents the Layer C composer under MMD_PROFILE', () => {
-  const md = read('README.md');
+  const md = readReadmeSurface(REPO_ROOT);
   assert.match(md, /lib\/constitution-compose\.js/);
   assert.match(md, /Layer C/);
   assert.match(md, /ADR-024/);

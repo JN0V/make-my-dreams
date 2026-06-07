@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 import { SUBCOMMANDS } from '../../lib/argv-parser.js';
 import { detectDrift } from '../../lib/readme-sync/detect-drift.js';
+import { readReadmeSurface } from '../helpers/readme-surface.js';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const read = (rel) => readFileSync(path.join(ROOT, rel), 'utf8');
@@ -33,16 +34,22 @@ test('@unit ADR-025 documents the doc-sync design', () => {
   assert.match(adr, /tag annotation/i);
 });
 
-test('@unit live README.md carries BOTH marker pairs (status + changelog)', () => {
+test('@unit live README surface carries BOTH marker pairs (status in README, changelog wherever it lives)', () => {
+  // v0.21.a condensation moves the changelog markers to CHANGELOG.md (the refresh
+  // follows the marker, ADR-060), so the changelog pair may live in either file —
+  // the status pair stays in README. We assert BOTH pairs exist across the surface.
   const readme = read('README.md');
   assert.match(readme, /<!-- mmd:readme:status:start -->/);
   assert.match(readme, /<!-- mmd:readme:status:end -->/);
-  assert.match(readme, /<!-- mmd:readme:changelog:start -->/);
-  assert.match(readme, /<!-- mmd:readme:changelog:end -->/);
+  const surface = readReadmeSurface();
+  assert.match(surface, /<!-- mmd:readme:changelog:start -->/);
+  assert.match(surface, /<!-- mmd:readme:changelog:end -->/);
 });
 
-test('@unit the live README documents every registered SUBCOMMAND (no drift today)', () => {
-  const readme = read('README.md');
-  const r = detectDrift({ subcommands: [...SUBCOMMANDS], flags: [], readmeText: readme });
+test('@unit the live README surface documents every registered SUBCOMMAND (no drift today)', () => {
+  // The command docs live across the README + its extracted docs/readme-usage.md
+  // sibling since v0.21.a — the surface a reader reaches via the README's links.
+  const surface = readReadmeSurface();
+  const r = detectDrift({ subcommands: [...SUBCOMMANDS], flags: [], readmeText: surface });
   assert.deepEqual(r.subcommands, [], `undocumented subcommands: ${r.subcommands.join(', ')}`);
 });

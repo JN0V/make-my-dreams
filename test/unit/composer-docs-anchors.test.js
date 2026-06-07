@@ -9,9 +9,10 @@ import path from 'node:path';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const read = (rel) => readFileSync(path.join(REPO_ROOT, rel), 'utf8');
+import { readReadmeSurface } from "../helpers/readme-surface.js";
 
 test('@unit AC-6: README documents Category / Applies to + --context flag', () => {
-  const md = read('README.md');
+  const md = readReadmeSurface(REPO_ROOT);
   assert.match(md, /\*\*Category\*\*:/);
   assert.match(md, /\*\*Applies to\*\*:/);
   assert.match(md, /--context mmd-qa/);

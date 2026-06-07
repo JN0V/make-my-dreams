@@ -10,6 +10,7 @@ import path from 'node:path';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const read = (...p) => readFileSync(path.join(REPO_ROOT, ...p), 'utf8');
+import { readReadmeSurface } from "../helpers/readme-surface.js";
 
 test('@integration AC-6: ADR-057 exists and documents the 5 blind-spots + fixes', () => {
   const adrPath = path.join(REPO_ROOT, 'docs', 'adr', '057-documentalist-close-5-blind-spots.md');
@@ -31,7 +32,7 @@ test('@integration AC-6: ADR-057 exists and documents the 5 blind-spots + fixes'
 });
 
 test('@integration AC-6: README documents --check + the wider surface + the new checks + version 0.18.0', () => {
-  const readme = read('README.md');
+  const readme = readReadmeSurface(REPO_ROOT);
   assert.match(readme, /document-review --check/, 'README documents the --check gate');
   assert.match(readme, /deprecated[- ]surface/i, 'README mentions the deprecated-surface check');
   assert.match(readme, /promise/i, 'README mentions the promise check');

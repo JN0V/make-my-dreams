@@ -9,6 +9,7 @@ import path from 'node:path';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const read = (rel) => readFileSync(path.join(REPO_ROOT, rel), 'utf8');
+import { readReadmeSurface } from "../helpers/readme-surface.js";
 
 test('@unit AC-4: ADR-033 exists and covers suggestions + friction + composer-drop', () => {
   const p = 'docs/adr/033-constitution-suggestions-and-discover-friction.md';
@@ -24,7 +25,7 @@ test('@unit AC-4: ADR-033 exists and covers suggestions + friction + composer-dr
 });
 
 test('@unit AC-4: README documents constitution suggestions + the friction fix', () => {
-  const md = read('README.md');
+  const md = readReadmeSurface(REPO_ROOT);
   assert.match(md, /Constitution suggestions/);
   assert.match(md, /heuristic, not an audit/i);
   assert.match(md, /elle reste/);

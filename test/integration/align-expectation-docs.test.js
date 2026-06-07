@@ -8,6 +8,8 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
+import { readReadmeSurface } from '../helpers/readme-surface.js';
+
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const read = (...p) => readFileSync(path.join(REPO_ROOT, ...p), 'utf8');
 
@@ -25,7 +27,9 @@ test('@integration AC-5: ADR-056 exists and documents the frozen oracle + dual-f
 });
 
 test('@integration AC-5: README documents the frozen oracle + dual-face gate + version 0.17.0', () => {
-  const readme = read('README.md');
+  // v0.21.a condensed the README — the long-form docs live in its extracted
+  // siblings (docs/readme-usage.md etc); read the full surface (README + siblings).
+  const readme = readReadmeSurface(REPO_ROOT);
   assert.match(readme, /expectation\.md/, 'README names the frozen oracle file');
   assert.match(readme, /dual-face/i, 'README describes the dual-face gate');
   assert.match(readme, /ADR-056/);

@@ -7,6 +7,8 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
+import { readReadmeSurface } from '../helpers/readme-surface.js';
+
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 
 test('@integration AC-5: ADR-050 (stateless/resumable orchestrator) exists with the contract', () => {
@@ -39,7 +41,9 @@ test('@integration AC-5: version is at least 0.12.0 (the v0.12.a bump; later sli
 });
 
 test('@integration AC-5: README + CLAUDE.md mention the resumable orchestrator (v0.12.a)', () => {
-  const readme = readFileSync(path.join(REPO_ROOT, 'README.md'), 'utf8');
+  // v0.21.a condensed the README — its long-form History/Usage now live in the
+  // extracted siblings; read the full surface (README + siblings).
+  const readme = readReadmeSurface(REPO_ROOT);
   assert.match(readme, /v0\.12\.a/);
   assert.match(readme, /resumable|--resume/i);
   const claude = readFileSync(path.join(REPO_ROOT, 'CLAUDE.md'), 'utf8');

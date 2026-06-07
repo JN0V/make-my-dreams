@@ -10,6 +10,7 @@ import path from 'node:path';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const read = (...p) => readFileSync(path.join(REPO_ROOT, ...p), 'utf8');
+import { readReadmeSurface } from "../helpers/readme-surface.js";
 
 test('@integration AC-5: ADR-055 exists and documents model-per-role', () => {
   const adr = read('docs', 'adr', '055-model-per-task-role-policy.md');
@@ -23,7 +24,7 @@ test('@integration AC-5: ADR-055 exists and documents model-per-role', () => {
 });
 
 test('@integration AC-5: README documents the MMD_MODEL_<ROLE> overrides + the cost-aware defaults', () => {
-  const readme = read('README.md');
+  const readme = readReadmeSurface(REPO_ROOT);
   assert.match(readme, /MMD_MODEL_<ROLE>/, 'README names the override env var');
   assert.match(readme, /model-per-task/i, 'README describes the feature');
   // The cost-aware defaults are stated.

@@ -9,6 +9,7 @@ import path from 'node:path';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const read = (rel) => readFileSync(path.join(REPO_ROOT, rel), 'utf8');
+import { readReadmeSurface } from "../helpers/readme-surface.js";
 
 test('@unit AC-5: ADR-032 exists and covers the first-run-setup rationale', () => {
   const p = 'docs/adr/032-transparent-first-run-setup.md';
@@ -23,7 +24,7 @@ test('@unit AC-5: ADR-032 exists and covers the first-run-setup rationale', () =
 });
 
 test('@unit AC-5: README documents "Using MMD on your own repo"', () => {
-  const md = read('README.md');
+  const md = readReadmeSurface(REPO_ROOT);
   assert.match(md, /Using MMD on your own repo/);
   assert.match(md, /brownfield-app/);
   assert.match(md, /Run setup now\?/);

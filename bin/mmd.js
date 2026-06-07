@@ -98,12 +98,12 @@ Usage:
                                        blocks, write drift dashboard, archive SPECs, report coupling, auto-commit
                                        the lossless work; --check gates (exit 1) on drift, --dry-run previews (v0.19.0)
   mmdream handover [--tests N] [--dry-run] Refresh HANDOVER.md's mechanical State block (v0.2.p) [deprecated → mmdream document]
-  mmdream document-readme [--tests N] [--dry-run]
+  mmdream document-readme [--tests N] [--dry-run]  [deprecated → mmdream document]
                                        Refresh README.md's Status + Changelog blocks; report doc drift (v0.3.d)
-  mmdream document-review [--with-claude] [--dry-run] [--check]
+  mmdream document-review [--with-claude] [--dry-run] [--check]  [deprecated → mmdream document]
                                        Documentalist coherence review — designed-vs-built + doc-health + drift;
                                        --check gates (exit 1) on any conformance drift (v0.7.a, --check v0.18.0)
-  mmdream document-compact [--dry-run]     Documentalist active compaction — archive root SPEC_V*.md into docs/specs/ (v0.7.c)
+  mmdream document-compact [--dry-run]     Documentalist active compaction — archive root SPEC_V*.md into docs/specs/ (v0.7.c) [deprecated → mmdream document]
   mmdream test-health [--dry-run]          Test Curator — test-corpus health (stratification/untagged/oversized) → docs/test-health.md (v0.7.6)
   mmdream secret-scan [--staged | --since <ref>]
                                        Bundle A Security — scan for leaked credentials; gates (exit 1) on a

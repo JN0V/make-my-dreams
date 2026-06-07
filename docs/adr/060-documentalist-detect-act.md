@@ -125,10 +125,9 @@ deprecated surface.
   not on the moved siblings. So a deprecated mention that travels into, say,
   `docs/readme-history.md` is not re-scanned there. This is precision-first and
   acceptable: a relocated history/usage narrative is a reference-role sibling (not
-  primary teaching), and the next `mmdream document` pass would flag it via the
-  normal drift scan once siblings are added to the conformance surface. A future
-  enhancement could optionally scan moved siblings for deprecated surface —
-  deferred.
+  primary teaching). Moved sibling files are NOT automatically scanned by the drift
+  detector (the conformance surface is a static list of current-state docs). A
+  future enhancement could add moved siblings to the conformance surface; deferred.
 
 ## Live result (AC-6)
 

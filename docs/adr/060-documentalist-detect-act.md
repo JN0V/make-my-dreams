@@ -118,6 +118,17 @@ deprecated surface.
   categories, auto-removing a mid-sentence falsehood (flagged here — needs the LLM
   pass), generic reference-doc sharding, and a smart role classifier (role is
   heuristic-by-filename for now).
+- **Known limitation (v0.21)**: when a surplus section is MOVED to a sibling file
+  byte-losslessly, the sibling inherits the source doc's content **verbatim** —
+  including any deprecated references that lived in that content. The DELETE pass
+  (capability-lie / deprecated-surface removal) runs on the **source doc only**,
+  not on the moved siblings. So a deprecated mention that travels into, say,
+  `docs/readme-history.md` is not re-scanned there. This is precision-first and
+  acceptable: a relocated history/usage narrative is a reference-role sibling (not
+  primary teaching), and the next `mmdream document` pass would flag it via the
+  normal drift scan once siblings are added to the conformance surface. A future
+  enhancement could optionally scan moved siblings for deprecated surface —
+  deferred.
 
 ## Live result (AC-6)
 
